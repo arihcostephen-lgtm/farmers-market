@@ -1,7 +1,7 @@
 # Local Farm Market – Full-Stack E-Commerce Marketplace for Local Farmers
 
-**Live Demo** → [https://farmersmarket.infinityfreeapp.com/projects/Local_Farm_Market/](https://shohancs.com/projects/Local_Farm_Market/)  
-**GitHub Repository** → [github.com/Stephen-Ben/Local_Farm_Market](https://github.com/shohancs/Local_Farm_Market)
+**Live Demo** → [https://farmersmarket.infinityfreeapp.com/projects/Local_Farm_Market/]  
+**GitHub Repository** → [github.com/Stephen-Ben/Local_Farm_Market](https://github.com/arihcostephen-lgtm/Local_Farm_Market)
 
 ![Untitled design (3)](https://github.com/user-attachments/assets/29a0e280-93e0-447f-84a8-560db79b7cac)
 
@@ -31,10 +31,10 @@
 
 | Role            | Direct Link                                                                 | Credentials                  |
 |-----------------|-----------------------------------------------------------------------------|------------------------------|
-| Public Website  | [Open Site](https://shohancs.com/projects/Local_Farm_Market/)              | –                            |
-| Customer        | [Customer Login](https://shohancs.com/projects/Local_Farm_Market/login.php) | `user@gmail.com` / `12345`   |
-| Seller Dashboard| [Seller Panel](https://shohancs.com/projects/Local_Farm_Market/seller.php)  | `seller@gmail.com` / `12345` |
-| Admin Panel     | [Admin Panel](https://shohancs.com/projects/Local_Farm_Market/admin/)       | `admin@gmail.com` / `12345`  |
+| Public Website  | [Open Site](https://github.com/arihcostephenlgtm/farmers-market/)              | –                            |
+| Customer        | [Customer Login](https://github.com/aihcostephen-lgtm/projects/farmers-market/login.php) | `user@gmail.com` / `12345`   |
+| Seller Dashboard| [Seller Panel](https://github.com/arihcostephen-lgtm.com/farmers-market/seller.php)  | `seller@gmail.com` / `12345` |
+| Admin Panel     | [Admin Panel](https://github.com/arihcostephen-lgtm/farmers-market/Local_Farm_Market/admin/)       | `stephenarichco@gmail.com` / `12345`  |
 
 > Feel free to place orders, add products (as seller), approve/reject listings (as admin) – everything works end-to-end.
 
@@ -135,9 +135,9 @@
 Full-Stack Software Engineer  
 Available for Remote, Freelance & Full-time roles
 
-- 🌐 Portfolio: https://shohancs.com  
-- 📧 Email: **shohancs.dev@gmail.com**  
-- 🔗 LinkedIn: https://linkedin.com/in/shohancs  
+- 🌐 Portfolio:
+- 📧 Email: **stephenarichco@gmail.com**  
+- 🔗 LinkedIn: https://linkedin.com/in/Stephen_Arihco 
 
 ---
 
