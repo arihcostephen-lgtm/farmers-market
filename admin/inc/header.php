@@ -100,7 +100,7 @@
 			background: rgba(34,197,94,0.06) !important;
 		}
 	</style>
-	<title>Local Farm Market | Admin Dashboard</title>
+	<title>Farmers Market | Admin Dashboard</title>
 </head>
 
 <body>

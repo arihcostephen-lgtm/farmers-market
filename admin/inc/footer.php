@@ -1,5 +1,5 @@
 <footer class="page-footer">
-			<p class="mb-0">© 2026 Local Farm Market. All rights reserved.</p>
+			<p class="mb-0">© 2026 Farmers Market. All rights reserved.</p>
 		</footer>
 	</div>
 	<!--end wrapper-->

@@ -69,11 +69,7 @@
     <div class="page-content">
         <div class="card radius-10 border-0 shadow-sm">
             <div class="card-body">
-                <h1 class="mb-2">Welcome to Local Farm Market Admin</h1>
-                <p class="text-muted mb-0">Manage farmers, product categories, orders, posts, and marketing from one dashboard.</p>
-            </div>
-        </div>
-
+                <h1 class="mb-2">Welcome to Farmers Market Admin</h1>
         <?php
         $usersCount = (int) $db->query("SELECT COUNT(*) AS total FROM users WHERE status = 1")->fetch_assoc()['total'];
         $farmersCount = (int) $db->query("SELECT COUNT(*) AS total FROM farmer WHERE status = 1")->fetch_assoc()['total'];

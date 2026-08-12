@@ -19,9 +19,9 @@
 	$post_data['total_amount'] = $amount;
 	$post_data['currency'] = "BDT";
 	$post_data['tran_id'] = "SSLCZ_TEST_".uniqid();	
-	$post_data['success_url'] = "http://localhost/project/Local_Farm_Market/success.php";
-	$post_data['fail_url'] = "http://localhost/project/Local_Farm_Market/fail.php";
-	$post_data['cancel_url'] = "http://localhost/project/Local_Farm_Market/cancel.php";
+	$post_data['success_url'] = "http://localhost/farmers-market/success.php";
+	$post_data['fail_url'] = "http://localhost/farmers-market/fail.php";
+	$post_data['cancel_url'] = "http://localhost/farmers-market/cancel.php";
 	# $post_data['multi_card_name'] = "mastercard,visacard,amexcard";  # DISABLE TO DISPLAY ALL AVAILABLE
 
 	# EMI INFO
