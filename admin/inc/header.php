@@ -3,13 +3,11 @@
 	ob_start();
 	include "db.php";
 
-	if ( empty($_SESSION['user_id']) || empty($_SESSION['user_email']) ) {
-		header("Location: logout.php");
+	if ( empty($_SESSION['user_id']) || empty($_SESSION['user_email']) || empty($_SESSION['role']) || (int) $_SESSION['role'] !== 1 ) {
+		header("Location: index.php");
+		exit;
 	}
 ?>
-
-<!doctype html>
-<html lang="en" class="semi-dark">
 
 <head>
 	<!-- Required meta tags -->

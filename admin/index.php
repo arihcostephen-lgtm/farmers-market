@@ -3,28 +3,36 @@ session_start();
 ob_start();
 include "inc/db.php";
 
-if (!empty($_SESSION['user_id']) || !empty($_SESSION['user_email'])) {
+if (!empty($_SESSION['user_id']) && !empty($_SESSION['user_email']) && !empty($_SESSION['role']) && (int) $_SESSION['role'] === 1) {
     header("Location: dashboard.php");
     exit;
 }
 
 $login_error = "";
 if (isset($_POST['adminSubmit'])) {
-    $email = mysqli_real_escape_string($db, $_POST['email']);
-    $password = mysqli_real_escape_string($db, $_POST['password']);
-    $hassedPass = sha1($password);
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $email = mysqli_real_escape_string($db, $email);
+    $shaPass = sha1($password);
+    $md5Pass = md5($password);
 
-    $readSql = "SELECT * FROM users WHERE user_email='$email' AND status = 1";
+    $readSql = "SELECT * FROM users WHERE user_email = '$email' AND role = 1 AND status = 1 LIMIT 1";
     $readQuery = mysqli_query($db, $readSql);
-    $userCount = mysqli_num_rows($readQuery);
 
-    if ($userCount == 0) {
-        $login_error = 'Sorry! No user found in the database.';
+    if (!$readQuery || mysqli_num_rows($readQuery) === 0) {
+        $login_error = 'Sorry! No active admin account was found for that email.';
     } else {
         $row = mysqli_fetch_assoc($readQuery);
-        if ($row['role'] == 1 && $row['user_password'] === $hassedPass) {
-            $_SESSION['user_id'] = $row['user_id'];
+        if ($row['user_password'] === $shaPass || $row['user_password'] === $md5Pass) {
+            if ($row['user_password'] !== $shaPass) {
+                $updateSql = "UPDATE users SET user_password = '$shaPass' WHERE user_id = " . (int) $row['user_id'];
+                mysqli_query($db, $updateSql);
+            }
+
+            $_SESSION['user_id'] = (int) $row['user_id'];
+            $_SESSION['user_name'] = $row['user_name'];
             $_SESSION['user_email'] = $row['user_email'];
+            $_SESSION['role'] = (int) $row['role'];
             header("Location: dashboard.php");
             exit;
         } else {
@@ -34,13 +42,20 @@ if (isset($_POST['adminSubmit'])) {
 }
 
 if (isset($db)) {
-    $checkAdminSql = "SELECT user_id FROM users WHERE role = 1 LIMIT 1";
+    $checkAdminSql = "SELECT * FROM users WHERE role = 1 LIMIT 1";
     $checkAdminQuery = mysqli_query($db, $checkAdminSql);
 
     if ($checkAdminQuery && mysqli_num_rows($checkAdminQuery) == 0) {
         $defaultPassword = sha1('12345');
         $insertAdminSql = "INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status) VALUES ('Admin', 'admin@gmail.com', '$defaultPassword', '0000000000', 'Admin Address', 1, 1)";
         mysqli_query($db, $insertAdminSql);
+    } elseif ($checkAdminQuery) {
+        $admin = mysqli_fetch_assoc($checkAdminQuery);
+        if ($admin['user_email'] === 'admin@gmail.com' && $admin['user_password'] !== sha1('12345')) {
+            $defaultPassword = sha1('12345');
+            $fixAdminSql = "UPDATE users SET user_password = '$defaultPassword' WHERE user_email = 'admin@gmail.com' AND role = 1 LIMIT 1";
+            mysqli_query($db, $fixAdminSql);
+        }
     }
 }
 ?>
