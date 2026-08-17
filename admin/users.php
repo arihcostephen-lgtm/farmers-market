@@ -31,19 +31,19 @@
 
 			if ( $do == "Manage" ) { ?>
 				<div class="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
-					<div class="breadcrumb-title pe-3">Seller Management</div>
+					<div class="breadcrumb-title pe-3">Farmer Management</div>
 					<div class="ps-3">
 						<nav aria-label="breadcrumb">
 							<ol class="breadcrumb mb-0 p-0">
 								<li class="breadcrumb-item"><a href="dashboard.php"><i class="bx bx-home-alt"></i></a>
 								</li>
-								<li class="breadcrumb-item active" aria-current="page">Seller Manage</li>
+								<li class="breadcrumb-item active" aria-current="page">Manage Farmers</li>
 							</ol>
 						</nav>
 					</div>
 				</div>
 				<!--end breadcrumb-->
-				<h6 class="mb-0 text-uppercase">Manage Approved Sellers</h6>
+				<h6 class="mb-0 text-uppercase">Manage Approved Farmers</h6>
 				<hr>
 				<?php  
 					$pendingFarmersSql = "SELECT * FROM users WHERE role=2 AND status=2 ORDER BY join_date DESC";
@@ -55,8 +55,8 @@
 						<div class="card-body">
 							<div class="d-flex justify-content-between align-items-center mb-3">
 								<div>
-									<h6 class="mb-1">Pending Seller Requests</h6>
-									<p class="text-muted mb-0">Review new seller applications before they access the marketplace.</p>
+									<h6 class="mb-1">Pending Farmer Requests</h6>
+									<p class="text-muted mb-0">Review new Farmer applications before they access the marketplace.</p>
 								</div>
 								<span class="badge bg-warning text-dark"><?php echo number_format($pendingFarmersCount); ?> pending</span>
 							</div>

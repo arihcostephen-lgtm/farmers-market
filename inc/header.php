@@ -2,6 +2,21 @@
 	session_start(); 
 	ob_start();
 	include "admin/inc/db.php";
+
+	$siteSettingsSql = mysqli_query($db, "SELECT * FROM site_settings ORDER BY id DESC LIMIT 1");
+	$siteSettings = mysqli_fetch_assoc($siteSettingsSql) ?: [];
+	$siteTitle = htmlspecialchars($siteSettings['site_title'] ?? 'Local Farm Market');
+	$siteEmail = htmlspecialchars($siteSettings['contact_email'] ?? '');
+	$sitePhone = htmlspecialchars($siteSettings['contact_phone'] ?? '');
+	$siteAddress = htmlspecialchars($siteSettings['contact_address'] ?? '');
+	$siteStatus = (int) ($siteSettings['site_status'] ?? 1);
+	$maintenanceMessage = htmlspecialchars($siteSettings['maintenance_message'] ?? 'We are currently under maintenance. Please check back soon.');
+
+	if ($siteStatus === 0 && basename($_SERVER['PHP_SELF']) !== 'system_config.php' && strpos($_SERVER['PHP_SELF'], '/admin/') === false) {
+	    echo '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . $siteTitle . '</title><link rel="stylesheet" href="assets/vendor/bootstrap/css/bootstrap.min.css"></head><body class="bg-light">';
+	    echo '<div class="container py-5"><div class="card shadow-sm border-0"><div class="card-body text-center py-5"><h1 class="mb-3">' . $siteTitle . '</h1><p class="lead text-muted mb-0">' . $maintenanceMessage . '</p></div></div></div></body></html>';
+	    exit;
+	}
 ?>
 
 <!DOCTYPE html>
@@ -12,7 +27,7 @@
 		<meta charset="utf-8">
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">	
 
-		<title>Lacal Farmers market | Home</title>	
+		<title><?php echo $siteTitle; ?> | Home</title>	
 
 		<meta name="keywords" content="HTML5 Template" />
 		<meta name="description" content="Porto - Responsive HTML5 Template">

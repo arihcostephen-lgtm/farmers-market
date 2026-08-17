@@ -24,14 +24,79 @@
 	
 	<script>
 		$(document).ready(function() {
-			var table = $('#example3').DataTable( {
-				lengthChange: false,
-				buttons: [ 'copy', 'excel', 'pdf', 'print']
-			} );
-		 
-			table.buttons().container()
-				.appendTo( '#example3_wrapper .col-md-6:eq(0)' );
-		} );
+			var siteTitle = <?php echo json_encode($adminSiteTitle ?? 'Farmers Market'); ?>;
+			var logoPath = 'assets/images/logo.png';
+
+			function getBase64ImageFromURL(url, callback) {
+				var xhr = new XMLHttpRequest();
+				xhr.onload = function() {
+					var reader = new FileReader();
+					reader.onloadend = function() { callback(reader.result); };
+					reader.readAsDataURL(xhr.response);
+				};
+				xhr.onerror = function() { callback(null); };
+				xhr.open('GET', url);
+				xhr.responseType = 'blob';
+				xhr.send();
+			}
+
+			function initTable(logoData) {
+				var table = $('#example3').DataTable({
+					lengthChange: false,
+					buttons: [
+						'copy', 'excel',
+						{
+							extend: 'pdfHtml5',
+							text: 'PDF',
+							orientation: 'portrait',
+							pageSize: 'A4',
+							filename: siteTitle + '_export',
+							exportOptions: {
+								// exclude columns that have these classes on header or cells
+								columns: ':not(.noExport):not(.action):not(:last-child)'
+							},
+							customize: function(doc) {
+								doc.styles = doc.styles || {};
+								doc.styles.title = { fontSize: 16, bold: true, margin: [0, 8, 0, 8] };
+								if (logoData) {
+									var headerCols = [
+										{ image: logoData, width: 60, alignment: 'left', margin: [0, 0, 8, 0] },
+										{ text: siteTitle, style: 'title', alignment: 'center' }
+									];
+									doc.content.splice(0, 0, { columns: headerCols, margin: [0, 0, 0, 12] });
+								} else {
+									doc.content.unshift({ text: siteTitle, style: 'title', alignment: 'center', margin: [0, 0, 0, 12] });
+								}
+
+								// Remove any page-level messages that look like confirmation/deletion alerts
+								doc.content = (doc.content || []).filter(function(item){
+									var text = '';
+									if (!item) return false;
+									if (typeof item === 'string') text = item;
+									else if (item.text && typeof item.text === 'string') text = item.text;
+									else if (item.columns && Array.isArray(item.columns)) {
+										text = item.columns.map(function(c){ return (c && c.text && typeof c.text === 'string') ? c.text : ''; }).join(' ');
+									}
+									// Pattern matches common confirmation/deletion phrases
+									if (text && /are you sure|confirm|confirmation|delete(ed|ing)?|deleted|remove(d)?/i.test(text)) {
+										return false;
+									}
+									return true;
+								});
+							}
+						},
+						'print'
+					]
+				});
+				
+				table.buttons().container().appendTo('#example3_wrapper .col-md-6:eq(0)');
+			}
+
+			// preload logo then initialize table
+			getBase64ImageFromURL(logoPath, function(logoData) {
+				initTable(logoData);
+			});
+		});
 	</script>
 	<!-- Datatable js -->
 	  <script>

@@ -7,7 +7,9 @@
 		header("Location: index.php");
 		exit;
 	}
-?>
+	$adminSiteSettingsSql = mysqli_query($db, "SELECT * FROM site_settings ORDER BY id DESC LIMIT 1");
+	$adminSiteSettings = mysqli_fetch_assoc($adminSiteSettingsSql) ?: [];
+	$adminSiteTitle = htmlspecialchars($adminSiteSettings['site_title'] ?? 'Farmers Market');?>
 
 <head>
 	<!-- Required meta tags -->
@@ -98,7 +100,7 @@
 			background: rgba(34,197,94,0.06) !important;
 		}
 	</style>
-	<title>Farmers Market | Admin Dashboard</title>
+	<title><?php echo $adminSiteTitle; ?> | Admin Dashboard</title>
 </head>
 
 <body>

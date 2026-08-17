@@ -815,26 +815,25 @@
                                   </div>
 
                                   <div class="mb-3">
-                                    <label for=""  class="form-label">Select the Parent Category [ If Any ]</label>
-                                    <select class="form-select" name="is_parent">
-                                      <option value="1">Please select the parent category</option>
+                                    <label for=""  class="form-label">Product Category</label>
+                                    <select class="form-select" name="category_id" required>
+                                      <option value="">Select a category</option>
                                       <?php  
-                                        $sql = "SELECT * FROM category WHERE is_parent=1 AND status=1 ORDER BY cat_name ASC ";
+                                        $sql = "SELECT * FROM category WHERE status=1 ORDER BY cat_name ASC";
                                         $query = mysqli_query($db, $sql);
 
                                         while( $row = mysqli_fetch_assoc($query) ){
                                           $cat_id     = $row['cat_id'];
-                                        $cat_name     = $row['cat_name'];
+                                          $cat_name   = $row['cat_name'];
                                           ?>
 
-                                          <option value="<?php echo $cat_id; ?>"><?php echo $cat_name; ?></option>
+                                          <option value="<?php echo $cat_id; ?>"><?php echo htmlspecialchars($cat_name); ?></option>
 
                                           <?php
                                         }
                                       ?>
                                     </select>
                                   </div>
-                                  
 
                                   <div class="mb-3">
                                     <label for=""  class="form-label">Category Image</label>
@@ -872,7 +871,7 @@
                       if (isset($_POST['addCategory'])) {
                         $catName    = mysqli_real_escape_string($db, $_POST['catName']);
                         $price      = mysqli_real_escape_string($db, $_POST['price']);
-                        $is_parent    = mysqli_real_escape_string($db, $_POST['is_parent']);
+                        $is_parent  = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : 1;
                         $status     = mysqli_real_escape_string($db, $_POST['status']);
                         $seller_email   = mysqli_real_escape_string($db, $_POST['seller_email']);
                         $desc       = mysqli_real_escape_string($db, $_POST['desc']);
@@ -942,19 +941,19 @@
                                         </div>
 
                                         <div class="mb-3">
-                                          <label for="" class="form-label">Select the Parent Category [ If Any ]</label>
-                                          <select class="form-control" name="is_parent">
-                                            <option value="1">Please select the parent category</option>
+                                          <label for="" class="form-label">Product Category</label>
+                                          <select class="form-control" name="category_id">
+                                            <option value="">Select a category</option>
                                             <?php  
-                                              $p_sql = "SELECT * FROM category WHERE is_parent=1  ORDER BY cat_name ASC ";
+                                              $p_sql = "SELECT * FROM category WHERE status=1 ORDER BY cat_name ASC";
                                               $p_query = mysqli_query($db, $p_sql);
 
                                               while( $row = mysqli_fetch_assoc($p_query) ){
                                                 $p_cat_id     = $row['cat_id'];
-                                              $p_cat_name   = $row['cat_name'];
+                                                $p_cat_name   = $row['cat_name'];
                                               ?>
 
-                                              <option value="<?php echo $p_cat_id; ?>" <?php if( $p_cat_id == $is_parent ){ echo "selected"; } ?> ><?php echo $p_cat_name; ?></option>
+                                              <option value="<?php echo $p_cat_id; ?>" <?php if( $p_cat_id == $is_parent ){ echo "selected"; } ?> ><?php echo htmlspecialchars($p_cat_name); ?></option>
 
                                               <?php
                                               }
@@ -1032,7 +1031,7 @@
                       if (isset($_POST['updateCategory'])) {
                         $updateCategoryId   = mysqli_real_escape_string($db, $_POST['updateCategoryId']);
                         $catName      = mysqli_real_escape_string($db, $_POST['catName']);
-                        $is_parent      = mysqli_real_escape_string($db, $_POST['is_parent']);
+                        $is_parent    = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : 1;
                         $status       = mysqli_real_escape_string($db, $_POST['status']);
                         $desc         = mysqli_real_escape_string($db, $_POST['desc']);
                         $price        = mysqli_real_escape_string($db, $_POST['price']);
