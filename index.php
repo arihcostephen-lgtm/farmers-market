@@ -464,6 +464,7 @@
 										$sql = "INSERT INTO comments (user_id, user_number, subject, comments, status, cmt_date) VALUES('$useremail', '$userphone', '$title', '$message', '$status', now())";
 										$query = mysqli_query($db, $sql);
 										if ($query) {
+											farmers_market_notify_admin_support($db, $_POST['useremail'], $_POST['userphone'], $_POST['title'], $_POST['message']);
 											$_SESSION['msg'] = "We received your message. We will follow up soon.";
 											header("Location: index.php");
 										} else {

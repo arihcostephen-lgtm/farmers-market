@@ -21,8 +21,11 @@ function sanitize_display($html) {
         foreach ($nodes as $n) $n->parentNode->removeChild($n);
     }
     $body = '';
-    foreach ($doc->getElementsByTagName('body')->item(0)->childNodes as $child) {
+    $bodyNode = $doc->getElementsByTagName('body')->item(0);
+    if ($bodyNode) {
+      foreach ($bodyNode->childNodes as $child) {
         $body .= $doc->saveHTML($child);
+      }
     }
     return $body;
 }

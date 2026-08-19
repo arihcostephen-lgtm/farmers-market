@@ -1,14 +1,18 @@
 <?php 
 	session_start(); 
 	ob_start();
-	include "db.php";
+	require_once __DIR__ . '/db.php';
+	require_once __DIR__ . '/email.php';
 
 	if ( empty($_SESSION['user_id']) || empty($_SESSION['user_email']) || empty($_SESSION['role']) || (int) $_SESSION['role'] !== 1 ) {
 		header("Location: index.php");
 		exit;
 	}
-	$adminSiteSettingsSql = mysqli_query($db, "SELECT * FROM site_settings ORDER BY id DESC LIMIT 1");
-	$adminSiteSettings = mysqli_fetch_assoc($adminSiteSettingsSql) ?: [];
+	$adminSiteSettings = [];
+	$adminSiteSettingsSql = @mysqli_query($db, "SELECT * FROM site_settings ORDER BY id DESC LIMIT 1");
+	if ($adminSiteSettingsSql) {
+		$adminSiteSettings = mysqli_fetch_assoc($adminSiteSettingsSql) ?: [];
+	}
 	$adminSiteTitle = htmlspecialchars($adminSiteSettings['site_title'] ?? 'Farmers Market');?>
 
 <head>
@@ -108,9 +112,9 @@
 	<div class="wrapper">
 
 		<!-- ########## START: LEFT MENU ########## -->
-		<?php include "inc/leftmenu.php"; ?>
+		<?php include __DIR__ . '/leftmenu.php'; ?>
 		<!-- ########## END: LEFT MENU ########## -->
 
 		<!-- ########## START: SIDE BAR ########## -->
-		<?php include "inc/topbar.php"; ?>
+		<?php include __DIR__ . '/topbar.php'; ?>
 		<!-- ########## END: SIDE BAR ########## -->

@@ -100,6 +100,20 @@ CREATE TABLE IF NOT EXISTS category (
   INDEX idx_category_name (cat_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS products (
+  product_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_name VARCHAR(255) NOT NULL,
+  description TEXT DEFAULT NULL,
+  category_id INT UNSIGNED DEFAULT NULL,
+  price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  seller_email VARCHAR(150) DEFAULT NULL,
+  image VARCHAR(255) DEFAULT NULL,
+  status TINYINT(1) NOT NULL DEFAULT 1,
+  join_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_products_category_status (category_id, status),
+  INDEX idx_products_name (product_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS post (
   post_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
@@ -108,6 +122,7 @@ CREATE TABLE IF NOT EXISTS post (
   category_id INT UNSIGNED DEFAULT NULL,
   author_id INT UNSIGNED DEFAULT NULL,
   tags VARCHAR(255) DEFAULT NULL,
+  view_count INT UNSIGNED NOT NULL DEFAULT 0,
   status TINYINT(1) NOT NULL DEFAULT 1,
   post_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_post_status (status),
@@ -143,4 +158,4 @@ CREATE TABLE IF NOT EXISTS order_list (
 -- Optional seed entry for an admin account.
 -- This uses the same SHA1-based password handling used by the application.
 INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status)
-VALUES ('Admin', 'admin@gmail.com', '827ccb0eea8a706c4c34a16891f84e7b', '0000000000', 'Admin Address', 1, 1);
+VALUES ('Admin', 'stephenarichco@gmail.com', '827ccb0eea8a706c4c34a16891f84e7b', '+256761393437', 'Admin Address', 1, 1);

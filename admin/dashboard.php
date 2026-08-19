@@ -193,6 +193,7 @@
                 <?php
                 $usersCount = (int) $db->query("SELECT COUNT(*) AS total FROM users WHERE status = 1")->fetch_assoc()['total'];
                 $farmersCount = (int) $db->query("SELECT COUNT(*) AS total FROM farmer WHERE status = 1")->fetch_assoc()['total'];
+                $approvedFarmersCount = (int) $db->query("SELECT COUNT(*) AS total FROM users WHERE role = 2 AND status = 1")->fetch_assoc()['total'];
                 $categoriesCount = (int) $db->query("SELECT COUNT(*) AS total FROM category WHERE status = 1")->fetch_assoc()['total'];
                 $ordersCount = (int) $db->query("SELECT COUNT(*) AS total FROM order_list")->fetch_assoc()['total'];
                 $pendingOrdersCount = (int) $db->query("SELECT COUNT(*) AS total FROM order_list WHERE status = 0")->fetch_assoc()['total'];
@@ -385,7 +386,7 @@
                     <ul class="mini-list">
                         <li><strong>Pending</strong><span><?php echo number_format($pendingOrdersCount); ?></span></li>
                         <li><strong>Completed</strong><span><?php echo number_format($completedOrdersCount); ?></span></li>
-                        <li><strong>Active Farmers</strong><span><?php echo number_format($farmersCount); ?></span></li>
+                        <li><strong>Active Farmers</strong><span><?php echo number_format($approvedFarmersCount); ?></span></li>
                     </ul>
                 </div>
 

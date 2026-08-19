@@ -13,7 +13,7 @@
 								<h5 class="text-4 mb-3" style="color: #000;">CONTACT US</h5>
 								<ul class="list list-icons list-icons-lg">
 									<li class="mb-1"><i class="far fa-dot-circle text-color-primary"></i><p class="m-0">Ntinda, Kyambogo University, Kampala</p></li>
-									<li class="mb-1"><i class="fab fa-whatsapp text-color-primary"></i><p class="m-0"><a href="tel:8001234567">
+									<li class="mb-1"><i class="fab fa-whatsapp text-color-primary"></i><p class="m-0"><a href="tel:+256761393437">
 										<?php  
 						  					$userSql = "SELECT * FROM users WHERE role=1 AND status=1 ORDER BY user_id ASC LIMIT 1";
 									  		$userQuery = mysqli_query( $db, $userSql );

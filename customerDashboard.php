@@ -11,7 +11,7 @@ $customerName = htmlspecialchars($_SESSION['user_name'] ?? 'Customer');
 $customerEmail = $_SESSION['user_email'] ?? '';
 $customerPhone = $_SESSION['user_phone'] ?? '';
 
-$productsSql = "SELECT c.*, u.user_name AS farmer_name FROM category c LEFT JOIN users u ON u.user_email = c.seller_email WHERE c.status = 1 ORDER BY c.cat_name ASC";
+$productsSql = "SELECT p.*, c.cat_name, u.user_name AS farmer_name FROM products p LEFT JOIN category c ON c.cat_id = p.category_id LEFT JOIN users u ON u.user_email COLLATE utf8mb4_unicode_ci = p.seller_email COLLATE utf8mb4_unicode_ci WHERE p.status = 1 ORDER BY p.product_name ASC";
 $productsResult = $db->query($productsSql);
 $productsCount = $productsResult->num_rows;
 
@@ -47,12 +47,43 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
 ?>
 
 <style>
-    body { background: #06130d; color: #e9fff4; }
+    body { background: #06130d; color: #e9fff4; font-family: Roboto, sans-serif; }
     .customer-dashboard { min-height: 100vh; padding: 30px 0; }
     .dashboard-shell { background: rgba(6,19,13,0.95); border-radius: 18px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
-    .dashboard-sidebar { background: #082616; border-right: 1px solid rgba(255,255,255,0.06); }
-    .dashboard-sidebar .nav-link { color: #b8f8c6; border-radius: 12px; margin-bottom: 8px; }
-    .dashboard-sidebar .nav-link:hover, .dashboard-sidebar .nav-link.active { background: linear-gradient(135deg, #0e5f35 0%, #0b8a4a 100%); color: #ffffff; }
+    .dashboard-sidebar { background: #06130d; border-right: 1px solid rgba(255,255,255,0.06); }
+    .dashboard-sidebar h4 { color: #e9fff4; font-weight: 500; letter-spacing: .2px; }
+    .dashboard-sidebar .sidebar-caption { color: #9ef7b8; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; }
+    .dashboard-sidebar .nav { gap: 6px; }
+    .dashboard-sidebar .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-height: 46px;
+        padding: 10px 12px;
+        color: #cfeee0;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        transition: color .15s ease, background .15s ease, border-color .15s ease;
+    }
+    .dashboard-sidebar .nav-link .sidebar-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 28px;
+        width: 28px;
+        color: #9fe9c1;
+        font-size: 1rem;
+    }
+    .dashboard-sidebar .nav-link .sidebar-label { flex: 1; }
+    .dashboard-sidebar .nav-link:hover,
+    .dashboard-sidebar .nav-link.active {
+        background: linear-gradient(90deg, #0b8a4a 0%, #0b5b33 100%);
+        border-color: rgba(158, 247, 184, 0.18);
+        color: #ffffff;
+        box-shadow: inset 0 2px 0 rgba(0,0,0,0.12);
+    }
+    .dashboard-sidebar .nav-link:hover .sidebar-icon,
+    .dashboard-sidebar .nav-link.active .sidebar-icon { color: #ffffff; }
     .dashboard-card { background: #0d261a; border: 1px solid rgba(16,184,129,0.14); }
     .dashboard-card .card-header { background: transparent; border-bottom: 1px solid rgba(255,255,255,0.08); }
     .dashboard-card .btn-primary { background: #0f8a45; border-color: #0f8a45; }
@@ -67,6 +98,57 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
     .comment-box { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
     .product-tag { color: #9ffdd3; }
     .text-muted { color: rgba(233,255,244,0.72) !important; }
+    .customer-dashboard,
+    .customer-dashboard .dashboard-shell,
+    .customer-dashboard .dashboard-card,
+    .customer-dashboard .product-card {
+        color: #e9fff4;
+    }
+    .customer-dashboard h1,
+    .customer-dashboard h2,
+    .customer-dashboard h3,
+    .customer-dashboard h4,
+    .customer-dashboard h5,
+    .customer-dashboard h6,
+    .customer-dashboard label,
+    .customer-dashboard .form-label,
+    .customer-dashboard .card-header,
+    .customer-dashboard .card-body,
+    .customer-dashboard .form-check-label {
+        color: #e9fff4 !important;
+    }
+    .customer-dashboard .text-muted,
+    .customer-dashboard small.text-muted,
+    .customer-dashboard .product-card p.text-muted {
+        color: #b8d8c5 !important;
+    }
+    .customer-dashboard .product-tag,
+    .customer-dashboard .section-title {
+        color: #9ef7b8 !important;
+    }
+    .customer-dashboard a:not(.nav-link) {
+        color: #9ef7b8;
+    }
+    .customer-dashboard a:not(.nav-link):hover {
+        color: #c9ffd9;
+    }
+    .customer-dashboard .form-control,
+    .customer-dashboard .form-select {
+        color: #f2fff7 !important;
+    }
+    .customer-dashboard .form-control::placeholder {
+        color: #a9c7b5 !important;
+        opacity: 1;
+    }
+    .customer-dashboard .form-select option {
+        background: #0d261a;
+        color: #e9fff4;
+    }
+    .customer-dashboard .alert-secondary {
+        background: rgba(158, 247, 184, 0.12);
+        border-color: rgba(158, 247, 184, 0.22);
+        color: #dfffe9 !important;
+    }
     @media (max-width: 991px) {
         .dashboard-sidebar { border-right: none; }
     }
@@ -77,15 +159,15 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
         <aside class="col-lg-3 p-4 dashboard-sidebar">
             <div class="mb-4 text-center">
                 <h4 class="mb-1">Hello, <?php echo $customerName; ?></h4>
-                <p class="text-muted">Customer dashboard</p>
+                <p class="sidebar-caption mb-0">Customer dashboard</p>
             </div>
             <nav class="nav flex-column">
-                <a class="nav-link active" href="#overview"><i class="fas fa-chart-pie me-2"></i>Dashboard Overview</a>
-                <a class="nav-link" href="#view-cart"><i class="fas fa-shopping-cart me-2"></i>View Cart</a>
-                <a class="nav-link" href="#check-products"><i class="fas fa-box-open me-2"></i>Check Products</a>
-                <a class="nav-link" href="#browse"><i class="fas fa-search me-2"></i>Browse Marketplace</a>
-                <a class="nav-link" href="#add-comments"><i class="fas fa-comments me-2"></i>Add Comments</a>
-                <a class="nav-link" href="order_history.php"><i class="fas fa-history me-2"></i>Order History</a>
+                <a class="nav-link active" href="#overview"><span class="sidebar-icon"><i class="fas fa-chart-pie"></i></span><span class="sidebar-label">Dashboard Overview</span></a>
+                <a class="nav-link" href="#view-cart"><span class="sidebar-icon"><i class="fas fa-shopping-cart"></i></span><span class="sidebar-label">View Cart</span></a>
+                <a class="nav-link" href="#check-products"><span class="sidebar-icon"><i class="fas fa-box-open"></i></span><span class="sidebar-label">Check Products</span></a>
+                <a class="nav-link" href="#browse"><span class="sidebar-icon"><i class="fas fa-search"></i></span><span class="sidebar-label">Browse Marketplace</span></a>
+                <a class="nav-link" href="#add-comments"><span class="sidebar-icon"><i class="fas fa-comments"></i></span><span class="sidebar-label">Add Comments</span></a>
+                <a class="nav-link" href="order_history.php"><span class="sidebar-icon"><i class="fas fa-history"></i></span><span class="sidebar-label">Order History</span></a>
             </nav>
         </aside>
 
@@ -170,13 +252,19 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                         <div class="card product-card h-100 p-3">
                                             <div class="card-body d-flex flex-column justify-content-between">
                                                 <div>
-                                                    <h6 class="text-white"><?php echo htmlspecialchars($product['cat_name']); ?></h6>
-                                                    <p class="text-muted mb-2"><?php echo htmlspecialchars($product['cat_desc'] ?: 'Fresh farm produce'); ?></p>
+                                                    <h6 class="text-white"><?php echo htmlspecialchars($product['product_name']); ?></h6>
+                                                    <p class="text-muted mb-2"><?php echo htmlspecialchars($product['description'] ?: 'Fresh farm produce'); ?></p>
+                                                    <small class="text-muted d-block mb-2"><?php echo htmlspecialchars($product['cat_name'] ?: 'Uncategorized'); ?></small>
                                                     <div class="badge mb-2"><?php echo htmlspecialchars($product['farmer_name'] ?: 'Local Farm Market'); ?></div>
                                                 </div>
                                                 <div class="d-flex justify-content-between align-items-center mt-3">
                                                     <span class="text-success h6">UGX <?php echo number_format($product['price'], 2); ?></span>
-                                                    <a href="placeOrder.php?product=<?php echo (int) $product['cat_id']; ?>" class="btn btn-sm btn-primary">Add to Cart</a>
+                                                    <div class="d-flex gap-2">
+                                                        <?php if (filter_var($product['seller_email'], FILTER_VALIDATE_EMAIL)) { ?>
+                                                            <a href="mailto:<?php echo htmlspecialchars($product['seller_email']); ?>?subject=<?php echo rawurlencode('Question about ' . $product['product_name']); ?>&body=<?php echo rawurlencode('Hello, I have a question about your product: ' . $product['product_name']); ?>" class="btn btn-sm btn-outline-success">Contact Farmer</a>
+                                                        <?php } ?>
+                                                        <a href="placeOrder.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-primary">Add to Cart</a>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -211,14 +299,20 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                         </div>
                         <div class="row g-3 mt-3" id="browse-results">
                             <?php $productsResult->data_seek(0); while ($product = $productsResult->fetch_assoc()): ?>
-                                <div class="col-md-6 browse-card" data-name="<?php echo strtolower(htmlspecialchars($product['cat_name'])); ?>" data-category="<?php echo strtolower(htmlspecialchars($product['cat_name'])); ?>">
+                                <div class="col-md-6 browse-card" data-name="<?php echo strtolower(htmlspecialchars($product['product_name'])); ?>" data-category="<?php echo strtolower(htmlspecialchars($product['cat_name'] ?? '')); ?>">
                                     <div class="card product-card p-3">
                                         <div class="card-body">
-                                            <h6 class="text-white"><?php echo htmlspecialchars($product['cat_name']); ?></h6>
-                                            <p class="text-muted mb-2"><?php echo htmlspecialchars($product['cat_desc'] ?: 'Fresh farm produce'); ?></p>
+                                            <h6 class="text-white"><?php echo htmlspecialchars($product['product_name']); ?></h6>
+                                            <p class="text-muted mb-2"><?php echo htmlspecialchars($product['description'] ?: 'Fresh farm produce'); ?></p>
+                                            <small class="text-muted d-block mb-2"><?php echo htmlspecialchars($product['cat_name'] ?: 'Uncategorized'); ?></small>
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">UGX <?php echo number_format($product['price'], 2); ?></span>
-                                                <a href="placeOrder.php?product=<?php echo (int) $product['cat_id']; ?>" class="btn btn-sm btn-primary">Order</a>
+                                                <div class="d-flex gap-2">
+                                                    <?php if (filter_var($product['seller_email'], FILTER_VALIDATE_EMAIL)) { ?>
+                                                        <a href="mailto:<?php echo htmlspecialchars($product['seller_email']); ?>?subject=<?php echo rawurlencode('Question about ' . $product['product_name']); ?>&body=<?php echo rawurlencode('Hello, I have a question about your product: ' . $product['product_name']); ?>" class="btn btn-sm btn-outline-success">Contact Farmer</a>
+                                                    <?php } ?>
+                                                    <a href="placeOrder.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-primary">Order</a>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

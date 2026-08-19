@@ -24,7 +24,13 @@
 						</div>
 						<!-- Top Icon -->
 
-						<h6 class="mb-3 text-uppercase">Manage Post Management</h6><hr>
+						<div class="d-flex align-items-center justify-content-between mb-3">
+							<h6 class="mb-0 text-uppercase">Manage Blog Posts</h6>
+							<div>
+								<a href="post.php?do=Add" class="btn btn-success btn-sm me-2"><i class="fa-solid fa-plus me-1"></i>Add Blog</a>
+								<a href="post.php?do=ManageTrash" class="btn btn-secondary btn-sm"><i class="fa-solid fa-trash me-1"></i>Trash</a>
+							</div>
+						</div><hr>
 
 						<!-- ########## START: MAIN BODY ########## -->
 						<div class="card">
@@ -291,22 +297,19 @@
 							if (!empty($image)) {
 								$img = rand(0, 9999999) . "-" . $image;
 								move_uploaded_file($temp_image, 'assets/images/posts/' . $img);
-
-								$postAdd_sql = "INSERT INTO post (title, post_desc, image, category_id, author_id, tags, status, post_date) VALUES ('$title', '$post_desc','$img', '$cate_id', '$author_id', '$tags', '$status', now() ) ";
-								$postAdd_query = mysqli_query($db, $postAdd_sql);
-
-								if ($postAdd_query) {
-									header("Location: post.php?do=Manage");
-								}
-								else {
-									die("mysqli Error!" . mysqli_error($db));
-								}
 							}
 							else {
 								$img = '';
 							}
 
-							
+							$postAdd_sql = "INSERT INTO post (title, post_desc, image, category_id, author_id, tags, status, post_date) VALUES ('$title', '$post_desc','$img', '$cate_id', '$author_id', '$tags', '$status', now() ) ";
+							$postAdd_query = mysqli_query($db, $postAdd_sql);
+
+							if ($postAdd_query) {
+								header("Location: post.php?do=Manage");
+								exit;
+							}
+							die("mysqli Error!" . mysqli_error($db));
 						}
 					}
 
@@ -480,7 +483,7 @@
 
 					else if ( $do == "Trash" ) {
 						if (isset($_GET['delPostId'])) {
-							$deletePostId = $_GET['delPostId'];
+							$deletePostId = (int) $_GET['delPostId'];
 							$trash_Sql = "UPDATE post SET status=0 WHERE post_id='$deletePostId'";
 							$trash_query = mysqli_query($db, $trash_Sql);
 
@@ -637,7 +640,7 @@
 
 					else if ( $do == "Delete" ) {
 						if (isset($_GET['delPostId'])) {
-							$deletePostData = $_GET['delPostId'];
+							$deletePostData = (int) $_GET['delPostId'];
 							$delete_Sql = "DELETE FROM post WHERE post_id='$deletePostData'";
 							$delete_query = mysqli_query($db, $delete_Sql);
 

@@ -37,6 +37,10 @@
                 <div class="alert alert-success" role="alert">
                   Account created successfully. Please log in with your new credentials.
                 </div>
+							<?php } elseif (isset($_GET['status']) && $_GET['status'] === 'pending') { ?>
+								<div class="alert alert-info" role="alert">
+									Farmer registration submitted. Please wait for admin approval before logging in.
+								</div>
               <?php } ?>
 
               <form action="" method="POST">

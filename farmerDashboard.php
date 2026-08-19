@@ -2,6 +2,7 @@
   session_start(); 
   ob_start();
   include "admin/inc/db.php";
+  require_once __DIR__ . '/admin/inc/email.php';
 ?>
 
 <!doctype html>
@@ -324,10 +325,12 @@
                             $topProducts[] = $product;
                           }
 
-                          $customerRequestSql = "SELECT o.or_id, o.user_id, o.user_phone, o.or_name, o.price, o.join_date, c.cat_name " .
+                          $customerRequestSql = "SELECT o.or_id, o.user_id, o.user_phone, o.or_name, o.price, o.join_date, COALESCE(p.product_name, c.cat_name) AS product_name, u.user_email AS customer_email " .
                                                 "FROM order_list o " .
+                                                "LEFT JOIN products p ON p.product_id=o.or_category " .
                                                 "LEFT JOIN category c ON c.cat_id=o.or_category " .
-                                                "WHERE c.seller_email='$farmerEmail' " .
+                                                "LEFT JOIN users u ON u.user_id=o.user_id " .
+                                                "WHERE (p.seller_email='$farmerEmail' OR c.seller_email='$farmerEmail') " .
                                                 "ORDER BY o.join_date DESC " .
                                                 "LIMIT 6";
                           $customerRequestQuery = mysqli_query($db, $customerRequestSql);
@@ -447,11 +450,14 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                           <div>
                                             <h6 class="mb-1"><?php echo htmlspecialchars($request['or_name']); ?></h6>
-                                            <p class="mb-1 text-muted small">Product: <?php echo htmlspecialchars($request['cat_name'] ?: 'Unknown'); ?></p>
+                                            <p class="mb-1 text-muted small">Product: <?php echo htmlspecialchars($request['product_name'] ?: 'Unknown'); ?></p>
                                             <p class="mb-0 text-muted small">Customer: <?php echo htmlspecialchars($request['user_id'] ?: 'Guest'); ?> • <?php echo htmlspecialchars($request['user_phone'] ?: 'No phone'); ?></p>
                                           </div>
                                           <span class="badge bg-light text-dark"><?php echo date('M j', strtotime($request['join_date'])); ?></span>
                                         </div>
+                                        <?php if (filter_var($request['customer_email'], FILTER_VALIDATE_EMAIL)) { ?>
+                                          <a href="mailto:<?php echo htmlspecialchars($request['customer_email']); ?>?subject=<?php echo rawurlencode('Reply about ' . ($request['product_name'] ?: $request['or_name'])); ?>&body=<?php echo rawurlencode('Hello, regarding your interest in ' . ($request['product_name'] ?: $request['or_name']) . ':'); ?>" class="btn btn-sm btn-outline-primary mt-3">Reply Customer</a>
+                                        <?php } ?>
                                       </div>
                                     <?php } ?>
                                   </div>
@@ -777,6 +783,7 @@
                                     $query = mysqli_query( $db, $sql );
 
                                     if ($query) {
+                                      farmers_market_notify_admin_support($db, $_POST['useremail'], $_POST['userphone'], $_POST['title'], $_POST['message']);
                                       $_SESSION['msg'] = "We Received your message. After of some times letter we will call & email you. Thank you for with us.";
                                       header("Location: farmerDashboard.php?do=Support");
                                     }
@@ -815,25 +822,26 @@
                                   </div>
 
                                   <div class="mb-3">
-                                    <label for=""  class="form-label">Product Category</label>
-                                    <select class="form-select" name="category_id" required>
-                                      <option value="">Select a category</option>
+                                    <label for=""  class="form-label">Select the Parent Category [ If Any ]</label>
+                                    <select class="form-select" name="is_parent">
+                                      <option value="1">Please select the parent category</option>
                                       <?php  
-                                        $sql = "SELECT * FROM category WHERE status=1 ORDER BY cat_name ASC";
+                                        $sql = "SELECT * FROM category WHERE is_parent=1 AND status=1 ORDER BY cat_name ASC ";
                                         $query = mysqli_query($db, $sql);
 
                                         while( $row = mysqli_fetch_assoc($query) ){
                                           $cat_id     = $row['cat_id'];
-                                          $cat_name   = $row['cat_name'];
+                                        $cat_name     = $row['cat_name'];
                                           ?>
 
-                                          <option value="<?php echo $cat_id; ?>"><?php echo htmlspecialchars($cat_name); ?></option>
+                                          <option value="<?php echo $cat_id; ?>"><?php echo $cat_name; ?></option>
 
                                           <?php
                                         }
                                       ?>
                                     </select>
                                   </div>
+                                  
 
                                   <div class="mb-3">
                                     <label for=""  class="form-label">Category Image</label>
@@ -871,7 +879,7 @@
                       if (isset($_POST['addCategory'])) {
                         $catName    = mysqli_real_escape_string($db, $_POST['catName']);
                         $price      = mysqli_real_escape_string($db, $_POST['price']);
-                        $is_parent  = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : 1;
+                        $is_parent    = mysqli_real_escape_string($db, $_POST['is_parent']);
                         $status     = mysqli_real_escape_string($db, $_POST['status']);
                         $seller_email   = mysqli_real_escape_string($db, $_POST['seller_email']);
                         $desc       = mysqli_real_escape_string($db, $_POST['desc']);
@@ -941,19 +949,19 @@
                                         </div>
 
                                         <div class="mb-3">
-                                          <label for="" class="form-label">Product Category</label>
-                                          <select class="form-control" name="category_id">
-                                            <option value="">Select a category</option>
+                                          <label for="" class="form-label">Select the Parent Category [ If Any ]</label>
+                                          <select class="form-control" name="is_parent">
+                                            <option value="1">Please select the parent category</option>
                                             <?php  
-                                              $p_sql = "SELECT * FROM category WHERE status=1 ORDER BY cat_name ASC";
+                                              $p_sql = "SELECT * FROM category WHERE is_parent=1  ORDER BY cat_name ASC ";
                                               $p_query = mysqli_query($db, $p_sql);
 
                                               while( $row = mysqli_fetch_assoc($p_query) ){
                                                 $p_cat_id     = $row['cat_id'];
-                                                $p_cat_name   = $row['cat_name'];
+                                              $p_cat_name   = $row['cat_name'];
                                               ?>
 
-                                              <option value="<?php echo $p_cat_id; ?>" <?php if( $p_cat_id == $is_parent ){ echo "selected"; } ?> ><?php echo htmlspecialchars($p_cat_name); ?></option>
+                                              <option value="<?php echo $p_cat_id; ?>" <?php if( $p_cat_id == $is_parent ){ echo "selected"; } ?> ><?php echo $p_cat_name; ?></option>
 
                                               <?php
                                               }
@@ -1031,7 +1039,7 @@
                       if (isset($_POST['updateCategory'])) {
                         $updateCategoryId   = mysqli_real_escape_string($db, $_POST['updateCategoryId']);
                         $catName      = mysqli_real_escape_string($db, $_POST['catName']);
-                        $is_parent    = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : 1;
+                        $is_parent      = mysqli_real_escape_string($db, $_POST['is_parent']);
                         $status       = mysqli_real_escape_string($db, $_POST['status']);
                         $desc         = mysqli_real_escape_string($db, $_POST['desc']);
                         $price        = mysqli_real_escape_string($db, $_POST['price']);

@@ -87,7 +87,13 @@
 
 							<li class="">
 								<a class="dropdown-item dropdown-toggle" href="seller.php">
-									Farmer Account
+									<i class="fa-solid fa-wheat-awn px-1"></i> Farmer Account
+								</a>
+							</li>
+
+							<li class="">
+								<a class="dropdown-item dropdown-toggle" href="admin/index.php">
+									<i class="fa-solid fa-user-shield px-1"></i> Admin Login
 								</a>
 							</li>
 							<?php  

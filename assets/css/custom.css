@@ -1,1 +1,81 @@
 .action-btn,.modal-btn{text-align:center}.action-btn ul{padding:0;margin:0}.action-btn ul li{list-style:none;display:inline;margin:0 5px}.action-btn ul li .edit{color:green}.action-btn ul li .trush{color:red}.card-body{color:#000}
+
+/* Shift main content to account for fixed admin sidebar (scoped to farmer dashboard) */
+body.farmer-dashboard main.main_body, body.farmer-dashboard .page-wrapper {
+	margin-left: 250px !important;
+	width: auto !important;
+	max-width: calc(100% - 250px) !important;
+	box-sizing: border-box !important;
+}
+
+/* When sidebar is collapsed (smaller widths), use the admin collapsed width */
+@media (max-width: 991px) {
+	body.farmer-dashboard main.main_body, body.farmer-dashboard .page-wrapper {
+		margin-left: 70px !important;
+		width: auto !important;
+		max-width: calc(100% - 70px) !important;
+	}
+}
+
+/* Also offset the main container so fixed sidebar does not overlay content */
+body.farmer-dashboard .container-fluid{
+	margin-left: 250px !important;
+	padding-left: 1rem !important;
+}
+@media (max-width: 991px) {
+	body.farmer-dashboard .container-fluid{
+		margin-left: 70px !important;
+	}
+}
+
+/* Ensure sidebar is fixed and sized like admin sidebar */
+body.farmer-dashboard .sidebar-col.sidebar-wrapper{
+	position:fixed !important;
+	left:0 !important;
+	top:0 !important;
+	bottom:0 !important;
+	width:250px !important;
+	z-index:1030 !important;
+}
+
+/* Reduce sidebar width on farmer dashboard so it doesn't overly cover content */
+/* Reduce sidebar width on farmer dashboard so it doesn't overly cover content */
+body.farmer-dashboard .sidebar-col.sidebar-wrapper.reduced-width{
+	width:120px !important;
+	flex: 0 0 120px !important;
+}
+
+/* When reduced, ensure main and containers are offset to avoid overlap */
+body.farmer-dashboard main.main_body,
+body.farmer-dashboard .page-wrapper,
+body.farmer-dashboard .container-fluid {
+	margin-left: 120px !important;
+	max-width: calc(100% - 120px) !important;
+}
+
+@media (max-width: 991px) {
+	body.farmer-dashboard .sidebar-col.sidebar-wrapper.reduced-width,
+	body.farmer-dashboard .sidebar-col.sidebar-wrapper {
+		width:70px !important;
+	}
+	body.farmer-dashboard .sidebar-col.sidebar-wrapper.reduced-width ~ main.main_body,
+	body.farmer-dashboard .sidebar-col.sidebar-wrapper.reduced-width ~ .page-wrapper,
+	body.farmer-dashboard .sidebar-col.sidebar-wrapper.reduced-width ~ .container-fluid{
+		margin-left:70px !important;
+		max-width: calc(100% - 70px) !important;
+	}
+}
+
+/* Ensure container and rows inside farmer dashboard can expand fully */
+body.farmer-dashboard .container-fluid,
+body.farmer-dashboard .row,
+body.farmer-dashboard .row.flex-nowrap {
+	width: 100% !important;
+	max-width: 100% !important;
+}
+
+/* Ensure main column uses full available width and allows overflow when needed */
+body.farmer-dashboard main.col {
+	min-width: 0 !important;
+	overflow: visible !important;
+}

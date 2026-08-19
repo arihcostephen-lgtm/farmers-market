@@ -1,10 +1,14 @@
 <?php 
 	session_start(); 
 	ob_start();
-	include "admin/inc/db.php";
+	require_once __DIR__ . '/../admin/inc/db.php';
+	require_once __DIR__ . '/../admin/inc/email.php';
 
-	$siteSettingsSql = mysqli_query($db, "SELECT * FROM site_settings ORDER BY id DESC LIMIT 1");
-	$siteSettings = mysqli_fetch_assoc($siteSettingsSql) ?: [];
+	$siteSettings = [];
+	$siteSettingsSql = @mysqli_query($db, "SELECT * FROM site_settings ORDER BY id DESC LIMIT 1");
+	if ($siteSettingsSql) {
+		$siteSettings = mysqli_fetch_assoc($siteSettingsSql) ?: [];
+	}
 	$siteTitle = htmlspecialchars($siteSettings['site_title'] ?? 'Local Farm Market');
 	$siteEmail = htmlspecialchars($siteSettings['contact_email'] ?? '');
 	$sitePhone = htmlspecialchars($siteSettings['contact_phone'] ?? '');
@@ -12,7 +16,8 @@
 	$siteStatus = (int) ($siteSettings['site_status'] ?? 1);
 	$maintenanceMessage = htmlspecialchars($siteSettings['maintenance_message'] ?? 'We are currently under maintenance. Please check back soon.');
 
-	if ($siteStatus === 0 && basename($_SERVER['PHP_SELF']) !== 'system_config.php' && strpos($_SERVER['PHP_SELF'], '/admin/') === false) {
+	$requestedPath = str_replace('\\', '/', $_SERVER['PHP_SELF'] ?? '');
+	if ($siteStatus === 0 && basename($requestedPath) !== 'system_config.php' && strpos($requestedPath, '/admin/') === false) {
 	    echo '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . $siteTitle . '</title><link rel="stylesheet" href="assets/vendor/bootstrap/css/bootstrap.min.css"></head><body class="bg-light">';
 	    echo '<div class="container py-5"><div class="card shadow-sm border-0"><div class="card-body text-center py-5"><h1 class="mb-3">' . $siteTitle . '</h1><p class="lead text-muted mb-0">' . $maintenanceMessage . '</p></div></div></div></body></html>';
 	    exit;
@@ -45,6 +50,7 @@
 
 		<!-- Vendor CSS -->
 		<link rel="stylesheet" href="assets/vendor/bootstrap/css/bootstrap.min.css">
+		<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;display=swap" rel="stylesheet">
 		<link rel="stylesheet" href="assets/vendor/fontawesome-free/css/all.min.css">
 		<link rel="stylesheet" href="assets/vendor/animate/animate.min.css">
 		<link rel="stylesheet" href="assets/vendor/simple-line-icons/css/simple-line-icons.min.css">
@@ -331,11 +337,11 @@
 
 							<div class="header-column justify-content-end">
 								<!-- START: TOP NAVIGATION PART -->
-								<?php include "inc/top_navigation.php"; ?>
+								<?php include __DIR__ . '/top_navigation.php'; ?>
 								<!-- END: TOP NAVIGATION PART -->
 
 								<!-- START: Main NAVIGATION PART -->
-								<?php include "inc/navigation.php"; ?>
+								<?php include __DIR__ . '/navigation.php'; ?>
 								<!-- END: Main NAVIGATION PART -->
 
 								

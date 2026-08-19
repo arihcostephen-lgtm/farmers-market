@@ -12,9 +12,9 @@ if (isset($_POST['place_order'])) {
     $productId = (int) $_POST['product_id'];
     $userId = (int) $_SESSION['user_id'];
     $userPhone = mysqli_real_escape_string($db, $_SESSION['user_phone'] ?? '');
-    $productQuery = $db->query("SELECT cat_name, price, seller_email FROM category WHERE cat_id = $productId AND status = 1 LIMIT 1");
+    $productQuery = $db->query("SELECT product_name, price, seller_email FROM products WHERE product_id = $productId AND status = 1 LIMIT 1");
     if ($product = $productQuery->fetch_assoc()) {
-        $insertSql = "INSERT INTO order_list (user_id, user_phone, or_name, or_category, price, status, join_date) VALUES ('$userId', '$userPhone', '{$product['cat_name']}', '$productId', '{$product['price']}', 0, NOW())";
+      $insertSql = "INSERT INTO order_list (user_id, user_phone, or_name, or_category, price, status, join_date) VALUES ('$userId', '$userPhone', '{$product['product_name']}', '$productId', '{$product['price']}', 0, NOW())";
         $db->query($insertSql);
         header("Location: customerDashboard.php");
         exit;
@@ -22,7 +22,7 @@ if (isset($_POST['place_order'])) {
 }
 
 $productId = isset($_GET['product']) ? (int) $_GET['product'] : 0;
-$product = $db->query("SELECT cat_name, price FROM category WHERE cat_id = $productId AND status = 1 LIMIT 1")->fetch_assoc();
+$product = $db->query("SELECT product_name, price FROM products WHERE product_id = $productId AND status = 1 LIMIT 1")->fetch_assoc();
 ?>
 <!doctype html>
 <html lang="en">
@@ -38,7 +38,7 @@ $product = $db->query("SELECT cat_name, price FROM category WHERE cat_id = $prod
       <div class="card-body">
         <h3 class="mb-3">Place Your Order</h3>
         <?php if ($product) { ?>
-          <p><strong>Product:</strong> <?php echo htmlspecialchars($product['cat_name']); ?></p>
+          <p><strong>Product:</strong> <?php echo htmlspecialchars($product['product_name']); ?></p>
           <p><strong>Price:</strong> UGX<?php echo number_format($product['price'], 2); ?></p>
           <form method="post">
             <input type="hidden" name="product_id" value="<?php echo $productId; ?>">

@@ -47,13 +47,19 @@ if (isset($db)) {
 
     if ($checkAdminQuery && mysqli_num_rows($checkAdminQuery) == 0) {
         $defaultPassword = sha1('12345');
-        $insertAdminSql = "INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status) VALUES ('Admin', 'admin@gmail.com', '$defaultPassword', '0000000000', 'Admin Address', 1, 1)";
+        $insertAdminSql = "INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status) VALUES ('Admin', 'stephenarichco@gmail.com', '$defaultPassword', '+256761393437', 'Admin Address', 1, 1)";
         mysqli_query($db, $insertAdminSql);
     } elseif ($checkAdminQuery) {
         $admin = mysqli_fetch_assoc($checkAdminQuery);
-        if ($admin['user_email'] === 'admin@gmail.com' && $admin['user_password'] !== sha1('12345')) {
+        if ($admin['user_email'] !== 'stephenarichco@gmail.com' || $admin['user_phone'] !== '+256761393437') {
+            $updateContactSql = "UPDATE users SET user_email = 'stephenarichco@gmail.com', user_phone = '+256761393437' WHERE user_id = " . (int) $admin['user_id'];
+            mysqli_query($db, $updateContactSql);
+            $admin['user_email'] = 'stephenarichco@gmail.com';
+            $admin['user_phone'] = '+256761393437';
+        }
+        if ($admin['user_email'] === 'stephenarichco@gmail.com' && $admin['user_password'] !== sha1('12345')) {
             $defaultPassword = sha1('12345');
-            $fixAdminSql = "UPDATE users SET user_password = '$defaultPassword' WHERE user_email = 'admin@gmail.com' AND role = 1 LIMIT 1";
+            $fixAdminSql = "UPDATE users SET user_password = '$defaultPassword' WHERE user_id = " . (int) $admin['user_id'];
             mysqli_query($db, $fixAdminSql);
         }
     }
@@ -103,7 +109,7 @@ if (isset($db)) {
                         </div>
                     </div>
                     <div class="col-12 text-center">
-                        <p class="text-muted mb-0">Initial admin account: admin@gmail.com / 12345</p>
+                        <p class="text-muted mb-0">Use your administrator email and password to continue.</p>
                     </div>
                 </form>
             </div>

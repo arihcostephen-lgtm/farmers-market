@@ -13,14 +13,14 @@
 							<div class="col-md-6">
 								<div class="featured-box featured-box-primary text-left mt-2">
 									<div class="box-content" >
-										<h4 class="color-primary font-weight-semibold text-4 text-uppercase mb-3">Seller Login</h4>
+										<h4 class="color-primary font-weight-semibold text-4 text-uppercase mb-3">Farmer Login</h4>
 
 										<form action="" method="POST">
                 <div class="mb-0">
                   <label for="exampleInputEmail1" class="form-label">Email address</label>
                 </div>
                 <div class="input-group form-group">
-                  <input type="email" name="email" class="form-control" id="exampleInputEmail1" placeholder="enter your email..." aria-label="emailHelp" aria-describedby="basic-addon2" required autocomplete="off" value="seller@gmail.com">
+				  <input type="email" name="email" class="form-control" id="exampleInputEmail1" placeholder="enter your email..." aria-label="emailHelp" aria-describedby="basic-addon2" required autocomplete="off" value="">
                   <span class="input-group-text" id="basic-addon2"><i class="fa-solid fa-envelope"></i></span>
                 </div>
             
@@ -30,7 +30,7 @@
 								</div>
 
 								<div class="input-group form-group">
-								  <input type="password" name="password" class="form-control" id="myInput" placeholder="enter your password..." required autocomplete="off" value="12345">
+								  <input type="password" name="password" class="form-control" id="myInput" placeholder="enter your password..." required autocomplete="off" value="">
 								  <span class="input-group-text" id="basic-addon2"><i class="fa-solid fa-lock"></i></span>
 								</div>
 
@@ -50,10 +50,6 @@
 								}
 
 								// ✅ পেজ লোড হলে চেকবক্স টিক দেয়া ও পাসওয়ার্ড visible করে দেবে
-								window.onload = function() {
-								  document.getElementById("exampleCheck1").checked = true;
-								  document.getElementById("myInput").type = "text";
-								};
 								</script>
 
                 <div class="form-group">      
@@ -67,37 +63,33 @@
 									$password 		= mysqli_real_escape_string($db, $_POST['password']);
 									$hassedPass 	= sha1($password);
 
-									$sql = "SELECT * FROM users WHERE user_email='$userEmail' AND status=1";
+									$sql = "SELECT * FROM users WHERE user_email='$userEmail' AND role=2 LIMIT 1";
 									$findData = mysqli_query($db, $sql);
-									$countUser = mysqli_num_rows($findData);
+									$row = mysqli_fetch_assoc($findData);
 
-									if ($countUser == 0) { ?>
+									if (!$row) { ?>
 										<div class="alert alert-danger text-center" role="alert">
-										  Sorry! No User found in our System!
+										  No farmer account was found for this email.
 										</div>
 									<?php }
-									
+									else if ((int) $row['status'] !== 1) { ?>
+										<div class="alert alert-warning text-center" role="alert">
+										  Your farmer account is pending admin approval.
+										</div>
+									<?php }
+									else if ($row['user_password'] !== $hassedPass) { ?>
+										<div class="alert alert-danger text-center" role="alert">
+										  The password you entered is incorrect.
+										</div>
+									<?php }
 									else {
-										while ($row = mysqli_fetch_assoc($findData)) {
-											$_SESSION['user_id'] 	= $row['user_id'];
-											$fullname 						= $row['user_name'];
-											$_SESSION['email'] 		= $row['user_email'];
-											$password 						= $row['user_password'];
-											$_SESSION['phone']		= $row['user_phone'];
-											$role 								= $row['role'];
-											$status 							= $row['status'];
-
-
-											if ($_SESSION['email'] != $userEmail || $password == $hassedPass ) {
-												header("Location: farmerDashboard.php?do=Home");
-											}
-											else {
-												session_destroy();
-												header("Location: seller.php");
-											}
-
-											
-										}
+										$_SESSION['user_id'] = $row['user_id'];
+										$_SESSION['user_name'] = $row['user_name'];
+										$_SESSION['user_email'] = $row['user_email'];
+										$_SESSION['user_phone'] = $row['user_phone'];
+										$_SESSION['role'] = 2;
+										header("Location: farmerDashboard.php?do=Home");
+										exit;
 									}
 									
 								}
@@ -112,7 +104,7 @@
 								<div class="card">
 									<div class="card-body" style="box-shadow: 1px 10px 15px #ccc; border-top: 4px solid #08c;; border-radius: 5px; color: #000; background: #F7F7F7; font-size: 16px;">
 
-										<h4 class="color-primary font-weight-semibold text-4 text-uppercase mb-3">Seller Register An Account</h4>
+										<h4 class="color-primary font-weight-semibold text-4 text-uppercase mb-3">Register as a Farmer</h4>
  
 										<form action="" method="POST" enctype="multipart/form-data">
 											<div class="row">
@@ -153,12 +145,12 @@
 
 													<div class="mb-3">
 														<!-- User Role -->
-														<input type="hidden" value="3" name="role">
+																<input type="hidden" value="2" name="role">
 													</div>
 
 													<div class="mb-3">
 														<!-- Status -->
-														<input type="hidden" value="1" name="status">
+																<input type="hidden" value="2" name="status">
 													</div>
 
 													<div class="form-group">
@@ -183,8 +175,8 @@
 												$re_password 	= mysqli_real_escape_string($db, $_POST['re_password']);
 												$phone 			= mysqli_real_escape_string($db, $_POST['phone']);
 												$address 		= mysqli_real_escape_string($db, $_POST['address']);
-												$role 			= mysqli_real_escape_string($db, $_POST['role']);
-												$status 		= mysqli_real_escape_string($db, $_POST['status']);
+														$role = 2;
+														$status = 2;
 
 												$image 			= mysqli_real_escape_string($db,$_FILES['image']['name']);
 												$temp_image 	= $_FILES['image']['tmp_name'];
@@ -194,7 +186,7 @@
 
 													if (!empty($image)) {
 														$img = rand(1, 9999999). "-" . $image;
-														move_uploaded_file($temp_image, 'admin/assets/images/seller/' . $img);
+																move_uploaded_file($temp_image, 'admin/assets/images/users/' . $img);
 													}
 													else {
 														$img = '';
@@ -203,8 +195,9 @@
 													$addUserSql = "INSERT INTO users (user_name, user_email, user_password,	user_phone,	user_address, role, status, user_image,	join_date) VALUES ('$fullname', '$email', '$hassedPass', '$phone', '$address', '$role', '$status', '$img', now() )";
 													$addUserQuery = mysqli_query($db, $addUserSql);
 
-													if ($addUserQuery) {
-														header("Location: index.php");
+															if ($addUserQuery) {
+																header("Location: login.php?status=pending");
+																exit;
 													}
 													else {
 														die("mysqli Error!" . mysqli_error($db));

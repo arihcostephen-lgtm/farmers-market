@@ -320,6 +320,7 @@
 									$query = mysqli_query( $db, $sql );
 
 									if ($query) {
+										farmers_market_notify_admin_support($db, $_POST['useremail'], $_POST['userphone'], $_POST['title'], $_POST['message']);
 										$_SESSION['msg'] = "We Received your message. After of some times letter we will call & email you. Thank you for with us.";
 										header("Location: order_history.php");
 									}
