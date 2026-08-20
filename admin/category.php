@@ -40,7 +40,7 @@
                                     <th>Image</th>
                                     <th>Category Name</th>
                                     <th>Price</th>
-                                    <th>Seller Email</th>
+                                    <th>Farmer Email</th>
                                     <th>Category Type</th>
                                     <th>Status</th>
                                     <th>Join Date</th>
@@ -84,7 +84,7 @@
                                             ?>
                                         </td>
                                         <td><?php echo htmlspecialchars($cat_name); ?></td>
-                                        <td><?php echo number_format((float) $price, 2); ?> Tk</td>
+                                        <td><?php echo number_format((float) $price, 2); ?></td>
                                         <td><?php echo !empty($seller_email) ? htmlspecialchars($seller_email) : 'N/A'; ?></td>
                                         <td><span class="badge text-bg-light text-dark">STANDARD</span></td>
                                         <td>
@@ -161,13 +161,13 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    <label class="form-label">Price (Tk)</label>
-                                    <input type="number" step="0.01" name="price" class="form-control" placeholder="Enter category price" required>
+                                    <label class="form-label">Price (Ugx)</label>
+                                    <input type="number" step="0.01" name="price" class="form-control" placeholder="Enter category price">
                                 </div>
 
                                 <div class="mb-3">
-                                    <label class="form-label">Seller Email</label>
-                                    <input type="email" name="seller_email" class="form-control" placeholder="Enter seller email">
+                                    <label class="form-label"> Farmer Email</label>
+                                    <input type="email" name="seller_email" class="form-control" placeholder="Enter farmer email">
                                 </div>
 
                                 <div class="mb-3">
@@ -279,7 +279,7 @@
                                             </div>
 
                                             <div class="mb-3">
-                                                <label class="form-label">Price (Tk)</label>
+                                                <label class="form-label">Price (Ugx)</label>
                                                 <input type="number" step="0.01" name="price" class="form-control" value="<?php echo htmlspecialchars($price); ?>" required>
                                             </div>
 
@@ -458,7 +458,7 @@
                                             ?>
                                         </td>
                                         <td><?php echo htmlspecialchars($cat_name); ?></td>
-                                        <td><?php echo number_format((float) $price, 2); ?> Tk</td>
+                                        <td><?php echo number_format((float) $price, 2); ?></td>
                                         <td><?php echo !empty($seller_email) ? htmlspecialchars($seller_email) : 'N/A'; ?></td>
                                         <td><span class="badge text-bg-light text-dark">STANDARD</span></td>
                                         <td><span class="badge text-bg-danger">TRASHED</span></td>

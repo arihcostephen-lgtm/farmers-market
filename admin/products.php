@@ -37,8 +37,8 @@
                   <th>#</th>
                   <th>Image</th>
                   <th>Product Name</th>
-                  <th>Price</th>
-                  <th>Seller</th>
+                  <th>Price (UGX)</th>
+                  <th>Farmer</th>
                   <th>Type</th>
                   <th>Status</th>
                   <th>Added</th>
@@ -82,7 +82,7 @@
                       ?>
                     </td>
                     <td><?php echo htmlspecialchars($product_name); ?></td>
-                    <td><?php echo number_format((float) $price, 2); ?> Tk</td>
+                    <td><?php echo number_format((float) $price, 2); ?></td>
                     <td><?php echo !empty($seller_email) ? htmlspecialchars($seller_email) : 'N/A'; ?></td>
                     <td>
                       <?php
@@ -168,7 +168,7 @@
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label">Price (Tk)</label>
+                  <label class="form-label">Price (Ugx)</label>
                   <input type="number" step="0.01" name="price" class="form-control" placeholder="Enter product price" required>
                 </div>
 
@@ -186,7 +186,7 @@
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label">Seller Email</label>
+                  <label class="form-label">Farmer Email</label>
                   <input type="email" name="seller_email" class="form-control" placeholder="Enter seller email">
                 </div>
               </div>
@@ -313,7 +313,7 @@
                       </div>
 
                       <div class="mb-3">
-                        <label class="form-label">Price (Tk)</label>
+                        <label class="form-label">Price (Ugx)</label>
                         <input type="number" step="0.01" name="price" class="form-control" value="<?php echo htmlspecialchars($price); ?>" required>
                       </div>
 
@@ -332,7 +332,7 @@
                       </div>
 
                       <div class="mb-3">
-                        <label class="form-label">Seller Email</label>
+                        <label class="form-label">Farmer Email</label>
                         <input type="email" name="seller_email" class="form-control" value="<?php echo htmlspecialchars($seller_email); ?>">
                       </div>
                     </div>
@@ -468,7 +468,7 @@
                         </select>
                   <th>Name</th>
                   <th>Price</th>
-                  <th>Seller</th>
+                  <th>Farmer</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -490,7 +490,7 @@
                   <tr>
                     <th scope="row"><?php echo $i; ?></th>
                     <td><?php echo htmlspecialchars($row['cat_name']); ?></td>
-                    <td><?php echo number_format((float) $row['price'], 2); ?> Tk</td>
+                    <td><?php echo number_format((float) $row['price'], 2); ?></td>
                     <td><?php echo !empty($row['seller_email']) ? htmlspecialchars($row['seller_email']) : 'N/A'; ?></td>
                     <td>
                       <div class="d-flex gap-2">
