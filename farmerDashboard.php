@@ -206,10 +206,10 @@
                                             <td class="text-center">
                                               <?php  
                                                 if (!empty($cat_image)) {
-                                              echo '<img src="admin/assets/images/category/' . $cat_image . '" style="width: 60px";>';
+                                              echo '<img src="admin/assets/images/category/' . $cat_image . '" style="width: 60px">';
                                             }
                                             else {
-                                              echo '<img src="admin/assets/images/category/default.jpg" style="width: 60px";>';
+                                              echo '<img src="admin/assets/images/category/default.jpg" style="width: 60px">';
                                             }
                                               ?>
                                             </td>
@@ -1170,10 +1170,10 @@
                                             <td class="text-center">
                                               <?php  
                                                 if (!empty($cat_image)) {
-                                              echo '<img src="admin/assets/images/category/' . $cat_image . '" style="width: 60px";>';
+                                              echo '<img src="admin/assets/images/category/' . $cat_image . '" style="width: 60px">';
                                             }
                                             else {
-                                              echo '<img src="admin/assets/images/category/default.jpg" style="width: 60px";>';
+                                              echo '<img src="admin/assets/images/category/default.jpg" style="width: 60px">';
                                             }
                                               ?>
                                             </td>
