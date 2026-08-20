@@ -145,10 +145,10 @@
 												      <td>
 												      	<?php  
 												      		if (!empty($user_image)) {
-																echo '<img src="assets/images/users/' . $user_image . '" style="width: 60px";>';
+																echo '<img src="assets/images/users/' . $user_image . '" style="width: 60px">';
 															}
 															else {
-																echo '<img src="assets/images/users/default.png" style="width: 60px";>';
+																echo '<img src="assets/images/users/default.png" style="width: 60px">';
 															}
 												      	?>
 												      </td>
@@ -303,10 +303,10 @@
 												      <td>
 												      	<?php  
 												      		if (!empty($user_image)) {
-																echo '<img src="assets/images/users/' . $user_image . '" style="width: 60px";>';
+																echo '<img src="assets/images/users/' . $user_image . '" style="width: 60px">';
 															}
 															else {
-																echo '<img src="assets/images/users/default.png" style="width: 60px";>';
+																echo '<img src="assets/images/users/default.png" style="width: 60px">';
 															}
 												      	?>
 												      </td>
@@ -464,10 +464,10 @@
 												      <td>
 												      	<?php  
 												      		if (!empty($user_image)) {
-																echo '<img src="assets/images/seller/' . $user_image . '" style="width: 60px";>';
+																echo '<img src="assets/images/seller/' . $user_image . '" style="width: 60px">';
 															}
 															else {
-																echo '<img src="assets/images/users/default.png" style="width: 60px";>';
+																echo '<img src="assets/images/users/default.png" style="width: 60px">';
 															}
 												      	?>
 												      </td>
@@ -744,6 +744,11 @@
 															</div>
 
 															<div class="mb-3">
+																<label for="">Email Address</label>
+																<input type="email" name="email" class="form-control" placeholder="enter user email" required autocomplete="off" value="<?php echo $user_email; ?>">
+															</div>
+
+															<div class="mb-3">
 																<label for="">Phone No.</label>
 																<input type="tel" name="phone" class="form-control" placeholder="enter phone no.." required autocomplete="off" value="<?php echo $user_phone; ?>">
 															</div>
@@ -761,16 +766,18 @@
 														<div class="col-lg-4">
 															<div class="mb-3">
 																<label for="">Address</label>
-																<textarea name="address" class="form-control" id="" cols="30" rows="4" autocomplete="off" placeholder="address...."><?php echo $user_address; ?></textarea>
+																<textarea name="address" class="form-control" id="" cols="30" rows="3" autocomplete="off" placeholder="address...."><?php echo $user_address; ?></textarea>
 															</div>
 
 															<div class="mb-3">
 																<label for="">Role</label>
-									<select class="form-select" name="role" required>
-									  <option value="">Please select the user role</option>
-									  <option value="1" <?php if( $role == 1 ){ echo "selected"; } ?>>Admin</option>
-									  <option value="2" <?php if( $role == 2 ){ echo "selected"; } ?>>Seller</option>
-									  <option value="3" <?php if( $role == 3 ){ echo "selected"; } ?>>Customer</option>
+																<select class="form-select" name="role" required>
+																  <option value="">Please select the user role</option>
+																  <option value="1" <?php if( $role == 1 ){ echo "selected"; } ?>>Admin</option>
+																  <option value="2" <?php if( $role == 2 ){ echo "selected"; } ?>>Seller</option>
+																  <option value="3" <?php if( $role == 3 ){ echo "selected"; } ?>>Customer</option>
+																</select>
+															</div>
 
 															<div class="mb-3">
 																<label for="">Status</label>
@@ -847,7 +854,7 @@
 
 							while ( $row = mysqli_fetch_assoc($oldImageQuery) ) {
 								$oldImage 	= $row['user_image'];
-								unlink("assets/images/users/$img" . $oldImage);
+								unlink("assets/images/users/" . $oldImage);
 							}
 
 							$img = rand(0, 999999) . "_" . $image;
@@ -879,7 +886,7 @@
 
 							while ( $row = mysqli_fetch_assoc($oldImageQuery) ) {
 								$oldImage 	= $row['user_image'];
-								unlink("assets/images/users/$img" . $oldImage);
+								unlink("assets/images/users/" . $oldImage);
 							}
 
 						$img = rand(0, 999999) . "_" . $image;
@@ -1023,10 +1030,10 @@
 												      <td>
 												      	<?php  
 												      		if (!empty($user_image)) {
-																echo '<img src="assets/images/users/' . $user_image . '" style="width: 60px";>';
+																echo '<img src="assets/images/users/' . $user_image . '" style="width: 60px">';
 															}
 															else {
-																echo '<img src="assets/images/users/default.png" style="width: 60px";>';
+																echo '<img src="assets/images/users/default.png" style="width: 60px">';
 															}
 												      	?>
 												      </td>

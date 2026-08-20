@@ -76,7 +76,7 @@
 												      <td>
 												      	<?php  
 												      		if (!empty($image)) {
-																echo '<img src="assets/images/aboutUs/' . $image . '" style="width: 60px";>';
+																echo '<img src="assets/images/aboutUs/' . $image . '" style="width: 60px">';
 															}
 															else {
 																echo 'No Image';
@@ -510,7 +510,7 @@
 												      <td>
 												      	<?php  
 												      		if (!empty($image)) {
-																echo '<img src="assets/images/aboutUs/' . $image . '" style="width: 60px";>';
+																echo '<img src="assets/images/aboutUs/' . $image . '" style="width: 60px">';
 															}
 															else {
 																echo 'No Image';

@@ -41,8 +41,13 @@
 			}
 
 			function initTable(logoData) {
+				if (!$('#example3').length) {
+					return;
+				}
+
 				var table = $('#example3').DataTable({
 					lengthChange: false,
+					dom: 'Bfrtip',
 					buttons: [
 						'copy', 'excel',
 						{
@@ -52,8 +57,10 @@
 							pageSize: 'A4',
 							filename: siteTitle + '_export',
 							exportOptions: {
-								// exclude columns that have these classes on header or cells
-								columns: ':not(.noExport):not(.action):not(:last-child)'
+								columns: function(columnIndex, columnData, headerNode) {
+									var headerText = $(headerNode).text().trim().toLowerCase();
+									return headerText !== 'action' && !$(headerNode).hasClass('noExport') && !$(headerNode).hasClass('action');
+								}
 							},
 							customize: function(doc) {
 								doc.styles = doc.styles || {};
@@ -89,7 +96,7 @@
 					]
 				});
 				
-				table.buttons().container().appendTo('#example3_wrapper .col-md-6:eq(0)');
+				table.buttons().container().prependTo('#example3_wrapper');
 			}
 
 			// preload logo then initialize table

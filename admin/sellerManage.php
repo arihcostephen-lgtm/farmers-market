@@ -78,10 +78,10 @@
 												      <td>
 												      	<?php  
 												      		if (!empty($cat_image)) {
-																echo '<img src="assets/images/category/' . $cat_image . '" style="width: 60px";>';
+																echo '<img src="assets/images/category/' . $cat_image . '" style="width: 60px">';
 															}
 															else {
-																echo '<img src="assets/images/category/default.png" style="width: 60px";>';
+																echo '<img src="assets/images/category/default.png" style="width: 60px">';
 															}
 												      	?>
 												      </td>
@@ -188,10 +188,10 @@
 														      <td>
 														      	<?php  
 														      		if (!empty($cat_image)) {
-																		echo '<img src="assets/images/category/' . $cat_image . '" style="width: 60px";>';
+																		echo '<img src="assets/images/category/' . $cat_image . '" style="width: 60px">';
 																	}
 																	else {
-																		echo '<img src="assets/images/category/default.png" style="width: 60px";>';
+																		echo '<img src="assets/images/category/default.png" style="width: 60px">';
 																	}
 														      	?>
 														      </td>
@@ -565,10 +565,10 @@
 												      <td>
 												      	<?php  
 												      		if (!empty($cat_image)) {
-																echo '<img src="assets/images/category/' . $cat_image . '" style="width: 60px";>';
+																echo '<img src="assets/images/category/' . $cat_image . '" style="width: 60px">';
 															}
 															else {
-																echo '<img src="assets/images/category/default.png" style="width: 60px";>';
+																echo '<img src="assets/images/category/default.png" style="width: 60px">';
 															}
 												      	?>
 												      </td>
@@ -653,10 +653,10 @@
 														      <td>
 														      	<?php  
 														      		if (!empty($cat_image)) {
-																		echo '<img src="assets/images/category/' . $cat_image . '" style="width: 60px";>';
+																		echo '<img src="assets/images/category/' . $cat_image . '" style="width: 60px">';
 																	}
 																	else {
-																		echo '<img src="assets/images/category/default.png" style="width: 60px";>';
+																		echo '<img src="assets/images/category/default.png" style="width: 60px">';
 																	}
 														      	?>
 														      </td>

@@ -61,6 +61,8 @@
                         <a href="farmerDashboard.php?do=Home" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-gauge-simple-high"></i> <span>&nbsp;Dashboard</span> </a>
                         <hr style="color: #72717f;">
                         <a href="farmerDashboard.php?do=Manage" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-box"></i> <span>&nbsp;My Products</span></a>
+                        <a href="farmerDashboard.php?do=AddDoc" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-file-circle-plus"></i> <span>&nbsp;Add Documents</span></a>
+                        <a href="farmerDashboard.php?do=ViewDoc" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-file-lines"></i> <span>&nbsp;View Documents</span></a>
                         <a href="farmerDashboard.php?do=Profile" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-user"></i> <span>&nbsp;Profile</span></a>
                         <a href="farmerDashboard.php?do=Support" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-regular fa-message"></i> <span>&nbsp;Support</span></a>
                         <a href="farmerDashboard.php?do=Contact" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-address-book"></i> <span>&nbsp;Contact</span></a>
@@ -196,7 +198,6 @@
                                           $join_date    = $row['join_date'];
                                           $cat_image    = $row['cat_image'];        
                                           $price      = $row['price'];        
-                                          $seller_name  = $row['seller_name'];        
                                           $seller_email   = $row['seller_email'];       
                                           $i++;
                                           ?>
@@ -1160,7 +1161,6 @@
                                           $join_date    = $row['join_date'];
                                           $cat_image    = $row['cat_image'];        
                                           $price      = $row['price'];        
-                                          $seller_name  = $row['seller_name'];        
                                           $seller_email   = $row['seller_email'];       
                                           $i++;
                                           ?>
@@ -1283,6 +1283,192 @@
                       }
                     }
 
+                    else if ( $do == "AddDoc" ) { 
+                      // Document upload handler
+                      if (!empty($_SESSION['email'])) {
+                        $farmerEmail = $_SESSION['email'];
+                        $uploadDir = __DIR__ . '/uploads/docs/' . md5($farmerEmail) . '/';
+                        
+                        if (!is_dir($uploadDir)) {
+                          @mkdir($uploadDir, 0755, true);
+                        }
+                        
+                        $msg = '';
+                        $msgType = 'info';
+                        
+                        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_doc'])) {
+                          if (!empty($_FILES['doc_file']['name'])) {
+                            $fileName = basename($_FILES['doc_file']['name']);
+                            $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                            $allowedExt = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'doc', 'docx', 'txt'];
+                            
+                            if (in_array($fileExt, $allowedExt)) {
+                              $newFileName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $fileName);
+                              $target = $uploadDir . $newFileName;
+                              
+                              if (move_uploaded_file($_FILES['doc_file']['tmp_name'], $target)) {
+                                $msg = 'Document uploaded successfully!';
+                                $msgType = 'success';
+                              } else {
+                                $msg = 'Failed to upload document.';
+                                $msgType = 'danger';
+                              }
+                            } else {
+                              $msg = 'Invalid file type. Allowed: PDF, JPG, PNG, GIF, DOC, DOCX, TXT';
+                              $msgType = 'danger';
+                            }
+                          } else {
+                            $msg = 'Please select a file to upload.';
+                            $msgType = 'warning';
+                          }
+                        }
+                        ?>
+                        <div class="container pb-5">
+                          <div class="row">
+                            <div class="col-lg-8 mx-auto">
+                              <div style="padding: 30px; box-shadow: 0px 1px 8px #ccc; border-radius: 10px;">
+                                <h4 class="text-uppercase mb-4">Add Documents</h4>
+                                
+                                <?php if ($msg): ?>
+                                  <div class="alert alert-<?php echo $msgType; ?>" role="alert">
+                                    <?php echo htmlspecialchars($msg); ?>
+                                  </div>
+                                <?php endif; ?>
+                                
+                                <form method="POST" enctype="multipart/form-data">
+                                  <div class="mb-3">
+                                    <label for="doc_file" class="form-label">Select Document (PDF, Images, or Documents)</label>
+                                    <input type="file" class="form-control" id="doc_file" name="doc_file" accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.txt" required>
+                                    <small class="text-muted">Supported formats: PDF, JPG, PNG, GIF, DOC, DOCX, TXT</small>
+                                  </div>
+                                  <button type="submit" name="upload_doc" class="btn btn-primary">Upload Document</button>
+                                </form>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <?php
+                      } else {
+                        echo '<div class="alert alert-warning">Please log in to add documents.</div>';
+                      }
+                    }
+
+                    else if ( $do == "ViewDoc" ) {
+                      // View documents handler
+                      if (!empty($_SESSION['email'])) {
+                        $farmerEmail = $_SESSION['email'];
+                        $uploadDir = __DIR__ . '/uploads/docs/' . md5($farmerEmail) . '/';
+                        $baseDir = realpath(__DIR__ . '/uploads/docs/');
+                        
+                        if (!is_dir($uploadDir)) {
+                          @mkdir($uploadDir, 0755, true);
+                        }
+                        
+                        // Handle file deletion
+                        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_doc'])) {
+                          $fileName = basename($_POST['file'] ?? '');
+                          $filePath = realpath($uploadDir . $fileName);
+                          
+                          if ($filePath && strpos($filePath, realpath($uploadDir)) === 0 && file_exists($filePath)) {
+                            unlink($filePath);
+                            header('Location: farmerDashboard.php?do=ViewDoc');
+                            exit;
+                          }
+                        }
+                        
+                        // Get all documents
+                        $documents = [];
+                        if (is_dir($uploadDir)) {
+                          $allFiles = glob($uploadDir . '*');
+                          if ($allFiles) {
+                            usort($allFiles, function($a, $b) {
+                              return filemtime($b) - filemtime($a);
+                            });
+                            $documents = $allFiles;
+                          }
+                        }
+                        ?>
+                        <div class="container pb-5">
+                          <div class="row">
+                            <div class="col-lg-12">
+                              <div style="padding: 30px; box-shadow: 0px 1px 8px #ccc; border-radius: 10px;">
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                  <h4 class="text-uppercase mb-0">My Documents</h4>
+                                  <a href="farmerDashboard.php?do=AddDoc" class="btn btn-primary btn-sm">+ Add Document</a>
+                                </div>
+                                
+                                <?php if (count($documents) > 0): ?>
+                                  <div class="table-responsive">
+                                    <table class="table table-hover">
+                                      <thead class="table-dark">
+                                        <tr>
+                                          <th>File Name</th>
+                                          <th>Type</th>
+                                          <th>Size</th>
+                                          <th>Uploaded</th>
+                                          <th>Action</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <?php foreach ($documents as $doc): 
+                                          $fileName = basename($doc);
+                                          $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                                          $fileSize = filesize($doc);
+                                          $fileSizeKB = round($fileSize / 1024, 2);
+                                          $uploadTime = filemtime($doc);
+                                          $uploadDate = date('M d, Y H:i', $uploadTime);
+                                          
+                                          // Determine file type icon
+                                          $icon = 'fa-file';
+                                          if (in_array($fileExt, ['jpg', 'jpeg', 'png', 'gif'])) {
+                                            $icon = 'fa-image';
+                                          } elseif ($fileExt === 'pdf') {
+                                            $icon = 'fa-file-pdf';
+                                          } elseif (in_array($fileExt, ['doc', 'docx'])) {
+                                            $icon = 'fa-file-word';
+                                          }
+                                        ?>
+                                        <tr>
+                                          <td>
+                                            <i class="fa-solid <?php echo $icon; ?>"></i> 
+                                            <?php echo htmlspecialchars($fileName); ?>
+                                          </td>
+                                          <td><span class="badge bg-info"><?php echo strtoupper($fileExt); ?></span></td>
+                                          <td><?php echo $fileSizeKB; ?> KB</td>
+                                          <td><?php echo $uploadDate; ?></td>
+                                          <td>
+                                            <a href="uploads/docs/<?php echo md5($farmerEmail); ?>/<?php echo urlencode($fileName); ?>" 
+                                               class="btn btn-sm btn-outline-primary" target="_blank" download>
+                                              <i class="fa-solid fa-download"></i> Download
+                                            </a>
+                                            <form method="post" class="d-inline" onsubmit="return confirm('Delete this document?');">
+                                              <input type="hidden" name="file" value="<?php echo $fileName; ?>">
+                                              <button type="submit" name="delete_doc" class="btn btn-sm btn-outline-danger">
+                                                <i class="fa-solid fa-trash"></i> Delete
+                                              </button>
+                                            </form>
+                                          </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                <?php else: ?>
+                                  <div class="alert alert-info text-center">
+                                    <p>No documents uploaded yet.</p>
+                                    <a href="farmerDashboard.php?do=AddDoc" class="btn btn-primary">Upload Your First Document</a>
+                                  </div>
+                                <?php endif; ?>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <?php
+                      } else {
+                        echo '<div class="alert alert-warning">Please log in to view documents.</div>';
+                      }
+                    }
+
                   ?>
 
                  
@@ -1311,7 +1497,18 @@
       new DataTable('#example', {
           layout: {
               topStart: {
-                  buttons: ['copy', 'csv', 'excel', 'pdf', 'print']
+              buttons: [
+                'copy', 'csv', 'excel',
+                {
+                  extend: 'pdf',
+                  exportOptions: {
+                    columns: function(columnIndex, columnData, headerNode) {
+                      return $(headerNode).text().trim().toLowerCase() !== 'action';
+                    }
+                  }
+                },
+                'print'
+              ]
               }
           }
       });

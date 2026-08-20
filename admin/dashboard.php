@@ -1,4 +1,4 @@
-﻿<?php include"inc/header.php"; ?>
+<?php include"inc/header.php"; ?>
 
 <style>
     .page-wrapper,
@@ -198,6 +198,14 @@
                 $ordersCount = (int) $db->query("SELECT COUNT(*) AS total FROM order_list")->fetch_assoc()['total'];
                 $pendingOrdersCount = (int) $db->query("SELECT COUNT(*) AS total FROM order_list WHERE status = 0")->fetch_assoc()['total'];
                 $completedOrdersCount = (int) $db->query("SELECT COUNT(*) AS total FROM order_list WHERE status = 1")->fetch_assoc()['total'];
+                $totalUsersCount = (int) $db->query("SELECT COUNT(*) AS total FROM users")->fetch_assoc()['total'];
+                $totalFarmersCount = (int) $db->query("SELECT COUNT(*) AS total FROM farmer")->fetch_assoc()['total'];
+                $totalCategoriesCount = (int) $db->query("SELECT COUNT(*) AS total FROM category")->fetch_assoc()['total'];
+
+                $pendingOrdersPercentage = $ordersCount > 0 ? round(($pendingOrdersCount / $ordersCount) * 100, 1) : 0;
+                $activeUsersPercentage = $totalUsersCount > 0 ? round(($usersCount / $totalUsersCount) * 100, 1) : 0;
+                $activeFarmersPercentage = $totalFarmersCount > 0 ? round(($farmersCount / $totalFarmersCount) * 100, 1) : 0;
+                $activeCategoriesPercentage = $totalCategoriesCount > 0 ? round(($categoriesCount / $totalCategoriesCount) * 100, 1) : 0;
 
                 $monthLabels = [];
                 $userMonthly = [];
@@ -393,9 +401,10 @@
                 <div class="panel side-panel">
                     <h6>Actions</h6>
                     <ul class="mini-list">
-                        <li><strong>New orders</strong><span><?php echo number_format($pendingOrdersCount); ?></span></li>
-                        <li><strong>Product list</strong><span><?php echo number_format($categoriesCount); ?></span></li>
-                        <li><strong>Member users</strong><span><?php echo number_format($usersCount); ?></span></li>
+                        <li><strong>New orders</strong><span><?php echo number_format($pendingOrdersPercentage, 1); ?>%</span></li>
+                        <li><strong>Active users</strong><span><?php echo number_format($activeUsersPercentage, 1); ?>%</span></li>
+                        <li><strong>Farmers</strong><span><?php echo number_format($activeFarmersPercentage, 1); ?>%</span></li>
+                        <li><strong>Categories</strong><span><?php echo number_format($activeCategoriesPercentage, 1); ?>%</span></li>
                     </ul>
                 </div>
 

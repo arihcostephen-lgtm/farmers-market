@@ -447,7 +447,7 @@
 												      <td>
 												      	<?php  
 												      		if (!empty($a_image)) {
-																echo '<img src="assets/images/aboutUs/' . $a_image . '" style="width: 60px";>';
+																echo '<img src="assets/images/aboutUs/' . $a_image . '" style="width: 60px">';
 															}
 															else {
 																echo 'No Image';

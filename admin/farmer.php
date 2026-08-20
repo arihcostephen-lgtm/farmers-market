@@ -99,10 +99,10 @@
 												      <td>
 												      	<?php  
 												      		if (!empty($farm_image)) {
-																echo '<img src="assets/images/farmer/' . $farm_image . '" style="width: 60px";>';
+																echo '<img src="assets/images/farmer/' . $farm_image . '" style="width: 60px">';
 															}
 															else {
-																echo '<img src="assets/images/farmer/default.jpg" style="width: 60px";>';
+																echo '<img src="assets/images/farmer/default.jpg" style="width: 60px">';
 															}
 												      	?>
 												      </td>
@@ -382,7 +382,7 @@
 																<br>
 																<?php  
 																if (!empty($farm_image)) {
-																	echo '<img src="assets/images/farmer/' . $farm_image . '" style="width: 100%; height:200px;";>';
+																	echo '<img src="assets/images/farmer/' . $farm_image . '" style="width: 100%; height:200px;">';
 																}
 																else {
 																	echo 'Not Image Found';
@@ -435,7 +435,7 @@
 
 						while ( $row = mysqli_fetch_assoc($oldImageQuery) ) {
 							$oldImage 	= $row['farm_image'];
-							unlink("assets/images/farmer/$img" . $oldImage);
+							unlink("assets/images/farmer/" . $oldImage);
 						}
 
 						$img = rand(0, 999999) . "_" . $image;
@@ -553,10 +553,10 @@
 												      <td>
 												      	<?php  
 												      		if (!empty($farm_image)) {
-																echo '<img src="assets/images/farmer/' . $farm_image . '" style="width: 60px";>';
+																echo '<img src="assets/images/farmer/' . $farm_image . '" style="width: 60px">';
 															}
 															else {
-																echo '<img src="assets/images/farmer/default.jpg" style="width: 60px";>';
+																echo '<img src="assets/images/farmer/default.jpg" style="width: 60px">';
 															}
 												      	?>
 												      </td>
