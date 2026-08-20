@@ -221,10 +221,10 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                 <div class="d-flex align-items-center justify-content-between mb-3 comment-box p-3 rounded">
                                     <div>
                                         <h6 class="mb-1"><?php echo htmlspecialchars($order['or_name']); ?></h6>
-                                        <div class="text-muted">Category: <?php echo htmlspecialchars($order['or_category']); ?> • Ordered on <?php echo htmlspecialchars(date('M j, Y', strtotime($order['join_date']))); ?></div>
+                                        <div class="text-muted">Quantity: <?php echo number_format((int) ($order['quantity'] ?? 1)); ?> • Category: <?php echo htmlspecialchars($order['or_category']); ?> • Ordered on <?php echo htmlspecialchars(date('M j, Y', strtotime($order['join_date']))); ?></div>
                                     </div>
                                     <div class="text-end">
-                                        <div class="h6 mb-1 text-success">UGX <?php echo number_format($order['price'], 2); ?></div>
+                                        <div class="h6 mb-1 text-success">UGX <?php echo number_format($order['price'], 2); ?> total</div>
                                         <span class="badge badge-status"><?php echo $order['status'] == 1 ? 'Active' : ($order['status'] == 2 ? 'Pending' : 'Inactive'); ?></span>
                                     </div>
                                 </div>
@@ -254,6 +254,7 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                                 <div>
                                                     <h6 class="text-white"><?php echo htmlspecialchars($product['product_name']); ?></h6>
                                                     <p class="text-muted mb-2"><?php echo htmlspecialchars($product['description'] ?: 'Fresh farm produce'); ?></p>
+                                                    <small class="text-muted d-block mb-2">Available: <?php echo number_format((int) $product['stock_quantity']); ?></small>
                                                     <small class="text-muted d-block mb-2"><?php echo htmlspecialchars($product['cat_name'] ?: 'Uncategorized'); ?></small>
                                                     <div class="badge mb-2"><?php echo htmlspecialchars($product['farmer_name'] ?: 'Local Farm Market'); ?></div>
                                                 </div>
@@ -263,7 +264,7 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                                         <?php if (filter_var($product['seller_email'], FILTER_VALIDATE_EMAIL)) { ?>
                                                             <a href="mailto:<?php echo htmlspecialchars($product['seller_email']); ?>?subject=<?php echo rawurlencode('Question about ' . $product['product_name']); ?>&body=<?php echo rawurlencode('Hello, I have a question about your product: ' . $product['product_name']); ?>" class="btn btn-sm btn-outline-success">Contact Farmer</a>
                                                         <?php } ?>
-                                                        <a href="placeOrder.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-primary">Add to Cart</a>
+                                                        <a href="placeOrder.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-primary" <?php echo (int) $product['stock_quantity'] < 1 ? 'aria-disabled="true" style="pointer-events:none;opacity:.5"' : ''; ?>>Add to Cart</a>
                                                     </div>
                                                 </div>
                                             </div>
@@ -304,6 +305,7 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                         <div class="card-body">
                                             <h6 class="text-white"><?php echo htmlspecialchars($product['product_name']); ?></h6>
                                             <p class="text-muted mb-2"><?php echo htmlspecialchars($product['description'] ?: 'Fresh farm produce'); ?></p>
+                                            <small class="text-muted d-block mb-2">Available: <?php echo number_format((int) $product['stock_quantity']); ?></small>
                                             <small class="text-muted d-block mb-2"><?php echo htmlspecialchars($product['cat_name'] ?: 'Uncategorized'); ?></small>
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">UGX <?php echo number_format($product['price'], 2); ?></span>
@@ -311,7 +313,7 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                                     <?php if (filter_var($product['seller_email'], FILTER_VALIDATE_EMAIL)) { ?>
                                                         <a href="mailto:<?php echo htmlspecialchars($product['seller_email']); ?>?subject=<?php echo rawurlencode('Question about ' . $product['product_name']); ?>&body=<?php echo rawurlencode('Hello, I have a question about your product: ' . $product['product_name']); ?>" class="btn btn-sm btn-outline-success">Contact Farmer</a>
                                                     <?php } ?>
-                                                    <a href="placeOrder.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-primary">Order</a>
+                                                    <a href="placeOrder.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-primary" <?php echo (int) $product['stock_quantity'] < 1 ? 'aria-disabled="true" style="pointer-events:none;opacity:.5"' : ''; ?>>Order</a>
                                                 </div>
                                             </div>
                                         </div>

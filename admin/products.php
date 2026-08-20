@@ -38,6 +38,7 @@
                   <th>Image</th>
                   <th>Product Name</th>
                   <th>Price (UGX)</th>
+                  <th>Stock</th>
                   <th>Farmer</th>
                   <th>Type</th>
                   <th>Status</th>
@@ -54,7 +55,7 @@
                   if ($productCount == 0) {
                 ?>
                   <tr>
-                    <td colspan="9" class="text-center text-warning">No products found in the database.</td>
+                    <td colspan="10" class="text-center text-warning">No products found in the database.</td>
                   </tr>
                 <?php
                   } else {
@@ -63,6 +64,7 @@
                       $product_id = $row['product_id'];
                       $product_name = $row['product_name'];
                       $price = $row['price'];
+                      $stock_quantity = (int) $row['stock_quantity'];
                       $seller_email = $row['seller_email'];
                       $status = (int) $row['status'];
                       $join_date = $row['join_date'];
@@ -83,6 +85,7 @@
                     </td>
                     <td><?php echo htmlspecialchars($product_name); ?></td>
                     <td><?php echo number_format((float) $price, 2); ?></td>
+                    <td><?php echo number_format($stock_quantity); ?></td>
                     <td><?php echo !empty($seller_email) ? htmlspecialchars($seller_email) : 'N/A'; ?></td>
                     <td>
                       <?php
@@ -168,9 +171,14 @@
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label">Price (Ugx)</label>
+                        <label class="form-label">Price (Ugx)</label>
                   <input type="number" step="0.01" name="price" class="form-control" placeholder="Enter product price" required>
                 </div>
+
+                      <div class="mb-3">
+                        <label class="form-label">Available Quantity</label>
+                        <input type="number" min="0" name="stock_quantity" class="form-control" placeholder="Enter available quantity" required>
+                      </div>
 
                 <div class="mb-3">
                   <label class="form-label">Assigned Category</label>
@@ -225,6 +233,7 @@
           if (isset($_POST['addProduct'])) {
           $productName = mysqli_real_escape_string($db, trim($_POST['productName']));
           $price = mysqli_real_escape_string($db, trim($_POST['price']));
+          $stock_quantity = max(0, (int) $_POST['stock_quantity']);
           $desc = mysqli_real_escape_string($db, trim($_POST['desc']));
           $category_id = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : null;
           $status = (int) $_POST['status'];
@@ -252,13 +261,14 @@
             description TEXT DEFAULT NULL,
             category_id INT UNSIGNED DEFAULT NULL,
             price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            stock_quantity INT UNSIGNED NOT NULL DEFAULT 0,
             seller_email VARCHAR(150) DEFAULT NULL,
             image VARCHAR(255) DEFAULT NULL,
             status TINYINT(1) NOT NULL DEFAULT 1,
             join_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
           @mysqli_query($db, $createProductsSql);
-          $insertSql = "INSERT INTO products (product_name, description, category_id, price, seller_email, image, status, join_date) VALUES ('$productName', '$desc', $categoryValue, '$price', '$seller_email', '$image', '$status', NOW())";
+          $insertSql = "INSERT INTO products (product_name, description, category_id, price, stock_quantity, seller_email, image, status, join_date) VALUES ('$productName', '$desc', $categoryValue, '$price', '$stock_quantity', '$seller_email', '$image', '$status', NOW())";
           $insertQuery = mysqli_query($db, $insertSql);
 
           if ($insertQuery) {
@@ -283,6 +293,7 @@
             $product_name = $row['product_name'];
             $product_desc = $row['description'];
             $category_selected = (int) $row['category_id'];
+            $stock_quantity = (int) $row['stock_quantity'];
             $status = (int) $row['status'];
             $product_image = $row['image'];
             $price = $row['price'];
@@ -315,6 +326,11 @@
                       <div class="mb-3">
                         <label class="form-label">Price (Ugx)</label>
                         <input type="number" step="0.01" name="price" class="form-control" value="<?php echo htmlspecialchars($price); ?>" required>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label">Available Quantity</label>
+                        <input type="number" min="0" name="stock_quantity" class="form-control" value="<?php echo $stock_quantity; ?>" required>
                       </div>
 
                       <div class="mb-3">
@@ -387,6 +403,7 @@
           $updateProductId = (int) $_POST['updateProductId'];
           $productName = mysqli_real_escape_string($db, trim($_POST['productName']));
           $price = mysqli_real_escape_string($db, trim($_POST['price']));
+          $stock_quantity = max(0, (int) $_POST['stock_quantity']);
           $desc = mysqli_real_escape_string($db, trim($_POST['desc']));
           $category_id = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : null;
           $status = (int) $_POST['status'];
@@ -415,7 +432,7 @@
           }
 
           $categoryValue = $category_id ? "category_id = '$category_id'," : '';
-          $updateSql = "UPDATE products SET product_name = '$productName', description = '$desc', $categoryValue $setImageSql price = '$price', seller_email = '$seller_email', status = '$status' WHERE product_id = '$updateProductId'";
+          $updateSql = "UPDATE products SET product_name = '$productName', description = '$desc', $categoryValue $setImageSql price = '$price', stock_quantity = '$stock_quantity', seller_email = '$seller_email', status = '$status' WHERE product_id = '$updateProductId'";
           $updateQuery = mysqli_query($db, $updateSql);
 
           if ($updateQuery) {

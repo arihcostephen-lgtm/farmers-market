@@ -43,7 +43,8 @@
 							      <th scope="col">Image</th>
 							      <th scope="col">Booking Item</th>
 							      <th scope="col">Category</th>
-							      <th scope="col">Price ( Per Kg )</th>
+								  <th scope="col">Quantity</th>
+								  <th scope="col">Total Price</th>
 							      <th scope="col">Order Date</th>
 							      <th scope="col">Status</th>
 							      <th scope="col">Action</th>
@@ -53,9 +54,10 @@
 							  	<?php 
 
 								  	if (!empty($_SESSION['email'])) {
-											$uId = $_SESSION['email']; 
+															$uId = mysqli_real_escape_string($db, (string) ($_SESSION['user_id'] ?? $_SESSION['email']));
+															$legacyEmail = mysqli_real_escape_string($db, (string) $_SESSION['email']);
 
-											$orderSql = "SELECT * FROM order_list WHERE  user_id='$uId' ORDER BY or_id DESC";
+															$orderSql = "SELECT * FROM order_list WHERE user_id='$uId' OR user_id='$legacyEmail' ORDER BY or_id DESC";
 											$orderQuery = mysqli_query( $db, $orderSql );
 											$markCount = mysqli_num_rows($orderQuery);
 
@@ -76,6 +78,7 @@
 										  			$or_name 		= $row['or_name'];
 										  			$or_category 	= $row['or_category'];
 										  			$price 			= $row['price'];
+															  $quantity 		= (int) ($row['quantity'] ?? 1);
 										  			$or_image 		= $row['or_image'];
 										  			$status 		= $row['status'];
 										  			$join_date 		= $row['join_date'];
@@ -109,7 +112,8 @@
 
 															  	?>
 															  </td>
-													      <td><?php echo $price; ?> Taka</td>
+															      <td><?php echo number_format($quantity); ?></td>
+															      <td><?php echo number_format($price, 2); ?> Taka</td>
 													      <td><?php echo $join_date; ?></td>
 													      <td>
 													      	<?php  

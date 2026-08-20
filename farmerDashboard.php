@@ -163,7 +163,7 @@
                                     <th scope="col">#Sl.</th>
                                     <th scope="col">Product Image</th>
                                     <th scope="col">Product Name</th>
-                                    <th scope="col">Price (Taka)</th>
+                                    <th scope="col">Price (Ugx)</th>
                                     <th scope="col">Category Name</th>
                                     <th scope="col">Status</th>
                                     <th scope="col">Join Date</th>
@@ -215,7 +215,7 @@
                                               ?>
                                             </td>
                                             <td class="text-center"><?php echo $cat_name; ?></td>
-                                            <td class="text-center"><?php echo $price; ?> Taka</td>
+                                            <td class="text-center"><?php echo $price; ?></td>
                                             <td class="text-center">
                                               <?php  
 
@@ -314,7 +314,7 @@
                         $totalOrdersCount = 0;
 
                         if (!empty($farmerEmail)) {
-                          $topProductSql = "SELECT c.cat_id, c.cat_name, c.cat_image, COALESCE(COUNT(o.or_id), 0) AS demand_count " .
+                          $topProductSql = "SELECT c.cat_id, c.cat_name, c.cat_image, COALESCE(SUM(COALESCE(o.quantity, 1)), 0) AS demand_count " .
                                            "FROM category c " .
                                            "LEFT JOIN order_list o ON c.cat_id=o.or_category " .
                                            "WHERE c.seller_email='$farmerEmail' " .
@@ -326,7 +326,7 @@
                             $topProducts[] = $product;
                           }
 
-                          $customerRequestSql = "SELECT o.or_id, o.user_id, o.user_phone, o.or_name, o.price, o.join_date, COALESCE(p.product_name, c.cat_name) AS product_name, u.user_email AS customer_email " .
+                          $customerRequestSql = "SELECT o.or_id, o.user_id, o.user_phone, o.or_name, o.price, o.quantity, o.join_date, COALESCE(p.product_name, c.cat_name) AS product_name, u.user_email AS customer_email " .
                                                 "FROM order_list o " .
                                                 "LEFT JOIN products p ON p.product_id=o.or_category " .
                                                 "LEFT JOIN category c ON c.cat_id=o.or_category " .
@@ -452,6 +452,7 @@
                                           <div>
                                             <h6 class="mb-1"><?php echo htmlspecialchars($request['or_name']); ?></h6>
                                             <p class="mb-1 text-muted small">Product: <?php echo htmlspecialchars($request['product_name'] ?: 'Unknown'); ?></p>
+                                            <p class="mb-1 text-muted small">Quantity: <?php echo number_format((int) ($request['quantity'] ?? 1)); ?> • Total: UGX <?php echo number_format((float) $request['price'], 2); ?></p>
                                             <p class="mb-0 text-muted small">Customer: <?php echo htmlspecialchars($request['user_id'] ?: 'Guest'); ?> • <?php echo htmlspecialchars($request['user_phone'] ?: 'No phone'); ?></p>
                                           </div>
                                           <span class="badge bg-light text-dark"><?php echo date('M j', strtotime($request['join_date'])); ?></span>
@@ -945,7 +946,7 @@
                                         </div>
 
                                         <div class="mb-3">
-                                          <label for="" class="form-label">Price (Taka)</label>
+                                          <label for="" class="form-label">Price (Ugx)</label>
                                           <input type="text" name="price" class="form-control" placeholder="enter price amount" required autocomplete="off" value="<?php echo $price; ?>">
                                         </div>
 
@@ -1178,7 +1179,7 @@
                                               ?>
                                             </td>
                                             <td class="text-center"><?php echo $cat_name; ?></td>
-                                            <td class="text-center"><?php echo $price; ?> Taka</td>
+                                            <td class="text-center"><?php echo $price; ?></td>
                                             <td class="text-center">
                                           <?php  
                                                 $readCat_Sql = "SELECT * FROM category WHERE cat_id='$is_parent'";

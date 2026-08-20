@@ -38,7 +38,8 @@
 									      <th scope="col">User Email</th>
 									      <th scope="col">User Phone</th>
 									      <th scope="col">Category</th>
-									      <th scope="col">Price (Per Kg)</th>
+									      <th scope="col">Quantity</th>
+									      <th scope="col">Total Price</th>
 									      <th scope="col">Status</th>
 									      <th scope="col">Order date</th>
 									      <th scope="col">Action</th>
@@ -66,7 +67,8 @@
 										  			$user_phone 	= $row['user_phone'];
 										  			$or_name 		= $row['or_name'];
 										  			$or_category 	= $row['or_category'];
-										  			$price 			= $row['price'];
+															  $price 			= $row['price'];
+															  $quantity 		= (int) ($row['quantity'] ?? 1);
 										  			$or_image 		= $row['or_image'];
 										  			$status 		= $row['status'];
 										  			$join_date 		= $row['join_date'];
@@ -103,7 +105,8 @@
 
 												      	?>
 												      </td>
-												      <td><?php echo $price; ?> Taka</td>
+												      <td><?php echo number_format($quantity); ?></td>
+												      <td><?php echo number_format($price, 2); ?> Taka</td>
 												      <td>
 												      	<?php  
 												      		if ($status == 1) { ?>
@@ -315,7 +318,8 @@
 									      <th scope="col">User Email</th>
 									      <th scope="col">User Phone</th>
 									      <th scope="col">Category</th>
-									      <th scope="col">Price (Per Kg)</th>
+									      <th scope="col">Quantity</th>
+									      <th scope="col">Total Price</th>
 									      <th scope="col">Status</th>
 									      <th scope="col">Order date</th>
 									      <th scope="col">Action</th>
@@ -344,6 +348,7 @@
 										  			$or_name 		= $row['or_name'];
 										  			$or_category 	= $row['or_category'];
 										  			$price 			= $row['price'];
+															  $quantity 		= (int) ($row['quantity'] ?? 1);
 										  			$or_image 		= $row['or_image'];
 										  			$status 		= $row['status'];
 										  			$join_date 		= $row['join_date'];
@@ -380,7 +385,8 @@
 
 												      	?>
 												      </td>
-												      <td><?php echo $price; ?> Taka</td>
+												      <td><?php echo number_format($quantity); ?></td>
+												      <td><?php echo number_format($price, 2); ?> Taka</td>
 												      <td>
 												      	<?php  
 												      		if ($status == 1) { ?>
