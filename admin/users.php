@@ -93,9 +93,6 @@
 				<div class="card">
 					<div class="card-body">
 						<div class="table-responsive">
-							<div id="example3_wrapper" class="dataTables_wrapper dt-bootstrap5">
-								<div class="row">
-									<div class="col-sm-12">
 									<table id="example3" class="table table-striped table-hover table-bordered dataTable" role="grid" aria-describedby="example3_info">
 										<thead class="table-dark">
 									    <tr>
@@ -221,10 +218,6 @@
 										
 									</table>
 
-									</div>
-								</div>
-								
-							</div>
 						</div>
 					</div>
 				</div>
@@ -250,7 +243,7 @@
 				<div class="card">
 					<div class="card-body">
 						<div class="table-responsive">
-							<div id="example3_wrapper" class="dataTables_wrapper dt-bootstrap5">
+							<div class="dataTables_wrapper dt-bootstrap5">
 								<div class="row">
 									<div class="col-sm-12">
 									<table id="example3" class="table table-striped table-hover table-bordered dataTable" role="grid" aria-describedby="example3_info">
@@ -411,7 +404,7 @@
 				<div class="card">
 					<div class="card-body">
 						<div class="table-responsive">
-							<div id="example3_wrapper" class="dataTables_wrapper dt-bootstrap5">
+							<div class="dataTables_wrapper dt-bootstrap5">
 								<div class="row">
 									<div class="col-sm-12">
 									<table id="example3" class="table table-striped table-hover table-bordered dataTable" role="grid" aria-describedby="example3_info">
@@ -574,7 +567,7 @@
 				<div class="card">
 					<div class="card-body">
 						<div class="table-responsive">
-							<div id="example3_wrapper" class="dataTables_wrapper dt-bootstrap5">
+							<div class="dataTables_wrapper dt-bootstrap5">
 								<div class="row">
 									
 									<!-- ########## START: FORM ########## -->
@@ -731,7 +724,7 @@
 							<div class="card">
 								<div class="card-body">
 									<div class="table-responsive">
-										<div id="example3_wrapper" class="dataTables_wrapper dt-bootstrap5">
+										<div class="dataTables_wrapper dt-bootstrap5">
 											<div class="row">
 												
 												<!-- ########## START: FORM ########## -->
@@ -978,7 +971,7 @@
 				<div class="card">
 					<div class="card-body">
 						<div class="table-responsive">
-							<div id="example3_wrapper" class="dataTables_wrapper dt-bootstrap5">
+							<div class="dataTables_wrapper dt-bootstrap5">
 								<div class="row">
 									<div class="col-sm-12">
 									<table id="example3" class="table table-striped table-hover table-bordered dataTable" role="grid" aria-describedby="example3_info">

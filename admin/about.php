@@ -12,8 +12,8 @@
 				$aboutQuery = mysqli_query($db, $aboutSql);
 				$aboutRow = mysqli_fetch_assoc($aboutQuery);
 				$aboutId = $aboutRow['id'] ?? '';
-				$title = $aboutRow['title'] ?? '';
-				$descrive = $aboutRow['descrive'] ?? '';
+				$title = $aboutRow['title'] ?? 'Farmers Market System';
+				$descrive = $aboutRow['descrive'] ?? 'The Farmers Market System connects local farmers and buyers through one digital marketplace. Farmers can manage products, stock, harvest dates, documents, inquiries, orders, and delivery updates, while buyers can browse approved products, ask questions, place orders, and follow delivery progress. Administrators approve products, manage users, respond to support requests, and monitor marketplace performance.';
 				$year = $aboutRow['year'] ?? '';
 				$total_age = $aboutRow['total_age'] ?? '';
 				$a_image = $aboutRow['a_image'] ?? '';
@@ -65,8 +65,8 @@
 								<div class="col-lg-6">
 
 									<div class="mb-3">
-										<label for="describe">Describe</label>
-										<textarea id="describe" name="describe" class="form-control" cols="30" rows="8" autocomplete="off" placeholder="Describe..."><?php echo htmlspecialchars($descrive); ?></textarea>
+										<label for="describe">Describe the Farmers Market System</label>
+										<textarea id="describe" name="describe" class="form-control" cols="30" rows="8" autocomplete="off" placeholder="Explain the Farmers Market System and its services..."><?php echo htmlspecialchars($descrive); ?></textarea>
 									</div>
 
 									<div class="mb-3">

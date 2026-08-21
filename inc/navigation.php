@@ -5,19 +5,19 @@
 				<ul class="nav nav-pills" id="mainNav">
 					<li class="">
 						<a class="dropdown-item dropdown-toggle active" href="index.php">
-							Home
+							<?php echo t('Home'); ?>
 						</a>
 					</li>
 
 					<li class="">
 						<a class="dropdown-item dropdown-toggle" href="aboutUs.php">
-							About Us
+							<?php echo t('About Us'); ?>
 						</a>
 					</li>
 
 					<li class="">
 						<a class="dropdown-item dropdown-toggle" href="blog.php">
-							Blog
+							<?php echo t('Blog'); ?>
 						</a>
 					</li>
 
@@ -58,9 +58,9 @@
 											
 										</a>
 										<ul class="dropdown-menu">
-											<li><a class="dropdown-item" href="user_manage.php?uid=<?php echo $_SESSION['user_id']; ?>">Profile Update</a></li>
-											<li><a class="dropdown-item" href="order_history.php">Order List</a></li>
-											<li><a class="dropdown-item" href="logout.php">Log Out</a></li>
+											<li><a class="dropdown-item" href="user_manage.php?uid=<?php echo $_SESSION['user_id']; ?>"><?php echo t('Profile Update'); ?></a></li>
+											<li><a class="dropdown-item" href="order_history.php"><?php echo t('Order List'); ?></a></li>
+											<li><a class="dropdown-item" href="logout.php"><?php echo t('Log Out'); ?></a></li>
 										</ul>
 									</li>
 
@@ -75,25 +75,25 @@
 						else { ?>
 							<li class="dropdown">
 								<a class="dropdown-item dropdown-toggle" href="login.php">
-									<i class="fa-solid fa-arrow-right-to-bracket px-1"></i> Login
+									<i class="fa-solid fa-arrow-right-to-bracket px-1"></i> <?php echo t('Login'); ?>
 								</a>
 							</li>
 
 							<li class="dropdown">
 								<a class="dropdown-item dropdown-toggle" href="register.php">
-									<i class="fa-regular fa-address-card px-1"></i> Register
+									<i class="fa-regular fa-address-card px-1"></i> <?php echo t('Register'); ?>
 								</a>
 							</li>
 
 							<li class="">
 								<a class="dropdown-item dropdown-toggle" href="seller.php">
-									<i class="fa-solid fa-wheat-awn px-1"></i> Farmer Account
+									<i class="fa-solid fa-wheat-awn px-1"></i> <?php echo t('Farmer Account'); ?>
 								</a>
 							</li>
 
 							<li class="">
 								<a class="dropdown-item dropdown-toggle" href="admin/index.php">
-									<i class="fa-solid fa-user-shield px-1"></i> Admin Login
+									<i class="fa-solid fa-user-shield px-1"></i> <?php echo t('Admin Login'); ?>
 								</a>
 							</li>
 							<?php  
@@ -103,6 +103,13 @@
 						<?php }
 					?>
 					<!-- For users login or nor -->
+					<li class="dropdown">
+						<a class="dropdown-item dropdown-toggle" href="#"><?php echo t('Language'); ?>: <?php echo $currentLanguage === 'lg' ? t('Luganda') : t('English'); ?></a>
+						<ul class="dropdown-menu">
+							<li><a class="dropdown-item" href="<?php echo language_url('en'); ?>"><?php echo t('English'); ?></a></li>
+							<li><a class="dropdown-item" href="<?php echo language_url('lg'); ?>"><?php echo t('Luganda'); ?></a></li>
+						</ul>
+					</li>
 
 					
 				</ul>

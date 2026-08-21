@@ -45,6 +45,7 @@
 							      <th scope="col">Category</th>
 								  <th scope="col">Quantity</th>
 								  <th scope="col">Total Price</th>
+							      <th scope="col">Delivery Location</th>
 							      <th scope="col">Order Date</th>
 							      <th scope="col">Status</th>
 							      <th scope="col">Action</th>
@@ -79,6 +80,8 @@
 										  			$or_category 	= $row['or_category'];
 										  			$price 			= $row['price'];
 															  $quantity 		= (int) ($row['quantity'] ?? 1);
+															  $delivery_location = $row['delivery_location'] ?? '';
+															  $delivery_update = $row['delivery_update'] ?? '';
 										  			$or_image 		= $row['or_image'];
 										  			$status 		= $row['status'];
 										  			$join_date 		= $row['join_date'];
@@ -114,10 +117,11 @@
 															  </td>
 															      <td><?php echo number_format($quantity); ?></td>
 															      <td><?php echo number_format($price, 2); ?> Taka</td>
+															      <td><?php echo nl2br(htmlspecialchars($delivery_location ?: 'Not provided')); ?><?php if ($delivery_update) { ?><br><small class="text-info">Update: <?php echo nl2br(htmlspecialchars($delivery_update)); ?></small><?php } ?></td>
 													      <td><?php echo $join_date; ?></td>
 													      <td>
 													      	<?php  
-													      		if ($status == 1) { 
+										      		if ($status == 1) { 
 
 													      			?>
 													      			<span class="badge badge-success" data-toggle="tooltip" data-placement="top" title="This item is Activated. some minutes latter we will call you.">ACTIVE</span>
@@ -125,11 +129,14 @@
 													      		<?php }
 
 													      		else if ($status == 2) { ?>
-													      			<span class="badge badge-info" data-toggle="tooltip" data-placement="top" title="Please wait some minutes, our administrator will be see your booked.">PENDING</span>
+													      			<span class="badge badge-success">FULFILLED</span>
 													      		<?php }
 
 													      		else if ($status == 0) { ?>
-													      			<span class="badge badge-danger" data-toggle="tooltip" data-placement="top" title="Sorry! This item is not available.">INACTIVE</span>
+													      			<span class="badge badge-warning">PENDING</span>
+													      		<?php }
+													      		else if ($status == 3) { ?>
+													      			<span class="badge badge-danger">CANCELLED</span>
 													      		<?php }
 													      	?>
 													      </td>

@@ -3,6 +3,7 @@
   ob_start();
   include "admin/inc/db.php";
   require_once __DIR__ . '/admin/inc/email.php';
+  require_once __DIR__ . '/inc/language.php';
 ?>
 
 <!doctype html>
@@ -61,11 +62,18 @@
                         <a href="farmerDashboard.php?do=Home" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-gauge-simple-high"></i> <span>&nbsp;Dashboard</span> </a>
                         <hr style="color: #72717f;">
                         <a href="farmerDashboard.php?do=Manage" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-box"></i> <span>&nbsp;My Products</span></a>
+                        <a href="farmer_orders.php" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-cart-shopping"></i> <span>&nbsp;Orders</span></a>
+                        <a href="farmer_inquiries.php" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-regular fa-message"></i> <span>&nbsp;Buyer Inquiries</span></a>
                         <a href="farmerDashboard.php?do=AddDoc" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-file-circle-plus"></i> <span>&nbsp;Add Documents</span></a>
                         <a href="farmerDashboard.php?do=ViewDoc" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-file-lines"></i> <span>&nbsp;View Documents</span></a>
                         <a href="farmerDashboard.php?do=Profile" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-user"></i> <span>&nbsp;Profile</span></a>
                         <a href="farmerDashboard.php?do=Support" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-regular fa-message"></i> <span>&nbsp;Support</span></a>
                         <a href="farmerDashboard.php?do=Contact" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-address-book"></i> <span>&nbsp;Contact</span></a>
+                        <div class="list-group-item border-end-0">
+                          <small><?php echo t('Language'); ?></small><br>
+                          <a href="<?php echo language_url('en'); ?>">English</a> |
+                          <a href="<?php echo language_url('lg'); ?>">Luganda</a>
+                        </div>
                         <a href="logout.php" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-right-from-bracket"></i> <span>&nbsp;Logout</span></a>
                     </div>
                 </div>
@@ -149,6 +157,7 @@
 
                               <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                                 <a href="farmerDashboard.php?do=Add" class="btn btn-dark">Add New Product</a>
+                                <a href="bulk_upload.php" class="btn btn-success">Bulk Upload</a>
                                 <a href="farmerDashboard.php?do=ManageTrash" class="btn btn-danger">Trash</a>
                               </div>
                               
@@ -164,6 +173,7 @@
                                     <th scope="col">Product Image</th>
                                     <th scope="col">Product Name</th>
                                     <th scope="col">Price (Ugx)</th>
+                                    <th scope="col">Availability</th>
                                     <th scope="col">Category Name</th>
                                     <th scope="col">Status</th>
                                     <th scope="col">Join Date</th>
@@ -176,7 +186,7 @@
                                     if (!empty($_SESSION['email'])) {
                                       $sellerId = $_SESSION['email'];
 
-                                      $sellerReadSql = "SELECT * FROM category WHERE status !=0 AND seller_email='$sellerId' ORDER BY cat_name ASC";
+                                      $sellerReadSql = "SELECT p.*, c.cat_name FROM products p LEFT JOIN category c ON c.cat_id = p.category_id WHERE p.status != 0 AND p.seller_email='$sellerId' ORDER BY p.product_name ASC";
                                       $sellerReadQuery = mysqli_query( $db, $sellerReadSql );
                                       $sellerCount = mysqli_num_rows($sellerReadQuery);
 
@@ -190,14 +200,15 @@
                                         $i = 0;
 
                                         while ($row = mysqli_fetch_assoc($sellerReadQuery)) {
-                                          $cat_id     = $row['cat_id'];
-                                          $cat_name     = $row['cat_name'];
-                                          $cat_desc     = $row['cat_desc'];
-                                          $is_parent    = $row['is_parent'];
+                                          $cat_id     = $row['product_id'];
+                                          $cat_name     = $row['product_name'];
+                                          $cat_desc     = $row['description'];
+                                          $is_parent    = $row['category_id'];
                                           $status     = $row['status'];
                                           $join_date    = $row['join_date'];
-                                          $cat_image    = $row['cat_image'];        
+                                          $cat_image    = $row['image'];
                                           $price      = $row['price'];        
+                                          $stock_quantity = (int) ($row['stock_quantity'] ?? 0);
                                           $seller_email   = $row['seller_email'];       
                                           $i++;
                                           ?>
@@ -207,7 +218,7 @@
                                             <td class="text-center">
                                               <?php  
                                                 if (!empty($cat_image)) {
-                                              echo '<img src="admin/assets/images/category/' . $cat_image . '" style="width: 60px">';
+                                              echo '<img src="admin/assets/images/products/' . htmlspecialchars($cat_image) . '" style="width: 60px">';
                                             }
                                             else {
                                               echo '<img src="admin/assets/images/category/default.jpg" style="width: 60px">';
@@ -216,20 +227,14 @@
                                             </td>
                                             <td class="text-center"><?php echo $cat_name; ?></td>
                                             <td class="text-center"><?php echo $price; ?></td>
+                                            <td class="text-center"><?php echo $stock_quantity > 0 ? '<span class="badge text-bg-success">IN STOCK</span>' : '<span class="badge text-bg-danger">OUT OF STOCK</span>'; ?></td>
                                             <td class="text-center">
                                               <?php  
 
-                                                $readCat_Sql = "SELECT * FROM category WHERE cat_id='$is_parent'";
-                                                $readCat_Quary = mysqli_query($db, $readCat_Sql);
-
-                                                while( $row = mysqli_fetch_assoc($readCat_Quary) ){
-                                                  $cc_id   = $row['cat_id'];
-                                                  $cc_name = $row['cat_name'];
-                                                  ?>
-                                                  <span class="badge text-bg-secondary"><?php echo "$cc_name"; ?></span>
-                                                  <?php
-
-                                                  
+                                                if (!empty($row['cat_name'])) {
+                                                  echo '<span class="badge text-bg-secondary">' . htmlspecialchars($row['cat_name']) . '</span>';
+                                                } else {
+                                                  echo '<span class="badge text-bg-secondary">Uncategorized</span>';
                                                 }
 
                                               ?>
@@ -312,6 +317,7 @@
                         $customerRequests = [];
                         $newRequestCount = 0;
                         $totalOrdersCount = 0;
+                        $lowStockCount = 0;
 
                         if (!empty($farmerEmail)) {
                           $topProductSql = "SELECT c.cat_id, c.cat_name, c.cat_image, COALESCE(SUM(COALESCE(o.quantity, 1)), 0) AS demand_count " .
@@ -326,7 +332,7 @@
                             $topProducts[] = $product;
                           }
 
-                          $customerRequestSql = "SELECT o.or_id, o.user_id, o.user_phone, o.or_name, o.price, o.quantity, o.join_date, COALESCE(p.product_name, c.cat_name) AS product_name, u.user_email AS customer_email " .
+                          $customerRequestSql = "SELECT o.or_id, o.user_id, o.user_phone, o.or_name, o.price, o.quantity, o.join_date, o.status, o.delivery_location, o.delivery_update, COALESCE(p.product_name, c.cat_name) AS product_name, u.user_email AS customer_email " .
                                                 "FROM order_list o " .
                                                 "LEFT JOIN products p ON p.product_id=o.or_category " .
                                                 "LEFT JOIN category c ON c.cat_id=o.or_category " .
@@ -339,8 +345,9 @@
                             $customerRequests[] = $request;
                           }
 
-                          $newRequestCount = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM order_list o LEFT JOIN category c ON c.cat_id=o.or_category WHERE c.seller_email='$farmerEmail' AND o.status=0"))['total'];
-                          $totalOrdersCount = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM order_list o LEFT JOIN category c ON c.cat_id=o.or_category WHERE c.seller_email='$farmerEmail'"))['total'];
+                          $newRequestCount = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM order_list o LEFT JOIN products p ON p.product_id=o.or_category LEFT JOIN category c ON c.cat_id=o.or_category WHERE (p.seller_email='$farmerEmail' OR c.seller_email='$farmerEmail') AND o.status=0"))['total'];
+                          $totalOrdersCount = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM order_list o LEFT JOIN products p ON p.product_id=o.or_category LEFT JOIN category c ON c.cat_id=o.or_category WHERE (p.seller_email='$farmerEmail' OR c.seller_email='$farmerEmail')"))['total'];
+                          $lowStockCount = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM products WHERE seller_email='$farmerEmail' AND status=1 AND stock_quantity <= low_stock_threshold"))['total'];
                         }
 
                         ?>
@@ -441,7 +448,8 @@
                           <div class="col-xl-5">
                             <div class="card shadow-sm h-100">
                               <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0"><i class="fa-solid fa-bell me-2"></i>Customer Reachouts</h5>
+                                <h5 class="mb-0"><i class="fa-solid fa-bell me-2"></i>Notifications <?php if ($lowStockCount > 0) { ?><span class="badge bg-warning text-dark ms-2"><?php echo $lowStockCount; ?> low stock</span><?php } ?></h5>
+                                <a href="farmer_orders.php" class="btn btn-sm btn-light mt-2">Manage Orders</a>
                               </div>
                               <div class="card-body">
                                 <?php if (count($customerRequests) > 0) { ?>
@@ -466,7 +474,7 @@
                                 <?php } else { ?>
                                   <div class="text-center py-5">
                                     <i class="fa-solid fa-comments fa-2x text-muted mb-3"></i>
-                                    <p class="mb-0 text-muted">No customer reachouts yet. Buyers will appear here once they select your products.</p>
+                                    <p class="mb-0 text-muted">No new inquiries or orders. New customer activity will appear here.</p>
                                   </div>
                                 <?php } ?>
                               </div>
@@ -762,7 +770,7 @@
                                     }
                                     else { ?>
 
-                                      <input type="hidden" name="status" value="1">
+                                      <input type="hidden" name="status" value="0">
                                   <input type="hidden" name="useremail" value="<?php echo $_SESSION['email']; ?>">
                                   <input type="hidden" name="userphone" value="<?php echo $_SESSION['phone']; ?>">
                                   <input type="submit" name="addUser" class="btn btn-primary btn-lg btn-block">
@@ -824,6 +832,26 @@
                                   </div>
 
                                   <div class="mb-3">
+                                    <label for="" class="form-label">Available Quantity</label>
+                                    <input type="number" name="stock_quantity" class="form-control" min="0" value="0" required>
+                                  </div>
+
+                                  <div class="mb-3">
+                                    <label for="harvestDate" class="form-label">Expected Harvest Date (optional)</label>
+                                    <input type="date" name="harvest_date" class="form-control" id="harvestDate">
+                                  </div>
+
+                                  <div class="mb-3">
+                                    <label for="seasonalAvailability" class="form-label">Seasonal Availability (optional)</label>
+                                    <input type="text" name="seasonal_availability" class="form-control" id="seasonalAvailability" placeholder="e.g. June to August or Year-round">
+                                  </div>
+
+                                  <div class="mb-3">
+                                    <label for="lowStockThreshold" class="form-label">Low-stock alert at</label>
+                                    <input type="number" name="low_stock_threshold" class="form-control" id="lowStockThreshold" min="0" value="5" required>
+                                  </div>
+
+                                  <div class="mb-3">
                                     <label for=""  class="form-label">Select the Parent Category [ If Any ]</label>
                                     <select class="form-select" name="is_parent">
                                       <option value="1">Please select the parent category</option>
@@ -859,6 +887,10 @@
                                   <div class="mb-3">
                                     <input type="hidden" value="2" name="status">
                                     <input type="hidden" name="seller_email" value="<?php echo $_SESSION['email']; ?>">
+                                    <div class="form-check">
+                                      <input type="checkbox" class="form-check-input" name="is_negotiable" value="1" id="farmerIsNegotiable">
+                                      <label class="form-check-label" for="farmerIsNegotiable">Price is negotiable</label>
+                                    </div>
                                   </div>
 
                                   <div class="mb-3">
@@ -879,27 +911,33 @@
 
                     else if ( $do == "Store" ) {
                       if (isset($_POST['addCategory'])) {
-                        $catName    = mysqli_real_escape_string($db, $_POST['catName']);
-                        $price      = mysqli_real_escape_string($db, $_POST['price']);
-                        $is_parent    = mysqli_real_escape_string($db, $_POST['is_parent']);
-                        $status     = mysqli_real_escape_string($db, $_POST['status']);
-                        $seller_email   = mysqli_real_escape_string($db, $_POST['seller_email']);
-                        $desc       = mysqli_real_escape_string($db, $_POST['desc']);
+                        $productName = mysqli_real_escape_string($db, trim($_POST['catName']));
+                        $price = mysqli_real_escape_string($db, trim($_POST['price']));
+                        $categoryId = !empty($_POST['is_parent']) ? (int) $_POST['is_parent'] : null;
+                        $status = 2;
+                        $seller_email = mysqli_real_escape_string($db, $_SESSION['email'] ?? '');
+                        $desc = mysqli_real_escape_string($db, trim($_POST['desc']));
+                        $stock_quantity = max(0, (int) ($_POST['stock_quantity'] ?? 0));
+                        $is_negotiable = isset($_POST['is_negotiable']) ? 1 : 0;
+                        $harvest_date = trim($_POST['harvest_date'] ?? '');
+                        $harvestDateValue = $harvest_date !== '' ? "'" . mysqli_real_escape_string($db, $harvest_date) . "'" : 'NULL';
+                        $seasonal_availability = mysqli_real_escape_string($db, trim($_POST['seasonal_availability'] ?? ''));
+                        $low_stock_threshold = max(0, (int) ($_POST['low_stock_threshold'] ?? 5));
+                        $image = '';
 
-                        
-                        $image      = mysqli_real_escape_string($db,$_FILES['image']['name']);
-                        $temp_img     = $_FILES['image']['tmp_name'];
-
-
-                        if (!empty($image)) {
-                          $img = rand(0, 999999) . "_" . $image;
-                          move_uploaded_file($temp_img, 'admin/assets/images/category/' . $img);
+                        if (!empty($_FILES['image']['name'])) {
+                          $uploadDir = 'admin/assets/images/products/';
+                          if (!is_dir($uploadDir)) {
+                            mkdir($uploadDir, 0777, true);
+                          }
+                          $imageName = time() . '_' . basename($_FILES['image']['name']);
+                          if (move_uploaded_file($_FILES['image']['tmp_name'], $uploadDir . $imageName)) {
+                            $image = mysqli_real_escape_string($db, $imageName);
+                          }
                         }
-                        else {
-                          $img = '';
-                        }
 
-                        $addSql = "INSERT INTO category (cat_name, cat_desc, is_parent, status, cat_image, join_date, price, seller_email) VALUES('$catName', '$desc', '$is_parent', '$status', '$img', now(), '$price', '$seller_email')";
+                        $categoryValue = $categoryId ? "'$categoryId'" : 'NULL';
+                        $addSql = "INSERT INTO products (product_name, description, category_id, price, is_negotiable, view_count, harvest_date, seasonal_availability, stock_quantity, low_stock_threshold, seller_email, image, status, join_date) VALUES ('$productName', '$desc', $categoryValue, '$price', '$is_negotiable', 0, $harvestDateValue, '$seasonal_availability', '$stock_quantity', '$low_stock_threshold', '$seller_email', '$image', '$status', NOW())";
                         $addQuery = mysqli_query($db, $addSql);
 
                         if ($addQuery) {
@@ -915,19 +953,25 @@
 
                     else if ( $do == "Edit" ) { 
                       if (isset($_GET['uId'])) {
-                        $upId = $_GET['uId'];
-                        $upReadSql = "SELECT * FROM category WHERE cat_id='$upId'";
+                        $upId = (int) $_GET['uId'];
+                        $sellerId = mysqli_real_escape_string($db, $_SESSION['email'] ?? '');
+                        $upReadSql = "SELECT p.*, c.cat_name FROM products p LEFT JOIN category c ON c.cat_id = p.category_id WHERE p.product_id='$upId' AND p.seller_email='$sellerId' LIMIT 1";
                         $upReadQuery = mysqli_query($db, $upReadSql);
 
                         while ( $row = mysqli_fetch_assoc($upReadQuery) ) {
-                          $cat_id     = $row['cat_id'];
-                            $cat_name     = $row['cat_name'];
-                            $cat_desc     = $row['cat_desc'];
-                            $is_parent    = $row['is_parent'];
+                          $cat_id     = $row['product_id'];
+                            $cat_name     = $row['product_name'];
+                            $cat_desc     = $row['description'];
+                            $is_parent    = $row['category_id'];
                             $status     = $row['status'];
                             $join_date    = $row['join_date'];
-                            $cat_image    = $row['cat_image'];
+                            $cat_image    = $row['image'];
                             $price      = $row['price'];
+                            $stock_quantity = (int) $row['stock_quantity'];
+                            $is_negotiable = (int) ($row['is_negotiable'] ?? 0);
+                            $harvest_date = $row['harvest_date'] ?? '';
+                            $seasonal_availability = $row['seasonal_availability'] ?? '';
+                            $low_stock_threshold = (int) ($row['low_stock_threshold'] ?? 5);
                             $seller_email   = $row['seller_email'];
                             ?>
                               <div class="container pb-5">
@@ -942,12 +986,32 @@
                                       <div class="col-lg-6">
                                         <div class="mb-3">
                                           <label for="" class="form-label">Product Name</label>
-                                          <input type="text" name="catName" class="form-control" placeholder="enter product name" required autocomplete="off" value="<?php echo $cat_name; ?>">
+                                          <input type="text" name="catName" class="form-control" placeholder="enter product name" required autocomplete="off" value="<?php echo htmlspecialchars($cat_name); ?>">
                                         </div>
 
                                         <div class="mb-3">
                                           <label for="" class="form-label">Price (Ugx)</label>
-                                          <input type="text" name="price" class="form-control" placeholder="enter price amount" required autocomplete="off" value="<?php echo $price; ?>">
+                                          <input type="number" step="0.01" name="price" class="form-control" placeholder="enter price amount" required autocomplete="off" value="<?php echo htmlspecialchars($price); ?>">
+                                        </div>
+
+                                        <div class="mb-3">
+                                          <label for="" class="form-label">Available Quantity</label>
+                                          <input type="number" name="stock_quantity" class="form-control" min="0" required value="<?php echo $stock_quantity; ?>">
+                                        </div>
+
+                                        <div class="mb-3">
+                                          <label for="editHarvestDate" class="form-label">Expected Harvest Date (optional)</label>
+                                          <input type="date" name="harvest_date" class="form-control" id="editHarvestDate" value="<?php echo htmlspecialchars($harvest_date); ?>">
+                                        </div>
+
+                                        <div class="mb-3">
+                                          <label for="editSeasonalAvailability" class="form-label">Seasonal Availability (optional)</label>
+                                          <input type="text" name="seasonal_availability" class="form-control" id="editSeasonalAvailability" value="<?php echo htmlspecialchars($seasonal_availability); ?>">
+                                        </div>
+
+                                        <div class="mb-3">
+                                          <label for="editLowStockThreshold" class="form-label">Low-stock alert at</label>
+                                          <input type="number" name="low_stock_threshold" class="form-control" id="editLowStockThreshold" min="0" value="<?php echo $low_stock_threshold; ?>" required>
                                         </div>
 
                                         <div class="mb-3">
@@ -963,7 +1027,7 @@
                                               $p_cat_name   = $row['cat_name'];
                                               ?>
 
-                                              <option value="<?php echo $p_cat_id; ?>" <?php if( $p_cat_id == $is_parent ){ echo "selected"; } ?> ><?php echo $p_cat_name; ?></option>
+                                              <option value="<?php echo $p_cat_id; ?>" <?php if( $p_cat_id == $is_parent ){ echo "selected"; } ?> ><?php echo htmlspecialchars($p_cat_name); ?></option>
 
                                               <?php
                                               }
@@ -973,52 +1037,47 @@
                                         
 
                                         <div class="mb-3">
-                                          <label for="" class="form-label">Category Image</label>
+                                          <label for="" class="form-label">Product Image</label>
                                           <br><br>
 
                                           <?php  
                                                 if (!empty($cat_image)) {
-                                              echo '<img src="admin/assets/images/category/' . $cat_image . '" style="width: 100%; height: 200px;">';
+                                              echo '<img src="admin/assets/images/products/' . htmlspecialchars($cat_image) . '" style="width: 100%; height: 200px; object-fit: cover;">';
                                             }
                                             else {
                                               echo 'No Image Found';
                                             }
                                               ?>
                                               <br><br>
-                                          <input class="form-control" type="file" name="image" type="file">
+                                          <input class="form-control" type="file" name="image" accept="image/*">
                                         </div>
                                       </div>
                                       <div class="col-lg-6">
                                         <div class="mb-3">
-                                          <label for="" class="form-label">Category Description</label>
-                                          <textarea name="desc" class="form-control" id="" cols="30" rows="8"><?php echo $cat_desc; ?></textarea>
+                                          <label for="" class="form-label">Product Description</label>
+                                          <textarea name="desc" class="form-control" id="" cols="30" rows="8"><?php echo htmlspecialchars($cat_desc); ?></textarea>
                                         </div>
 
                                         <div class="mb-3">
                                           <label for="" class="form-label">Status Update</label>
                                           <select class="form-select" aria-label="Default select example" name="status">
-                                            <option selected>Please Select The Status</option>
-                                            <option value="1" <?php if ($status == 2)  { echo "selected"; } ?>>Active</option>
-                                            <option value="0" <?php if ($status == 0)  { echo "selected"; } ?>>InActive</option>
+                                            <option value="2" <?php if ($status == 2) echo "selected"; ?>>Pending</option>
+                                            <option value="1" <?php if ($status == 1) echo "selected"; ?>>Active</option>
+                                            <option value="0" <?php if ($status == 0) echo "selected"; ?>>Inactive</option>
                                           </select>
                                         </div>
 
                                         <div class="mb-3">
-                                          <input type="hidden" value="2" name="status">
-                                          <input type="hidden" name="seller_email" value="<?php echo $_SESSION['email']; ?>">
+                                          <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" name="is_negotiable" value="1" id="editFarmerIsNegotiable" <?php echo $is_negotiable ? 'checked' : ''; ?>>
+                                            <label class="form-check-label" for="editFarmerIsNegotiable">Price is negotiable</label>
+                                          </div>
                                         </div>
 
                                         <div class="mb-3">
                                           <div class="d-grid gap-2">
                                             <input type="hidden" name="updateCategoryId" value="<?php echo $cat_id; ?>">
-                                            <?php  
-                                              if ( $status != 0 ) { ?>
-                                                <input type="submit" name="updateCategory" class="btn btn-dark btn-lg btn-block" value="Update Product">
-                                              <?php }
-                                              else { ?>
-                                                <input type="submit" name="updateCategory" class="btn btn-dark btn-lg btn-block" value="Return Product">
-                                              <?php }
-                                            ?>
+                                            <input type="submit" name="updateCategory" class="btn btn-dark btn-lg btn-block" value="Update Product">
                                             
                                           </div>
                                         </div>
@@ -1039,53 +1098,51 @@
 
                     else if ( $do == "Update" ) {
                       if (isset($_POST['updateCategory'])) {
-                        $updateCategoryId   = mysqli_real_escape_string($db, $_POST['updateCategoryId']);
-                        $catName      = mysqli_real_escape_string($db, $_POST['catName']);
-                        $is_parent      = mysqli_real_escape_string($db, $_POST['is_parent']);
-                        $status       = mysqli_real_escape_string($db, $_POST['status']);
-                        $desc         = mysqli_real_escape_string($db, $_POST['desc']);
-                        $price        = mysqli_real_escape_string($db, $_POST['price']);
-                        $seller_email     = mysqli_real_escape_string($db, $_POST['seller_email']);
-                        
-                        $image        = mysqli_real_escape_string($db,$_FILES['image']['name']);
-                        $temp_img       = $_FILES['image']['tmp_name'];
+                        $updateProductId = (int) $_POST['updateCategoryId'];
+                        $productName = mysqli_real_escape_string($db, trim($_POST['catName']));
+                        $categoryId = !empty($_POST['is_parent']) ? (int) $_POST['is_parent'] : null;
+                        $status = (int) $_POST['status'];
+                        $desc = mysqli_real_escape_string($db, trim($_POST['desc']));
+                        $price = mysqli_real_escape_string($db, trim($_POST['price']));
+                        $stock_quantity = max(0, (int) ($_POST['stock_quantity'] ?? 0));
+                        $is_negotiable = isset($_POST['is_negotiable']) ? 1 : 0;
+                        $harvest_date = trim($_POST['harvest_date'] ?? '');
+                        $harvestDateValue = $harvest_date !== '' ? "harvest_date='" . mysqli_real_escape_string($db, $harvest_date) . "'," : 'harvest_date=NULL,';
+                        $seasonal_availability = mysqli_real_escape_string($db, trim($_POST['seasonal_availability'] ?? ''));
+                        $low_stock_threshold = max(0, (int) ($_POST['low_stock_threshold'] ?? 5));
+                        $sellerId = mysqli_real_escape_string($db, $_SESSION['email'] ?? '');
+                        $categoryValue = $categoryId ? "category_id='$categoryId'," : 'category_id=NULL,';
+                        $setImageSql = '';
 
-                        if (!empty($image)) {
-                          $oldImageSql = "SELECT * FROM category WHERE cat_id='$updateCategoryId'";
-                          $oldImgQuery = mysqli_query( $db, $oldImageSql );
-
-                          while( $row = mysqli_fetch_assoc($oldImgQuery) ) {
-                            $oldcat_image = $row['cat_image'];
-                            unlink( "admin/assets/images/category/$img" . $oldcat_image );            
+                        if (!empty($_FILES['image']['name'])) {
+                          $oldImageQuery = mysqli_query($db, "SELECT image FROM products WHERE product_id='$updateProductId' AND seller_email='$sellerId' LIMIT 1");
+                          $oldImageRow = mysqli_fetch_assoc($oldImageQuery);
+                          if ($oldImageRow && !empty($oldImageRow['image'])) {
+                            $oldImagePath = 'admin/assets/images/products/' . $oldImageRow['image'];
+                            if (file_exists($oldImagePath)) {
+                              unlink($oldImagePath);
+                            }
                           }
 
-                          $img = rand(0, 999999) . "_" . $image;
-                          move_uploaded_file($temp_img, 'admin/assets/images/category/' . $img);
-
-                          $upSql = "UPDATE category SET cat_name='$catName', cat_desc='$desc', is_parent='$is_parent', status='$status', cat_image='$img', price='$price', seller_email='$seller_email' WHERE cat_id='$updateCategoryId' ";
-                
-                          $updateQuery = mysqli_query($db, $upSql);
-
-                          if ($updateQuery) {
-                            header("Location: farmerDashboard.php?do=Manage");
+                          $uploadDir = 'admin/assets/images/products/';
+                          if (!is_dir($uploadDir)) {
+                            mkdir($uploadDir, 0777, true);
                           }
-                          else {
-                            die ("Mysql Error." .mysqli_error($db) );
-                          }
-
-                        }
-                        else if (empty($image)){
-
-                          $upSql = "UPDATE category SET cat_name='$catName', cat_desc='$desc', is_parent='$is_parent', status='$status', price='$price', seller_email='$seller_email' WHERE cat_id='$updateCategoryId' ";
-                          $updateQuery = mysqli_query($db, $upSql);
-
-                          if ($updateQuery) {
-                            header("Location: farmerDashboard.php?do=Manage");
-                          }
-                          else {
-                            die ("Mysql Error." .mysqli_error($db) );
+                          $imageName = time() . '_' . basename($_FILES['image']['name']);
+                          if (move_uploaded_file($_FILES['image']['tmp_name'], $uploadDir . $imageName)) {
+                            $imageName = mysqli_real_escape_string($db, $imageName);
+                            $setImageSql = "image='$imageName',";
                           }
                         }
+
+                        $upSql = "UPDATE products SET product_name='$productName', description='$desc', $categoryValue $setImageSql price='$price', stock_quantity='$stock_quantity', is_negotiable='$is_negotiable', $harvestDateValue seasonal_availability='$seasonal_availability', low_stock_threshold='$low_stock_threshold', status='$status' WHERE product_id='$updateProductId' AND seller_email='$sellerId'";
+                        $updateQuery = mysqli_query($db, $upSql);
+
+                        if ($updateQuery) {
+                          header("Location: farmerDashboard.php?do=Manage");
+                          exit;
+                        }
+                        die("Mysql Error." . mysqli_error($db));
 
                         
                       }
@@ -1093,8 +1150,9 @@
 
                     else if ( $do == "Trash" ) {
                       if (isset($_GET['tId'])) {
-                        $trushId = $_GET['tId'];
-                        $trushSql = "UPDATE category SET status=0 WHERE cat_id='$trushId'";
+                        $trushId = (int) $_GET['tId'];
+                        $sellerId = mysqli_real_escape_string($db, $_SESSION['email'] ?? '');
+                        $trushSql = "UPDATE products SET status=0 WHERE product_id='$trushId' AND seller_email='$sellerId'";
                         $trushQuery = mysqli_query( $db, $trushSql );
 
                         if ($trushQuery) {
@@ -1140,7 +1198,7 @@
                                     if (!empty($_SESSION['email'])) {
                                       $sellerId = $_SESSION['email'];
 
-                                      $sellerReadSql = "SELECT * FROM category WHERE status=0 AND seller_email='$sellerId' ORDER BY cat_name ASC";
+                                      $sellerReadSql = "SELECT p.*, c.cat_name FROM products p LEFT JOIN category c ON c.cat_id = p.category_id WHERE p.status=0 AND p.seller_email='$sellerId' ORDER BY p.product_name ASC";
                                       $sellerReadQuery = mysqli_query( $db, $sellerReadSql );
                                       $sellerCount = mysqli_num_rows($sellerReadQuery);
 
@@ -1154,13 +1212,13 @@
                                         $i = 0;
 
                                         while ($row = mysqli_fetch_assoc($sellerReadQuery)) {
-                                          $cat_id     = $row['cat_id'];
-                                          $cat_name     = $row['cat_name'];
-                                          $cat_desc     = $row['cat_desc'];
-                                          $is_parent    = $row['is_parent'];
+                                          $cat_id     = $row['product_id'];
+                                          $cat_name     = $row['product_name'];
+                                          $cat_desc     = $row['description'];
+                                          $is_parent    = $row['category_id'];
                                           $status     = $row['status'];
                                           $join_date    = $row['join_date'];
-                                          $cat_image    = $row['cat_image'];        
+                                          $cat_image    = $row['image'];
                                           $price      = $row['price'];        
                                           $seller_email   = $row['seller_email'];       
                                           $i++;
@@ -1171,7 +1229,7 @@
                                             <td class="text-center">
                                               <?php  
                                                 if (!empty($cat_image)) {
-                                              echo '<img src="admin/assets/images/category/' . $cat_image . '" style="width: 60px">';
+                                              echo '<img src="admin/assets/images/products/' . htmlspecialchars($cat_image) . '" style="width: 60px">';
                                             }
                                             else {
                                               echo '<img src="admin/assets/images/category/default.jpg" style="width: 60px">';
@@ -1182,17 +1240,10 @@
                                             <td class="text-center"><?php echo $price; ?></td>
                                             <td class="text-center">
                                           <?php  
-                                                $readCat_Sql = "SELECT * FROM category WHERE cat_id='$is_parent'";
-                                                $readCat_Quary = mysqli_query($db, $readCat_Sql);
-
-                                                while( $row = mysqli_fetch_assoc($readCat_Quary) ){
-                                                  $cc_id   = $row['cat_id'];
-                                                  $cc_name = $row['cat_name'];
-                                                  ?>
-                                                  <span class="badge text-bg-secondary"><?php echo "$cc_name"; ?></span>
-                                                  <?php
-
-                                                  
+                                                if (!empty($row['cat_name'])) {
+                                                  echo '<span class="badge text-bg-secondary">' . htmlspecialchars($row['cat_name']) . '</span>';
+                                                } else {
+                                                  echo '<span class="badge text-bg-secondary">Uncategorized</span>';
                                                 }
 
                                               ?>
@@ -1271,8 +1322,17 @@
 
                     else if ( $do == "Delete" ) {
                       if (isset($_GET['DId'])) {
-                        $deleteId = $_GET['DId'];
-                        $deleteSql = "DELETE FROM category WHERE cat_id='$deleteId' ";
+                        $deleteId = (int) $_GET['DId'];
+                        $sellerId = mysqli_real_escape_string($db, $_SESSION['email'] ?? '');
+                        $imageQuery = mysqli_query($db, "SELECT image FROM products WHERE product_id='$deleteId' AND seller_email='$sellerId' LIMIT 1");
+                        $imageRow = mysqli_fetch_assoc($imageQuery);
+                        if ($imageRow && !empty($imageRow['image'])) {
+                          $imagePath = 'admin/assets/images/products/' . $imageRow['image'];
+                          if (file_exists($imagePath)) {
+                            unlink($imagePath);
+                          }
+                        }
+                        $deleteSql = "DELETE FROM products WHERE product_id='$deleteId' AND seller_email='$sellerId'";
                         $deleteQuery = mysqli_query($db, $deleteSql);
 
                         if ($deleteQuery) {
@@ -1301,9 +1361,11 @@
                           if (!empty($_FILES['doc_file']['name'])) {
                             $fileName = basename($_FILES['doc_file']['name']);
                             $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-                            $allowedExt = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'doc', 'docx', 'txt'];
+                            $allowedExt = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'doc', 'docx', 'txt'];
+                            $allowedMime = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+                            $detectedMime = function_exists('finfo_open') ? (function () { $finfo = finfo_open(FILEINFO_MIME_TYPE); $mime = finfo_file($finfo, $_FILES['doc_file']['tmp_name']); finfo_close($finfo); return $mime; })() : $_FILES['doc_file']['type'];
                             
-                            if (in_array($fileExt, $allowedExt)) {
+                            if ($_FILES['doc_file']['size'] <= 10 * 1024 * 1024 && in_array($fileExt, $allowedExt, true) && in_array($detectedMime, $allowedMime, true)) {
                               $newFileName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $fileName);
                               $target = $uploadDir . $newFileName;
                               
@@ -1315,7 +1377,7 @@
                                 $msgType = 'danger';
                               }
                             } else {
-                              $msg = 'Invalid file type. Allowed: PDF, JPG, PNG, GIF, DOC, DOCX, TXT';
+                              $msg = 'Invalid file. Allowed formats: PDF, JPG, PNG, GIF, WEBP, DOC, DOCX, TXT. Maximum size: 10 MB.';
                               $msgType = 'danger';
                             }
                           } else {
@@ -1339,8 +1401,8 @@
                                 <form method="POST" enctype="multipart/form-data">
                                   <div class="mb-3">
                                     <label for="doc_file" class="form-label">Select Document (PDF, Images, or Documents)</label>
-                                    <input type="file" class="form-control" id="doc_file" name="doc_file" accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.txt" required>
-                                    <small class="text-muted">Supported formats: PDF, JPG, PNG, GIF, DOC, DOCX, TXT</small>
+                                    <input type="file" class="form-control" id="doc_file" name="doc_file" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.txt" required>
+                                    <small class="text-muted">Supported formats: PDF, JPG, PNG, GIF, WEBP, DOC, DOCX, TXT. Maximum size: 10 MB.</small>
                                   </div>
                                   <button type="submit" name="upload_doc" class="btn btn-primary">Upload Document</button>
                                 </form>
@@ -1438,10 +1500,11 @@
                                           <td><?php echo $fileSizeKB; ?> KB</td>
                                           <td><?php echo $uploadDate; ?></td>
                                           <td>
-                                            <a href="uploads/docs/<?php echo md5($farmerEmail); ?>/<?php echo urlencode($fileName); ?>" 
-                                               class="btn btn-sm btn-outline-primary" target="_blank" download>
-                                              <i class="fa-solid fa-download"></i> Download
+                                            <a href="uploads/docs/<?php echo md5($farmerEmail); ?>/<?php echo rawurlencode($fileName); ?>"
+                                               class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener">
+                                              <i class="fa-solid fa-eye"></i> View
                                             </a>
+                                            <a href="uploads/docs/<?php echo md5($farmerEmail); ?>/<?php echo rawurlencode($fileName); ?>" class="btn btn-sm btn-outline-secondary" download><i class="fa-solid fa-download"></i> Download</a>
                                             <form method="post" class="d-inline" onsubmit="return confirm('Delete this document?');">
                                               <input type="hidden" name="file" value="<?php echo $fileName; ?>">
                                               <button type="submit" name="delete_doc" class="btn btn-sm btn-outline-danger">

@@ -75,6 +75,13 @@
 					<div class="menu-title text-success">Products</div>
 				</a>
 			</li>
+			<li>
+				<a href="inquiries.php" class="">
+					<div class="parent-icon text-success"><i class='bx bx-message-rounded-dots'></i>
+					</div>
+					<div class="menu-title text-success">Product Inquiries</div>
+				</a>
+			</li>
 
 			<li>
 				<a href="analytics.php" class="">

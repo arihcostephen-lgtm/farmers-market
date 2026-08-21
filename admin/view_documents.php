@@ -4,10 +4,16 @@
 $docFile = __DIR__ . '/docs_content.html';
 $docs = file_exists($docFile) ? file_get_contents($docFile) : '<p>No documentation available.</p>';
 $uploadDir = __DIR__ . '/../uploads/docs/';
-$images = [];
+$documents = [];
 if (is_dir($uploadDir)) {
-  $images = glob($uploadDir . '*.{jpg,jpeg,png,gif,webp}', GLOB_BRACE) ?: [];
-  usort($images, function($a,$b){return filemtime($b)-filemtime($a);} );
+  $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($uploadDir, FilesystemIterator::SKIP_DOTS));
+  foreach ($iterator as $file) {
+    if ($file->isFile()) {
+      $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($uploadDir)));
+      $documents[] = ['path' => $file->getPathname(), 'relative' => $relative, 'modified' => $file->getMTime()];
+    }
+  }
+  usort($documents, function($a, $b) { return $b['modified'] - $a['modified']; });
 }
 
 // Sanitize display of existing docs to remove scripts
@@ -32,7 +38,7 @@ function sanitize_display($html) {
 
 // Handle image delete (POST)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_image'])) {
-  $file = basename($_POST['file'] ?? '');
+  $file = str_replace('\\', '/', $_POST['file'] ?? '');
   $path = realpath(__DIR__ . '/../uploads/docs/' . $file);
   $baseDir = realpath(__DIR__ . '/../uploads/docs/');
   if ($path && strpos($path, $baseDir) === 0 && file_exists($path)) {
@@ -46,10 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_image'])) {
 // Pagination
 $perPage = 12;
 $page = max(1, (int)($_GET['page'] ?? 1));
-$total = count($images);
+$total = count($documents);
 $totalPages = max(1, ceil($total / $perPage));
 $start = ($page - 1) * $perPage;
-$imagesPage = array_slice($images, $start, $perPage);
+$documentsPage = array_slice($documents, $start, $perPage);
 ?>
 
 <div class="page-wrapper">
@@ -57,7 +63,7 @@ $imagesPage = array_slice($images, $start, $perPage);
     <div class="card shadow-sm">
       <div class="card-body">
         <h4>View Documents</h4>
-        <p class="text-muted">Browse the current documentation content and uploaded images.</p>
+        <p class="text-muted">Browse and view uploaded PDFs, images, and documents from farmers.</p>
 
         <div class="mb-3">
           <div class="p-3 bg-dark text-light rounded">
@@ -65,19 +71,18 @@ $imagesPage = array_slice($images, $start, $perPage);
           </div>
         </div>
 
-            <?php if (count($images) > 0): ?>
-              <h5 class="mt-3">Uploaded Images</h5>
+            <?php if (count($documents) > 0): ?>
+              <h5 class="mt-3">Uploaded Documents</h5>
               <div class="row g-3 mt-2">
-                <?php foreach ($imagesPage as $img): $bn = basename($img); ?>
+                <?php foreach ($documentsPage as $document): $relative = $document['relative']; $bn = basename($relative); $ext = strtolower(pathinfo($bn, PATHINFO_EXTENSION)); $url = '../uploads/docs/' . implode('/', array_map('rawurlencode', explode('/', $relative))); ?>
                   <div class="col-6 col-md-4 col-lg-3">
                     <div class="card h-100">
-                      <a href="<?php echo '../uploads/docs/' . $bn; ?>" target="_blank" class="d-block">
-                        <img src="<?php echo '../uploads/docs/' . $bn; ?>" class="img-fluid rounded-top" alt="">
-                      </a>
+                      <?php if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) { ?><a href="<?php echo htmlspecialchars($url); ?>" target="_blank" rel="noopener"><img src="<?php echo htmlspecialchars($url); ?>" class="img-fluid rounded-top" alt="<?php echo htmlspecialchars($bn); ?>"></a><?php } elseif ($ext === 'pdf') { ?><embed src="<?php echo htmlspecialchars($url); ?>" type="application/pdf" width="100%" height="180"><a href="<?php echo htmlspecialchars($url); ?>" target="_blank" rel="noopener" class="text-center d-block py-2">Open PDF</a><?php } else { ?><div class="text-center p-5"><i class="bx bx-file fs-1"></i><div><?php echo strtoupper(htmlspecialchars($ext)); ?></div></div><?php } ?>
                       <div class="card-body p-2 text-center">
-                        <a href="<?php echo '../uploads/docs/' . $bn; ?>" download class="btn btn-sm btn-outline-primary me-1">Download</a>
-                        <form method="post" class="d-inline" onsubmit="return confirm('Delete this image?');">
-                          <input type="hidden" name="file" value="<?php echo $bn; ?>">
+                        <a href="<?php echo htmlspecialchars($url); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary me-1">View</a>
+                        <a href="<?php echo htmlspecialchars($url); ?>" download class="btn btn-sm btn-outline-secondary me-1">Download</a>
+                        <form method="post" class="d-inline" onsubmit="return confirm('Delete this document?');">
+                          <input type="hidden" name="file" value="<?php echo htmlspecialchars($relative); ?>">
                           <button type="submit" name="delete_image" class="btn btn-sm btn-outline-danger">Delete</button>
                         </form>
                       </div>
@@ -102,7 +107,7 @@ $imagesPage = array_slice($images, $start, $perPage);
               </nav>
 
             <?php else: ?>
-              <div class="alert alert-secondary">No images uploaded for documentation yet.</div>
+              <div class="alert alert-secondary">No documents uploaded yet.</div>
             <?php endif; ?>
 
       </div>

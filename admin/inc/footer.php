@@ -41,15 +41,29 @@
 			}
 
 			function initTable(logoData) {
-				if (!$('#example3').length) {
+				var tables = $('table.table, table.dataTable, table#example, table#example2, table#example3').filter(function() {
+					return !$.fn.dataTable.isDataTable(this);
+				});
+				if (!tables.length) {
 					return;
 				}
 
-				var table = $('#example3').DataTable({
+				tables.each(function() {
+				var table = $(this).DataTable({
 					lengthChange: false,
 					dom: 'Bfrtip',
 					buttons: [
-						'copy', 'excel',
+						'copy', 'excel', {
+							extend: 'csvHtml5',
+							text: 'CSV',
+							filename: siteTitle + '_export',
+							exportOptions: {
+								columns: function(columnIndex, columnData, headerNode) {
+									var headerText = $(headerNode).text().trim().toLowerCase();
+									return headerText !== 'action' && !$(headerNode).hasClass('noExport') && !$(headerNode).hasClass('action');
+								}
+							}
+						},
 						{
 							extend: 'pdfHtml5',
 							text: 'PDF',
@@ -96,7 +110,8 @@
 					]
 				});
 				
-				table.buttons().container().prependTo('#example3_wrapper');
+				 table.buttons().container().prependTo(table.table().container());
+				});
 			}
 
 			// preload logo then initialize table
@@ -112,6 +127,22 @@
 		  });
 	  </script>
 	  <script src="assets/js/index.js"></script>
+	<script>
+		// Keep the notification and language controls usable if a legacy script interrupts Bootstrap's dropdown handler.
+		$(document).on('click', '#adminNotifications > a, #adminLanguageMenu > a', function(event) {
+			 event.preventDefault();
+			 var trigger = $(this);
+			 var menu = trigger.next('.dropdown-menu');
+			 $('.topbar .dropdown-menu.show').not(menu).removeClass('show').prev('a').attr('aria-expanded', 'false');
+			 menu.toggleClass('show');
+			 trigger.attr('aria-expanded', menu.hasClass('show') ? 'true' : 'false');
+		});
+		$(document).on('click', function(event) {
+			 if (!$(event.target).closest('#adminNotifications, #adminLanguageMenu').length) {
+				 $('.topbar .dropdown-menu.show').removeClass('show').prev('a').attr('aria-expanded', 'false');
+			 }
+		});
+	</script>
 	<!--app JS-->
 	<script src="assets/js/app.js"></script>
 

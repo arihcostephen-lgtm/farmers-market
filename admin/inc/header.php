@@ -3,6 +3,7 @@
 	ob_start();
 	require_once __DIR__ . '/db.php';
 	require_once __DIR__ . '/email.php';
+	require_once __DIR__ . '/../../inc/language.php';
 
 	if ( empty($_SESSION['user_id']) || empty($_SESSION['user_email']) || empty($_SESSION['role']) || (int) $_SESSION['role'] !== 1 ) {
 		header("Location: index.php");
@@ -100,6 +101,18 @@
 		}
 		.form-control::placeholder, .form-select {
 			color: rgba(230, 255, 240, 0.65) !important;
+		}
+		/* Native select menus need a contrasting option palette in light OS menus. */
+		.form-select option,
+		.form-control option,
+		select option {
+			background: #ffffff !important;
+			color: #123326 !important;
+		}
+		.form-select option:checked,
+		select option:checked {
+			background: #d9fbe5 !important;
+			color: #123326 !important;
 		}
 		.table thead th {
 			color: #e9fff4 !important;

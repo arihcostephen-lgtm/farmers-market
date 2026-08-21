@@ -106,7 +106,12 @@ CREATE TABLE IF NOT EXISTS products (
   description TEXT DEFAULT NULL,
   category_id INT UNSIGNED DEFAULT NULL,
   price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  is_negotiable TINYINT(1) NOT NULL DEFAULT 0,
+  view_count INT UNSIGNED NOT NULL DEFAULT 0,
+  harvest_date DATE DEFAULT NULL,
+  seasonal_availability VARCHAR(100) DEFAULT NULL,
   stock_quantity INT UNSIGNED NOT NULL DEFAULT 0,
+  low_stock_threshold INT UNSIGNED NOT NULL DEFAULT 5,
   seller_email VARCHAR(150) DEFAULT NULL,
   image VARCHAR(255) DEFAULT NULL,
   status TINYINT(1) NOT NULL DEFAULT 1,
@@ -137,6 +142,8 @@ CREATE TABLE IF NOT EXISTS comments (
   user_number VARCHAR(30) DEFAULT NULL,
   subject VARCHAR(255) DEFAULT NULL,
   comments TEXT DEFAULT NULL,
+  response TEXT DEFAULT NULL,
+  responded_at DATETIME DEFAULT NULL,
   status TINYINT(1) NOT NULL DEFAULT 1,
   cmt_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_comments_status (status)
@@ -146,15 +153,34 @@ CREATE TABLE IF NOT EXISTS order_list (
   or_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id VARCHAR(150) DEFAULT NULL,
   user_phone VARCHAR(30) DEFAULT NULL,
+  delivery_location TEXT DEFAULT NULL,
+  delivery_notes TEXT DEFAULT NULL,
   or_name VARCHAR(255) NOT NULL,
   or_category INT UNSIGNED DEFAULT NULL,
   price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   quantity INT UNSIGNED NOT NULL DEFAULT 1,
   or_image VARCHAR(255) DEFAULT NULL,
   status TINYINT(1) NOT NULL DEFAULT 0,
+  delivery_update TEXT DEFAULT NULL,
   join_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT NULL,
   INDEX idx_order_status (status),
   INDEX idx_order_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS product_inquiries (
+  inquiry_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id INT UNSIGNED NOT NULL,
+  buyer_id INT UNSIGNED NOT NULL,
+  buyer_email VARCHAR(150) DEFAULT NULL,
+  subject VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  status TINYINT(1) NOT NULL DEFAULT 0,
+  response TEXT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT NULL,
+  INDEX idx_inquiries_product_status (product_id, status),
+  INDEX idx_inquiries_buyer (buyer_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Optional seed entry for an admin account.

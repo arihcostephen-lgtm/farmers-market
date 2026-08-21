@@ -13,13 +13,18 @@ if (isset($_POST['place_order'])) {
   $quantity = max(1, (int) ($_POST['quantity'] ?? 1));
     $userId = (int) $_SESSION['user_id'];
     $userPhone = mysqli_real_escape_string($db, $_SESSION['user_phone'] ?? '');
+    $deliveryLocation = mysqli_real_escape_string($db, trim($_POST['delivery_location'] ?? ''));
+    $deliveryNotes = mysqli_real_escape_string($db, trim($_POST['delivery_notes'] ?? ''));
+    if ($deliveryLocation === '') {
+      $orderError = 'Please provide a delivery location.';
+    }
   $db->begin_transaction();
   $productQuery = $db->query("SELECT product_name, price, stock_quantity FROM products WHERE product_id = $productId AND status = 1 FOR UPDATE");
   $product = $productQuery ? $productQuery->fetch_assoc() : null;
-  if ($product && $quantity <= (int) $product['stock_quantity']) {
+  if (empty($orderError) && $product && $quantity <= (int) $product['stock_quantity']) {
     $totalPrice = (float) $product['price'] * $quantity;
     $productName = mysqli_real_escape_string($db, $product['product_name']);
-    $insertSql = "INSERT INTO order_list (user_id, user_phone, or_name, or_category, price, quantity, status, join_date) VALUES ('$userId', '$userPhone', '$productName', '$productId', '$totalPrice', '$quantity', 0, NOW())";
+    $insertSql = "INSERT INTO order_list (user_id, user_phone, delivery_location, delivery_notes, or_name, or_category, price, quantity, status, join_date) VALUES ('$userId', '$userPhone', '$deliveryLocation', '$deliveryNotes', '$productName', '$productId', '$totalPrice', '$quantity', 0, NOW())";
     if ($db->query($insertSql) && $db->query("UPDATE products SET stock_quantity = stock_quantity - $quantity WHERE product_id = $productId AND stock_quantity >= $quantity")) {
       $db->commit();
       header("Location: customerDashboard.php");
@@ -27,10 +32,15 @@ if (isset($_POST['place_order'])) {
     }
     }
   $db->rollback();
-  $orderError = 'The requested quantity is not available.';
+  if (empty($orderError)) {
+    $orderError = 'The requested quantity is not available.';
+  }
 }
 
 $productId = isset($_GET['product']) ? (int) $_GET['product'] : 0;
+if ($productId > 0 && !isset($_POST['place_order'])) {
+  $db->query("UPDATE products SET view_count = view_count + 1 WHERE product_id = $productId AND status = 1");
+}
 $product = $db->query("SELECT product_name, price, stock_quantity FROM products WHERE product_id = $productId AND status = 1 LIMIT 1")->fetch_assoc();
 ?>
 <!doctype html>
@@ -51,10 +61,15 @@ $product = $db->query("SELECT product_name, price, stock_quantity FROM products 
           <p><strong>Product:</strong> <?php echo htmlspecialchars($product['product_name']); ?></p>
           <p><strong>Price per item:</strong> UGX<?php echo number_format($product['price'], 2); ?></p>
           <p><strong>Available:</strong> <?php echo number_format((int) $product['stock_quantity']); ?></p>
+          <p><strong>Status:</strong> <?php echo (int) $product['stock_quantity'] > 0 ? '<span class="badge bg-success">In stock</span>' : '<span class="badge bg-danger">Out of stock</span>'; ?></p>
           <form method="post">
             <input type="hidden" name="product_id" value="<?php echo $productId; ?>">
             <label for="quantity" class="form-label">Quantity</label>
             <input type="number" id="quantity" name="quantity" class="form-control mb-3" min="1" max="<?php echo (int) $product['stock_quantity']; ?>" value="1" required <?php echo (int) $product['stock_quantity'] < 1 ? 'disabled' : ''; ?>>
+            <label for="delivery_location" class="form-label">Delivery location</label>
+            <textarea id="delivery_location" name="delivery_location" class="form-control mb-3" rows="2" required><?php echo htmlspecialchars($_POST['delivery_location'] ?? ''); ?></textarea>
+            <label for="delivery_notes" class="form-label">Delivery notes (optional)</label>
+            <textarea id="delivery_notes" name="delivery_notes" class="form-control mb-3" rows="2"><?php echo htmlspecialchars($_POST['delivery_notes'] ?? ''); ?></textarea>
             <?php if ((int) $product['stock_quantity'] < 1) { ?><div class="alert alert-warning">This product is out of stock.</div><?php } ?>
             <button type="submit" name="place_order" class="btn btn-success" <?php echo (int) $product['stock_quantity'] < 1 ? 'disabled' : ''; ?>>Confirm Order</button>
             <a href="customerDashboard.php" class="btn btn-outline-secondary">Cancel</a>

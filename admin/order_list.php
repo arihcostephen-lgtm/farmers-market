@@ -48,7 +48,7 @@
 
 									  <tbody>
 									  	<?php  
-									  		$orderSql = "SELECT * FROM order_list WHERE status != 0 ORDER BY or_id DESC";
+											$orderSql = "SELECT * FROM order_list WHERE status IN (0, 1, 2, 3) ORDER BY or_id DESC";
 									  		$orderQuery = mysqli_query( $db, $orderSql );
 									  		$orderCount = mysqli_num_rows($orderQuery);
 
@@ -71,6 +71,7 @@
 															  $quantity 		= (int) ($row['quantity'] ?? 1);
 										  			$or_image 		= $row['or_image'];
 										  			$status 		= $row['status'];
+			  										  $delivery_update = $row['delivery_update'] ?? '';
 										  			$join_date 		= $row['join_date'];
 										  			$i++;
 										  			?>
@@ -191,6 +192,7 @@
 			  			$price 			= $row['price'];
 			  			$or_image 		= $row['or_image'];
 			  			$status 		= $row['status'];
+			  									  $delivery_update = $row['delivery_update'] ?? '';
 			  			$join_date 		= $row['join_date'];
 			  			?>
 			  				<div class="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
@@ -223,10 +225,13 @@
 																<label for="">Status</label>
 																<select class="form-select" name="status">
 																  <option value="">Please select the Status</option>
-																  <option value="1" <?php if( $status == 1 ){ echo "selected"; } ?>>Active</option>
-																  <option value="2" <?php if( $status == 2 ){ echo "selected"; } ?>>Pending</option>
-																  <option value="0" <?php if( $status == 0 ){ echo "selected"; } ?>>InActive</option>
+																  <option value="0" <?php if( $status == 0 ){ echo "selected"; } ?>>Pending</option>
+																  <option value="1" <?php if( $status == 1 ){ echo "selected"; } ?>>Confirmed</option>
+																  <option value="2" <?php if( $status == 2 ){ echo "selected"; } ?>>Fulfilled</option>
+																  <option value="3" <?php if( $status == 3 ){ echo "selected"; } ?>>Cancelled</option>
 																</select>
+																<label for="delivery_update" class="form-label mt-3">Delivery update</label>
+																<textarea id="delivery_update" name="delivery_update" class="form-control" rows="3"><?php echo htmlspecialchars($delivery_update); ?></textarea>
 
 																<div class="mb-3 py-3">
 																	<div class="d-grid gap-2">
@@ -258,8 +263,9 @@
 				if (isset($_POST['upOrder'])) {
 					$updateOrderId 	= mysqli_real_escape_string($db, $_POST['updateOrderId']);
 					$status 		= mysqli_real_escape_string($db, $_POST['status']);
+					$deliveryUpdate = mysqli_real_escape_string($db, trim($_POST['delivery_update'] ?? ''));
 
-					$updateOrderSql = "UPDATE order_list SET status='$status' WHERE or_id='$updateOrderId'";
+					$updateOrderSql = "UPDATE order_list SET status='$status', delivery_update='$deliveryUpdate', updated_at=NOW() WHERE or_id='$updateOrderId'";
 					$upateOrderQuery = mysqli_query($db, $updateOrderSql);
 
 					if ($upateOrderQuery) {
@@ -320,6 +326,7 @@
 									      <th scope="col">Category</th>
 									      <th scope="col">Quantity</th>
 									      <th scope="col">Total Price</th>
+									      <th scope="col">Delivery Location</th>
 									      <th scope="col">Status</th>
 									      <th scope="col">Order date</th>
 									      <th scope="col">Action</th>
@@ -349,6 +356,7 @@
 										  			$or_category 	= $row['or_category'];
 										  			$price 			= $row['price'];
 															  $quantity 		= (int) ($row['quantity'] ?? 1);
+															  $delivery_location = $row['delivery_location'] ?? '';
 										  			$or_image 		= $row['or_image'];
 										  			$status 		= $row['status'];
 										  			$join_date 		= $row['join_date'];
@@ -387,6 +395,7 @@
 												      </td>
 												      <td><?php echo number_format($quantity); ?></td>
 												      <td><?php echo number_format($price, 2); ?> Taka</td>
+												      <td><?php echo nl2br(htmlspecialchars($delivery_location ?: 'Not provided')); ?></td>
 												      <td>
 												      	<?php  
 												      		if ($status == 1) { ?>
@@ -394,11 +403,14 @@
 												      		<?php }
 
 												      		else if ($status == 2) { ?>
-												      			<span class="badge bg-info">PENDING</span>
+												      			<span class="badge bg-success">FULFILLED</span>
 												      		<?php }
 
 												      		else if ($status == 0) { ?>
-												      			<span class="badge bg-danger">INACTIVE</span>
+												      			<span class="badge bg-warning">PENDING</span>
+												      		<?php }
+												      		else if ($status == 3) { ?>
+												      			<span class="badge bg-danger">CANCELLED</span>
 												      		<?php }
 												      	?>
 												      </td>

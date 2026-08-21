@@ -64,6 +64,18 @@
 						  		}
 						?>
 
+						<div class="mt-4 pt-3 border-top">
+							<h2 class="font-weight-bold text-5 mb-3">About the Farmers Market System</h2>
+							<p class="text-dark mb-3">Farmers Market is a digital marketplace that connects local farmers with buyers in one organized platform. Farmers can publish products, set prices, add harvest and seasonal availability information, manage stock, upload documents, and receive orders and inquiries.</p>
+							<p class="text-dark mb-3">Buyers can browse approved products, check live availability, submit product inquiries, place orders with quantities and delivery locations, and follow order and delivery updates.</p>
+							<div class="row g-3">
+								<div class="col-md-6"><div class="p-3 bg-light rounded h-100"><h3 class="text-4 mb-2">For Farmers</h3><p class="text-dark mb-0">Manage products, inventory, harvest dates, documents, inquiries, orders, and delivery communication.</p></div></div>
+								<div class="col-md-6"><div class="p-3 bg-light rounded h-100"><h3 class="text-4 mb-2">For Buyers</h3><p class="text-dark mb-0">Discover produce, ask questions, order conveniently, provide delivery details, and track updates.</p></div></div>
+								<div class="col-md-6"><div class="p-3 bg-light rounded h-100"><h3 class="text-4 mb-2">For Administrators</h3><p class="text-dark mb-0">Approve products, manage users and orders, answer support requests, review documents, and monitor analytics.</p></div></div>
+								<div class="col-md-6"><div class="p-3 bg-light rounded h-100"><h3 class="text-4 mb-2">Connected Marketplace</h3><p class="text-dark mb-0">Notifications, stock alerts, product views, sales reports, and farmer performance metrics support better decisions.</p></div></div>
+							</div>
+						</div>
+
 						<?php  
 							$aboutSql = "SELECT * FROM owner_info WHERE status=1";
 							$aboutQuery = mysqli_query( $db, $aboutSql );

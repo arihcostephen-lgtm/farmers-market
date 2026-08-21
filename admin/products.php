@@ -5,6 +5,13 @@
     <?php
       $do = isset($_GET['do']) ? $_GET['do'] : 'Manage';
 
+      if ($do === 'Approve' && isset($_GET['uId'])) {
+        $approveId = (int) $_GET['uId'];
+        mysqli_query($db, "UPDATE products SET status=1 WHERE product_id='$approveId' AND status=2");
+        header('Location: products.php?do=Manage');
+        exit;
+      }
+
       if ($do == 'Manage') {
     ?>
       <div class="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
@@ -38,7 +45,12 @@
                   <th>Image</th>
                   <th>Product Name</th>
                   <th>Price (UGX)</th>
+                  <th>Negotiable</th>
+                  <th>Harvest Date</th>
+                  <th>Season</th>
+                  <th>Views</th>
                   <th>Stock</th>
+                  <th>Availability</th>
                   <th>Farmer</th>
                   <th>Type</th>
                   <th>Status</th>
@@ -55,7 +67,7 @@
                   if ($productCount == 0) {
                 ?>
                   <tr>
-                    <td colspan="10" class="text-center text-warning">No products found in the database.</td>
+                    <td colspan="15" class="text-center text-warning">No products found in the database.</td>
                   </tr>
                 <?php
                   } else {
@@ -64,7 +76,12 @@
                       $product_id = $row['product_id'];
                       $product_name = $row['product_name'];
                       $price = $row['price'];
+                      $is_negotiable = (int) ($row['is_negotiable'] ?? 0);
+                      $harvest_date = $row['harvest_date'] ?? '';
+                      $seasonal_availability = $row['seasonal_availability'] ?? '';
+                      $view_count = (int) ($row['view_count'] ?? 0);
                       $stock_quantity = (int) $row['stock_quantity'];
+                      $low_stock_threshold = (int) ($row['low_stock_threshold'] ?? 5);
                       $seller_email = $row['seller_email'];
                       $status = (int) $row['status'];
                       $join_date = $row['join_date'];
@@ -85,7 +102,12 @@
                     </td>
                     <td><?php echo htmlspecialchars($product_name); ?></td>
                     <td><?php echo number_format((float) $price, 2); ?></td>
-                    <td><?php echo number_format($stock_quantity); ?></td>
+                    <td><?php echo $is_negotiable ? '<span class="badge text-bg-warning text-dark">YES</span>' : '<span class="badge text-bg-secondary">NO</span>'; ?></td>
+                    <td><?php echo $harvest_date ? htmlspecialchars(date('d M Y', strtotime($harvest_date))) : 'N/A'; ?></td>
+                    <td><?php echo $seasonal_availability ? htmlspecialchars($seasonal_availability) : 'N/A'; ?></td>
+                    <td><?php echo number_format($view_count); ?></td>
+                    <td><?php echo number_format($stock_quantity); ?><?php if ($stock_quantity <= $low_stock_threshold) { ?><span class="badge text-bg-warning text-dark ms-1">LOW</span><?php } ?></td>
+                    <td><?php echo $stock_quantity > 0 ? '<span class="badge text-bg-success">IN STOCK</span>' : '<span class="badge text-bg-danger">OUT OF STOCK</span>'; ?></td>
                     <td><?php echo !empty($seller_email) ? htmlspecialchars($seller_email) : 'N/A'; ?></td>
                     <td>
                       <?php
@@ -111,6 +133,7 @@
                     <td>
                       <div class="d-flex gap-2">
                         <a href="products.php?do=Edit&uId=<?php echo $product_id; ?>" class="btn btn-sm btn-outline-primary" title="Edit"><i class="fa-regular fa-pen-to-square"></i></a>
+                        <?php if ($status === 2) { ?><a href="products.php?do=Approve&uId=<?php echo $product_id; ?>" class="btn btn-sm btn-outline-success" title="Approve"><i class="fa-solid fa-check"></i></a><?php } ?>
                         <a href="" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal<?php echo $product_id; ?>" title="Trash"><i class="fa-regular fa-trash-can"></i></a>
                       </div>
 
@@ -180,6 +203,26 @@
                         <input type="number" min="0" name="stock_quantity" class="form-control" placeholder="Enter available quantity" required>
                       </div>
 
+                      <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" name="is_negotiable" value="1" id="isNegotiable">
+                        <label class="form-check-label" for="isNegotiable">Price is negotiable</label>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label">Expected Harvest Date (optional)</label>
+                        <input type="date" name="harvest_date" class="form-control">
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label">Seasonal Availability (optional)</label>
+                        <input type="text" name="seasonal_availability" class="form-control" placeholder="e.g. June to August or Year-round">
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label">Low-stock alert at</label>
+                        <input type="number" name="low_stock_threshold" class="form-control" min="0" value="5" required>
+                      </div>
+
                 <div class="mb-3">
                   <label class="form-label">Assigned Category</label>
                   <select class="form-select" name="category_id" required>
@@ -234,6 +277,11 @@
           $productName = mysqli_real_escape_string($db, trim($_POST['productName']));
           $price = mysqli_real_escape_string($db, trim($_POST['price']));
           $stock_quantity = max(0, (int) $_POST['stock_quantity']);
+          $is_negotiable = isset($_POST['is_negotiable']) ? 1 : 0;
+          $harvest_date = trim($_POST['harvest_date'] ?? '');
+          $harvestDateValue = $harvest_date !== '' ? "'" . mysqli_real_escape_string($db, $harvest_date) . "'" : 'NULL';
+          $seasonal_availability = mysqli_real_escape_string($db, trim($_POST['seasonal_availability'] ?? ''));
+          $low_stock_threshold = max(0, (int) ($_POST['low_stock_threshold'] ?? 5));
           $desc = mysqli_real_escape_string($db, trim($_POST['desc']));
           $category_id = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : null;
           $status = (int) $_POST['status'];
@@ -261,14 +309,19 @@
             description TEXT DEFAULT NULL,
             category_id INT UNSIGNED DEFAULT NULL,
             price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            is_negotiable TINYINT(1) NOT NULL DEFAULT 0,
+            view_count INT UNSIGNED NOT NULL DEFAULT 0,
+            harvest_date DATE DEFAULT NULL,
+            seasonal_availability VARCHAR(100) DEFAULT NULL,
             stock_quantity INT UNSIGNED NOT NULL DEFAULT 0,
+            low_stock_threshold INT UNSIGNED NOT NULL DEFAULT 5,
             seller_email VARCHAR(150) DEFAULT NULL,
             image VARCHAR(255) DEFAULT NULL,
             status TINYINT(1) NOT NULL DEFAULT 1,
             join_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
           @mysqli_query($db, $createProductsSql);
-          $insertSql = "INSERT INTO products (product_name, description, category_id, price, stock_quantity, seller_email, image, status, join_date) VALUES ('$productName', '$desc', $categoryValue, '$price', '$stock_quantity', '$seller_email', '$image', '$status', NOW())";
+          $insertSql = "INSERT INTO products (product_name, description, category_id, price, is_negotiable, view_count, harvest_date, seasonal_availability, stock_quantity, low_stock_threshold, seller_email, image, status, join_date) VALUES ('$productName', '$desc', $categoryValue, '$price', '$is_negotiable', 0, $harvestDateValue, '$seasonal_availability', '$stock_quantity', '$low_stock_threshold', '$seller_email', '$image', '$status', NOW())";
           $insertQuery = mysqli_query($db, $insertSql);
 
           if ($insertQuery) {
@@ -297,6 +350,10 @@
             $status = (int) $row['status'];
             $product_image = $row['image'];
             $price = $row['price'];
+            $is_negotiable = (int) ($row['is_negotiable'] ?? 0);
+                      $harvest_date = $row['harvest_date'] ?? '';
+                      $seasonal_availability = $row['seasonal_availability'] ?? '';
+                      $low_stock_threshold = (int) ($row['low_stock_threshold'] ?? 5);
             $seller_email = $row['seller_email'];
     ?>
             <div class="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
@@ -331,6 +388,26 @@
                       <div class="mb-3">
                         <label class="form-label">Available Quantity</label>
                         <input type="number" min="0" name="stock_quantity" class="form-control" value="<?php echo $stock_quantity; ?>" required>
+                      </div>
+
+                      <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" name="is_negotiable" value="1" id="editIsNegotiable" <?php echo $is_negotiable ? 'checked' : ''; ?>>
+                        <label class="form-check-label" for="editIsNegotiable">Price is negotiable</label>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label">Expected Harvest Date (optional)</label>
+                        <input type="date" name="harvest_date" class="form-control" value="<?php echo htmlspecialchars($harvest_date); ?>">
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label">Seasonal Availability (optional)</label>
+                        <input type="text" name="seasonal_availability" class="form-control" value="<?php echo htmlspecialchars($seasonal_availability); ?>">
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label">Low-stock alert at</label>
+                        <input type="number" name="low_stock_threshold" class="form-control" min="0" value="<?php echo $low_stock_threshold; ?>" required>
                       </div>
 
                       <div class="mb-3">
@@ -404,6 +481,11 @@
           $productName = mysqli_real_escape_string($db, trim($_POST['productName']));
           $price = mysqli_real_escape_string($db, trim($_POST['price']));
           $stock_quantity = max(0, (int) $_POST['stock_quantity']);
+          $is_negotiable = isset($_POST['is_negotiable']) ? 1 : 0;
+          $harvest_date = trim($_POST['harvest_date'] ?? '');
+          $harvestDateValue = $harvest_date !== '' ? "harvest_date = '" . mysqli_real_escape_string($db, $harvest_date) . "'," : 'harvest_date = NULL,';
+          $seasonal_availability = mysqli_real_escape_string($db, trim($_POST['seasonal_availability'] ?? ''));
+          $low_stock_threshold = max(0, (int) ($_POST['low_stock_threshold'] ?? 5));
           $desc = mysqli_real_escape_string($db, trim($_POST['desc']));
           $category_id = !empty($_POST['category_id']) ? (int) $_POST['category_id'] : null;
           $status = (int) $_POST['status'];
@@ -432,7 +514,7 @@
           }
 
           $categoryValue = $category_id ? "category_id = '$category_id'," : '';
-          $updateSql = "UPDATE products SET product_name = '$productName', description = '$desc', $categoryValue $setImageSql price = '$price', stock_quantity = '$stock_quantity', seller_email = '$seller_email', status = '$status' WHERE product_id = '$updateProductId'";
+          $updateSql = "UPDATE products SET product_name = '$productName', description = '$desc', $categoryValue $setImageSql price = '$price', is_negotiable = '$is_negotiable', $harvestDateValue seasonal_availability = '$seasonal_availability', stock_quantity = '$stock_quantity', low_stock_threshold = '$low_stock_threshold', seller_email = '$seller_email', status = '$status' WHERE product_id = '$updateProductId'";
           $updateQuery = mysqli_query($db, $updateSql);
 
           if ($updateQuery) {

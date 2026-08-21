@@ -29,7 +29,7 @@ $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_comment'])) {
     $subject = $db->real_escape_string(trim($_POST['comment_subject']));
     $commentText = $db->real_escape_string(trim($_POST['comment_text']));
-    $commentStatus = 2;
+    $commentStatus = 0;
     $commentUserId = $db->real_escape_string($customerEmail ?: $customerId);
     $commentNumber = $db->real_escape_string($customerPhone ?: '');
     if ($subject && $commentText) {
@@ -167,7 +167,8 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                 <a class="nav-link" href="#check-products"><span class="sidebar-icon"><i class="fas fa-box-open"></i></span><span class="sidebar-label">Check Products</span></a>
                 <a class="nav-link" href="#browse"><span class="sidebar-icon"><i class="fas fa-search"></i></span><span class="sidebar-label">Browse Marketplace</span></a>
                 <a class="nav-link" href="#add-comments"><span class="sidebar-icon"><i class="fas fa-comments"></i></span><span class="sidebar-label">Add Comments</span></a>
-                <a class="nav-link" href="order_history.php"><span class="sidebar-icon"><i class="fas fa-history"></i></span><span class="sidebar-label">Order History</span></a>
+                 <a class="nav-link" href="order_history.php"><span class="sidebar-icon"><i class="fas fa-history"></i></span><span class="sidebar-label">Order History</span></a>
+                 <a class="nav-link" href="inquiry_history.php"><span class="sidebar-icon"><i class="fas fa-message"></i></span><span class="sidebar-label">Inquiry History</span></a>
             </nav>
         </aside>
 
@@ -255,6 +256,10 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                                     <h6 class="text-white"><?php echo htmlspecialchars($product['product_name']); ?></h6>
                                                     <p class="text-muted mb-2"><?php echo htmlspecialchars($product['description'] ?: 'Fresh farm produce'); ?></p>
                                                     <small class="text-muted d-block mb-2">Available: <?php echo number_format((int) $product['stock_quantity']); ?></small>
+                                                    <?php echo (int) $product['stock_quantity'] > 0 ? '<span class="badge bg-success mb-2">In stock</span>' : '<span class="badge bg-danger mb-2">Out of stock</span>'; ?>
+                                                    <?php if (!empty($product['is_negotiable'])): ?><span class="badge bg-warning text-dark mb-2">Price negotiable</span><?php endif; ?>
+                                                    <?php if (!empty($product['harvest_date'])): ?><small class="text-muted d-block mb-2">Harvest date: <?php echo htmlspecialchars(date('d M Y', strtotime($product['harvest_date']))); ?></small><?php endif; ?>
+                                                    <?php if (!empty($product['seasonal_availability'])): ?><small class="text-muted d-block mb-2">Season: <?php echo htmlspecialchars($product['seasonal_availability']); ?></small><?php endif; ?>
                                                     <small class="text-muted d-block mb-2"><?php echo htmlspecialchars($product['cat_name'] ?: 'Uncategorized'); ?></small>
                                                     <div class="badge mb-2"><?php echo htmlspecialchars($product['farmer_name'] ?: 'Local Farm Market'); ?></div>
                                                 </div>
@@ -264,6 +269,7 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                                         <?php if (filter_var($product['seller_email'], FILTER_VALIDATE_EMAIL)) { ?>
                                                             <a href="mailto:<?php echo htmlspecialchars($product['seller_email']); ?>?subject=<?php echo rawurlencode('Question about ' . $product['product_name']); ?>&body=<?php echo rawurlencode('Hello, I have a question about your product: ' . $product['product_name']); ?>" class="btn btn-sm btn-outline-success">Contact Farmer</a>
                                                         <?php } ?>
+                                                        <a href="product_inquiry.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-outline-info">Ask</a>
                                                         <a href="placeOrder.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-primary" <?php echo (int) $product['stock_quantity'] < 1 ? 'aria-disabled="true" style="pointer-events:none;opacity:.5"' : ''; ?>>Add to Cart</a>
                                                     </div>
                                                 </div>
@@ -306,6 +312,10 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                             <h6 class="text-white"><?php echo htmlspecialchars($product['product_name']); ?></h6>
                                             <p class="text-muted mb-2"><?php echo htmlspecialchars($product['description'] ?: 'Fresh farm produce'); ?></p>
                                             <small class="text-muted d-block mb-2">Available: <?php echo number_format((int) $product['stock_quantity']); ?></small>
+                                            <?php echo (int) $product['stock_quantity'] > 0 ? '<span class="badge bg-success mb-2">In stock</span>' : '<span class="badge bg-danger mb-2">Out of stock</span>'; ?>
+                                            <?php if (!empty($product['is_negotiable'])): ?><span class="badge bg-warning text-dark mb-2">Price negotiable</span><?php endif; ?>
+                                            <?php if (!empty($product['harvest_date'])): ?><small class="text-muted d-block mb-2">Harvest date: <?php echo htmlspecialchars(date('d M Y', strtotime($product['harvest_date']))); ?></small><?php endif; ?>
+                                            <?php if (!empty($product['seasonal_availability'])): ?><small class="text-muted d-block mb-2">Season: <?php echo htmlspecialchars($product['seasonal_availability']); ?></small><?php endif; ?>
                                             <small class="text-muted d-block mb-2"><?php echo htmlspecialchars($product['cat_name'] ?: 'Uncategorized'); ?></small>
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">UGX <?php echo number_format($product['price'], 2); ?></span>
@@ -313,6 +323,7 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                                     <?php if (filter_var($product['seller_email'], FILTER_VALIDATE_EMAIL)) { ?>
                                                         <a href="mailto:<?php echo htmlspecialchars($product['seller_email']); ?>?subject=<?php echo rawurlencode('Question about ' . $product['product_name']); ?>&body=<?php echo rawurlencode('Hello, I have a question about your product: ' . $product['product_name']); ?>" class="btn btn-sm btn-outline-success">Contact Farmer</a>
                                                     <?php } ?>
+                                                    <a href="product_inquiry.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-outline-info">Ask</a>
                                                     <a href="placeOrder.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-primary" <?php echo (int) $product['stock_quantity'] < 1 ? 'aria-disabled="true" style="pointer-events:none;opacity:.5"' : ''; ?>>Order</a>
                                                 </div>
                                             </div>

@@ -3,6 +3,7 @@
 	ob_start();
 	require_once __DIR__ . '/../admin/inc/db.php';
 	require_once __DIR__ . '/../admin/inc/email.php';
+	require_once __DIR__ . '/language.php';
 
 	$siteSettings = [];
 	$siteSettingsSql = @mysqli_query($db, "SELECT * FROM site_settings ORDER BY id DESC LIMIT 1");
