@@ -135,6 +135,15 @@
 
                     $do = isset( $_GET['do'] ) ? $_GET['do'] : "Manage";
 
+                    $farmerAccessEmail = $_SESSION['email'] ?? $_SESSION['user_email'] ?? '';
+                    $farmerAccessEmailEscaped = mysqli_real_escape_string($db, $farmerAccessEmail);
+                    $activeSubscriptionQuery = mysqli_query($db, "SELECT fs.*, sp.description, sp.duration_days FROM farmer_subscriptions fs LEFT JOIN subscription_plans sp ON sp.plan_id=fs.plan_id WHERE fs.farmer_id=" . (int) ($_SESSION['user_id'] ?? 0) . " AND fs.status=1 LIMIT 1");
+                    $activeSubscription = $activeSubscriptionQuery ? mysqli_fetch_assoc($activeSubscriptionQuery) : null;
+                    if ((int) ($_SESSION['role'] ?? 0) === 2 && !$activeSubscription && $do !== 'Home') {
+                      header('Location: farmerDashboard.php?do=Home&subscription_required=1');
+                      exit;
+                    }
+
                     if ( $do == "Manage" ) { ?>
                       <div class="container pb-5">
                         <div class="row">
@@ -308,13 +317,30 @@
                         $totalOrdersCount = 0;
                         $lowStockCount = 0;
                         $pendingInquiryCount = 0;
+                        $availablePlans = null;
+                        $subscriptionRequest = null;
 
                         if (!empty($farmerEmail)) {
-                          $topProductSql = "SELECT c.cat_id, c.cat_name, c.cat_image, COALESCE(SUM(COALESCE(o.quantity, 1)), 0) AS demand_count " .
-                                           "FROM category c " .
-                                           "LEFT JOIN order_list o ON c.cat_id=o.or_category " .
-                                           "WHERE c.seller_email='$farmerEmail' " .
-                                           "GROUP BY c.cat_id " .
+                          if (isset($_POST['request_subscription']) && !empty($_POST['plan_id'])) {
+                            $planId = (int) $_POST['plan_id'];
+                            $planQuery = mysqli_query($db, "SELECT plan_id, plan_name, amount FROM subscription_plans WHERE plan_id=$planId AND status=1 LIMIT 1");
+                            $selectedPlan = $planQuery ? mysqli_fetch_assoc($planQuery) : null;
+                            if ($selectedPlan) {
+                              $farmerId = (int) $_SESSION['user_id'];
+                              mysqli_query($db, "INSERT INTO farmer_subscriptions (farmer_id, plan_id, subscription_name, amount, status, created_at) VALUES ($farmerId, " . (int) $selectedPlan['plan_id'] . ", '" . mysqli_real_escape_string($db, $selectedPlan['plan_name']) . "', " . (float) $selectedPlan['amount'] . ", 0, NOW()) ON DUPLICATE KEY UPDATE plan_id=VALUES(plan_id), subscription_name=VALUES(subscription_name), amount=VALUES(amount), status=0, approved_by=NULL, approved_at=NULL, created_at=NOW()");
+                              header('Location: farmerDashboard.php?do=Home&subscription_submitted=1');
+                              exit;
+                            }
+                          }
+                          $availablePlans = mysqli_query($db, "SELECT * FROM subscription_plans WHERE status=1 ORDER BY amount ASC, plan_name ASC");
+                          $subscriptionRequestQuery = mysqli_query($db, "SELECT fs.*, sp.description, sp.duration_days FROM farmer_subscriptions fs LEFT JOIN subscription_plans sp ON sp.plan_id=fs.plan_id WHERE fs.farmer_id=" . (int) $_SESSION['user_id'] . " LIMIT 1");
+                          $subscriptionRequest = $subscriptionRequestQuery ? mysqli_fetch_assoc($subscriptionRequestQuery) : null;
+                          $topProductSql = "SELECT p.product_id AS cat_id, p.product_name AS cat_name, p.image AS cat_image, " .
+                                           "COALESCE(SUM(COALESCE(o.quantity, 1)), 0) AS demand_count " .
+                                           "FROM products p " .
+                                           "LEFT JOIN order_list o ON p.product_id=o.or_category " .
+                                           "WHERE p.seller_email='$farmerEmail' AND p.status=1 " .
+                                           "GROUP BY p.product_id, p.product_name, p.image " .
                                            "ORDER BY demand_count DESC " .
                                            "LIMIT 5";
                           $topProductQuery = mysqli_query($db, $topProductSql);
@@ -346,6 +372,25 @@
                           <h2 class="text-center">Farmer Dashboard</h2>
                           <p class="text-center text-muted">Your farm's most in-demand products and customer reachouts at a glance.</p>
                         </div>
+
+                        <?php if (!$activeSubscription) { ?>
+                          <div class="alert alert-warning shadow-sm">
+                            <h5 class="alert-heading"><i class="fa-solid fa-lock me-2"></i>Subscription required</h5>
+                            <p class="mb-3">Choose a subscription plan and submit your payment request. Your manager must verify and activate it before you can add products or receive orders.</p>
+                            <?php if (isset($_GET['subscription_submitted'])): ?><div class="alert alert-success mb-3">Your subscription payment request was submitted for manager approval.</div><?php endif; ?>
+                            <?php if ($subscriptionRequest && (int) $subscriptionRequest['status'] === 0): ?>
+                              <p class="mb-3">Selected plan: <strong><?php echo htmlspecialchars($subscriptionRequest['subscription_name']); ?></strong> · UGX <?php echo number_format((float) $subscriptionRequest['amount'], 2); ?> <span class="badge bg-secondary">Awaiting verification</span></p>
+                            <?php endif; ?>
+                            <?php if ($availablePlans && mysqli_num_rows($availablePlans) > 0): ?>
+                              <form method="post" class="row g-3 align-items-end">
+                                <div class="col-md-8"><label class="form-label" for="plan_id">Select a plan</label><select class="form-select" name="plan_id" id="plan_id" required><option value="">Choose a plan</option><?php while ($plan = mysqli_fetch_assoc($availablePlans)): ?><option value="<?php echo (int) $plan['plan_id']; ?>"><?php echo htmlspecialchars($plan['plan_name']); ?> · UGX <?php echo number_format((float) $plan['amount'], 2); ?> / <?php echo (int) $plan['duration_days']; ?> days</option><?php endwhile; ?></select></div>
+                                <div class="col-md-4"><button class="btn btn-success w-100" type="submit" name="request_subscription">Submit payment request</button></div>
+                              </form>
+                            <?php else: ?><p class="mb-0">No subscription plans are currently available. Please contact the manager.</p><?php endif; ?>
+                          </div>
+                        <?php } else { ?>
+                          <div class="alert alert-success shadow-sm"><strong><i class="fa-solid fa-circle-check me-2"></i>Subscription active:</strong> <?php echo htmlspecialchars($activeSubscription['subscription_name']); ?> · valid for <?php echo (int) ($activeSubscription['duration_days'] ?? 30); ?> days.</div>
+                        <?php } ?>
 
                         <div class="row g-4 mb-4">
                           <div class="col-xl-4 col-md-6">
@@ -385,7 +430,7 @@
                               <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                                 <div>
                                   <h5 class="mb-0"><i class="fa-solid fa-chart-simple me-2"></i>Top Products in Demand</h5>
-                                  <small class="text-light">Updated from your order history.</small>
+                                  <small class="text-light">Live ranking from your active products and order quantities.</small>
                                 </div>
                               </div>
                               <div class="card-body p-0">
@@ -410,7 +455,7 @@
                                               <div class="d-flex align-items-center gap-3">
                                                 <div class="rounded-3 overflow-hidden" style="width: 50px; height: 50px; background: #f4f5f8; display:flex; align-items:center; justify-content:center;">
                                                   <?php if (!empty($product['cat_image'])) { ?>
-                                                    <img src="admin/assets/images/category/<?php echo htmlspecialchars($product['cat_image']); ?>" alt="<?php echo htmlspecialchars($product['cat_name']); ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                                                    <img src="admin/assets/images/products/<?php echo htmlspecialchars($product['cat_image']); ?>" alt="<?php echo htmlspecialchars($product['cat_name']); ?>" style="width: 100%; height: 100%; object-fit: cover;">
                                                   <?php } else { ?>
                                                     <i class="fa-solid fa-box-open fa-lg text-muted"></i>
                                                   <?php } ?>

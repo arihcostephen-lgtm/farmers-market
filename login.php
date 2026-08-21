@@ -116,12 +116,14 @@
 										$_SESSION['role'] = (int) $row['role'];
 										$status = (int) $row['status'];
 
-										if ($status !== 1) { ?>
+										if ($status !== 1 && $_SESSION['role'] !== 2) { ?>
 											<div class="alert alert-warning text-center" role="alert">
 												Your account is pending admin approval.
 											</div>
-										<?php }
-										else if ($row['user_password'] !== $hassedPass) { ?>
+										<?php } elseif ($_SESSION['role'] === 2 && $status !== 1) {
+											header("Location: farmerDashboard.php?do=Home");
+											exit;
+										} elseif ($row['user_password'] !== $hassedPass) { ?>
 											<div class="alert alert-danger text-center" role="alert">
 												The password you entered is incorrect.
 											</div>
@@ -131,6 +133,8 @@
 												header("Location: admin/dashboard.php");
 											} elseif ($_SESSION['role'] === 2) {
 												header("Location: farmerDashboard.php?do=Home");
+											} elseif ($_SESSION['role'] === 4 || $_SESSION['role'] === 5) {
+												header("Location: manager/dashboard.php");
 											} else {
 												header("Location: customerDashboard.php");
 											}

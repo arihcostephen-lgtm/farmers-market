@@ -10,7 +10,7 @@
 						</div>
 						<div class="col-md-4 col-lg-4 mb-4 mb-md-0">
 							<div class="contact-details">
-								<h5 class="text-4 mb-3" style="color: #000;">CONTACT US</h5>
+								<h5 class="text-4 mb-3" style="color: #000;"><?php echo t('CONTACT US'); ?></h5>
 								<ul class="list list-icons list-icons-lg">
 									<li class="mb-1"><i class="far fa-dot-circle text-color-primary"></i><p class="m-0">Ntinda, Kyambogo University, Kampala</p></li>
 									<li class="mb-1"><i class="fab fa-whatsapp text-color-primary"></i><p class="m-0"><a href="tel:+256761393437">
@@ -33,7 +33,7 @@
 							</div>
 						</div>
 						<div class="col-md-4 col-lg-4">
-							<h5 class="text-4 mb-3" style="color: #000;">FOLLOW US</h5>
+							<h5 class="text-4 mb-3" style="color: #000;"><?php echo t('FOLLOW US'); ?></h5>
 							
 							<iframe src="https://www.google.com/maps?q=Kyambogo%20University%2C%20Uganda&output=embed" width="400" height="200" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
 						</div>

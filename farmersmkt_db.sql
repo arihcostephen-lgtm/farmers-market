@@ -28,6 +28,81 @@ CREATE TABLE IF NOT EXISTS users (
   INDEX idx_users_role_status (role, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS manager_activity_log (
+  log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  actor_id INT UNSIGNED NOT NULL,
+  actor_name VARCHAR(150) DEFAULT NULL,
+  action_type VARCHAR(100) NOT NULL,
+  target_type VARCHAR(100) DEFAULT NULL,
+  target_id INT UNSIGNED DEFAULT NULL,
+  notes TEXT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_manager_activity_actor (actor_id),
+  INDEX idx_manager_activity_type (action_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS farmer_subscriptions (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  farmer_id INT UNSIGNED NOT NULL,
+  plan_id INT UNSIGNED DEFAULT NULL,
+  subscription_name VARCHAR(150) NOT NULL,
+  amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  status TINYINT(1) NOT NULL DEFAULT 0,
+  approved_by INT UNSIGNED DEFAULT NULL,
+  approved_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_farmer_subscription (farmer_id),
+  INDEX idx_farmer_subscriptions_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS subscription_plans (
+  plan_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  plan_name VARCHAR(150) NOT NULL,
+  description TEXT DEFAULT NULL,
+  amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  duration_days INT UNSIGNED NOT NULL DEFAULT 30,
+  status TINYINT(1) NOT NULL DEFAULT 1,
+  created_by INT UNSIGNED DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT NULL,
+  INDEX idx_subscription_plans_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS tax_rules (
+  rule_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  rule_name VARCHAR(150) NOT NULL,
+  rate_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+  min_quantity INT UNSIGNED NOT NULL DEFAULT 0,
+  max_quantity INT UNSIGNED DEFAULT NULL,
+  applies_to VARCHAR(50) NOT NULL DEFAULT 'all',
+  status TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_tax_rules_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS staff_payroll (
+  staff_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  staff_name VARCHAR(150) NOT NULL,
+  staff_role VARCHAR(100) NOT NULL,
+  email VARCHAR(150) DEFAULT NULL,
+  phone VARCHAR(30) DEFAULT NULL,
+  salary DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  status TINYINT(1) NOT NULL DEFAULT 0,
+  paid_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_staff_payroll_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS extra_costs (
+  cost_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  cost_name VARCHAR(150) NOT NULL,
+  amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  notes TEXT DEFAULT NULL,
+  created_by INT UNSIGNED DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_extra_costs_created_by (created_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS about (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(255) NOT NULL,

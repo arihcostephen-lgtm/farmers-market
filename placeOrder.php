@@ -20,13 +20,17 @@ if (isset($_POST['place_order'])) {
       $orderError = 'Please provide a delivery location.';
     }
   $db->begin_transaction();
-  $productQuery = $db->query("SELECT product_name, price, product_unit, stock_quantity FROM products WHERE product_id = $productId AND status = 1 FOR UPDATE");
+  $productQuery = $db->query("SELECT product_name, price, product_unit, stock_quantity FROM products WHERE product_id = $productId AND status != 0 FOR UPDATE");
   $product = $productQuery ? $productQuery->fetch_assoc() : null;
   if (empty($orderError) && $product && $quantity <= (int) $product['stock_quantity']) {
-    $totalPrice = (float) $product['price'] * $quantity;
+    $subtotal = (float) $product['price'] * $quantity;
+    $taxRule = $db->query("SELECT * FROM tax_rules WHERE status = 1 AND min_quantity <= $quantity AND (max_quantity IS NULL OR max_quantity >= $quantity) ORDER BY rate_percent DESC LIMIT 1")->fetch_assoc();
+    $taxRate = isset($taxRule['rate_percent']) ? (float) $taxRule['rate_percent'] : 0.00;
+    $taxAmount = round($subtotal * ($taxRate / 100), 2);
+    $totalPrice = round($subtotal + $taxAmount, 2);
     $productName = mysqli_real_escape_string($db, $product['product_name']);
     $orderUnit = mysqli_real_escape_string($db, $product['product_unit'] ?? 'kilogram');
-    $insertSql = "INSERT INTO order_list (user_id, user_phone, delivery_location, delivery_notes, or_name, or_category, price, quantity, order_unit, status, join_date) VALUES ('$userId', '$userPhone', '$deliveryLocation', '$deliveryNotes', '$productName', '$productId', '$totalPrice', '$quantity', '$orderUnit', 0, NOW())";
+    $insertSql = "INSERT INTO order_list (user_id, user_phone, delivery_location, delivery_notes, or_name, or_category, price, tax_amount, total_amount, quantity, order_unit, status, join_date) VALUES ('$userId', '$userPhone', '$deliveryLocation', '$deliveryNotes', '$productName', '$productId', '$subtotal', '$taxAmount', '$totalPrice', '$quantity', '$orderUnit', 0, NOW())";
     if ($db->query($insertSql) && $db->query("UPDATE products SET stock_quantity = stock_quantity - $quantity WHERE product_id = $productId AND stock_quantity >= $quantity")) {
       $db->commit();
       header("Location: customerDashboard.php");
@@ -41,9 +45,9 @@ if (isset($_POST['place_order'])) {
 
 $productId = isset($_GET['product']) ? (int) $_GET['product'] : 0;
 if ($productId > 0 && !isset($_POST['place_order'])) {
-  $db->query("UPDATE products SET view_count = view_count + 1 WHERE product_id = $productId AND status = 1");
+  $db->query("UPDATE products SET view_count = view_count + 1 WHERE product_id = $productId AND status != 0");
 }
-$product = $db->query("SELECT product_name, price, product_unit, stock_quantity FROM products WHERE product_id = $productId AND status = 1 LIMIT 1")->fetch_assoc();
+$product = $db->query("SELECT product_name, price, product_unit, stock_quantity FROM products WHERE product_id = $productId AND status != 0 LIMIT 1")->fetch_assoc();
 ?>
 <!doctype html>
 <html lang="en">

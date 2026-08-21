@@ -96,6 +96,16 @@
 									<i class="fa-solid fa-user-shield px-1"></i> <?php echo t('Admin Login'); ?>
 								</a>
 							</li>
+							<li class="">
+								<a class="dropdown-item dropdown-toggle" href="manager/login.php">
+									<i class="fa-solid fa-briefcase px-1"></i> <?php echo t('Manager Login'); ?>
+								</a>
+							</li>
+							<li class="">
+								<a class="dropdown-item dropdown-toggle" href="manager/dashboard.php">
+									<i class="fa-solid fa-briefcase px-1"></i> <?php echo t('Manager Portal'); ?>
+								</a>
+							</li>
 							<?php  
 
 							?>

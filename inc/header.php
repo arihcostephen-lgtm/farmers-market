@@ -26,7 +26,7 @@
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="<?php echo $currentLanguage === 'lg' ? 'lg' : 'en'; ?>">
 	<head>
 
 		<!-- Basic -->

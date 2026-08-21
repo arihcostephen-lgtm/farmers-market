@@ -63,32 +63,42 @@ if (isset($db)) {
             mysqli_query($db, $fixAdminSql);
         }
     }
+
+    $checkManagerSql = "SELECT * FROM users WHERE role IN (4, 5) LIMIT 1";
+    $checkManagerQuery = mysqli_query($db, $checkManagerSql);
+    if ($checkManagerQuery && mysqli_num_rows($checkManagerQuery) === 0) {
+        $managerPassword = sha1('ben1234');
+        $insertManagerSql = "INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status, join_date) VALUES ('Ben', 'ben@gmail.com', '$managerPassword', '+256700000000', 'Main Office', 4, 1, NOW())";
+        mysqli_query($db, $insertManagerSql);
+
+        $supervisorPassword = sha1('ben1234');
+        $insertSupervisorSql = "INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status, join_date) VALUES ('Supervisor', 'ben@gmail.com', '$supervisorPassword', '+256700000001', 'Field Office', 5, 1, NOW())";
+        mysqli_query($db, $insertSupervisorSql);
+    }
 }
 ?>
 <?php include 'inc/login_header.php'; ?>
 
 <div class="d-flex align-items-center justify-content-center min-vh-100 py-4">
-    <div class="card shadow-lg border-0 rounded-4 overflow-hidden w-100" style="max-width: 940px;">
-        <div class="row g-0">
-            <div class="col-lg-6 d-none d-lg-flex bg-auth-left flex-column justify-content-center p-5 text-white">
-                <div class="px-4">
-                    <h1 class="display-5 fw-bold mb-4">Farmers Market</h1>
-                    <p class="lead mb-4">Welcome back, admin. Manage sellers, products, orders and dashboard insights from one secure portal.</p>
-                    <ul class="list-unstyled mb-0">
-                        <li class="mb-3"><i class="bx bx-check-double align-middle me-2"></i>Green branded admin access</li>
-                        <li class="mb-3"><i class="bx bx-check-double align-middle me-2"></i>Easy product & order management</li>
-                        <li class="mb-3"><i class="bx bx-check-double align-middle me-2"></i>Secure role-based dashboard</li>
-                    </ul>
-                </div>
+    <div class="card border-0 overflow-hidden w-100 login-card">
+        <div class="login-split">
+            <div class="login-panel login-panel-brand d-flex flex-column justify-content-center">
+                <span class="badge bg-light text-success rounded-pill mb-3 align-self-start px-3 py-2 fw-semibold">Admin Access</span>
+                <h1 class="fw-bold mb-3" style="font-size: 2.1rem;">Farmers Market</h1>
+                <p class="mb-4" style="line-height: 1.7;">Welcome back, admin. Manage sellers, products, orders and dashboard insights from one secure portal.</p>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">• Control products and inventory</li>
+                    <li class="mb-2">• Approve sellers and monitor orders</li>
+                    <li class="mb-2">• Review marketplace performance</li>
+                    <li>• Access secure role-based dashboards</li>
+                </ul>
             </div>
-            <div class="col-lg-6 bg-white p-5">
-                <div class="text-center mb-4">
-                    <h3 class="mb-2">Admin Sign in</h3>
-                    <p class="text-muted mb-0">Login to your Farmers Market dashboard</p>
-                </div>
+            <div class="login-panel login-panel-form">
+                <h3 class="mb-2 fw-bold">Admin Sign in</h3>
+                <p class="text-muted mb-4">Login to your Farmers Market dashboard</p>
 
                 <?php if (!empty($login_error)): ?>
-                    <div class="alert alert-warning text-center" role="alert"><?php echo $login_error; ?></div>
+                    <div class="alert alert-warning" role="alert"><?php echo $login_error; ?></div>
                 <?php endif; ?>
 
                 <form action="" method="POST" class="row g-3">
@@ -104,12 +114,13 @@ if (isset($db)) {
                         </div>
                     </div>
                     <div class="col-12">
-                        <div class="d-grid">
-                            <button type="submit" name="adminSubmit" class="btn btn-success btn-lg">Sign in</button>
-                        </div>
+                        <button type="submit" name="adminSubmit" class="btn btn-success btn-lg w-100">Sign in</button>
                     </div>
                     <div class="col-12 text-center">
-                        <p class="text-muted mb-0">Use your administrator email and password to continue.</p>
+                        <a href="../manager/login.php" class="btn btn-outline-success btn-sm mt-2">Manager / Supervisor Login</a>
+                    </div>
+                    <div class="col-12 text-center">
+                        <p class="text-muted mb-0 small">Use your administrator email and password to continue.</p>
                     </div>
                 </form>
             </div>
@@ -120,26 +131,62 @@ if (isset($db)) {
 
 <style>
     body {
-        background: linear-gradient(135deg, #eefaf1 0%, #c9f0d5 100%);
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #eafaf2, #d5f5e2 45%, #b9f2d0);
+        font-family: Arial, sans-serif;
     }
-    .bg-auth-left {
-        background: linear-gradient(180deg, #0a7021 0%, #22b544 100%);
-        min-height: 100%;
+    .login-card {
+        max-width: 900px;
+        border-radius: 22px;
+        box-shadow: 0 25px 60px rgba(11, 74, 47, 0.18);
     }
-    .bg-auth-left h1,
-    .bg-auth-left p,
-    .bg-auth-left li {
+    .login-split {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+    }
+    .login-panel {
+        width: 50%;
+        min-width: 0;
+    }
+    .login-panel-brand {
+        background: linear-gradient(135deg, #0e5a3a, #1aa661);
         color: #fff;
+        padding: 52px 42px;
     }
-    .bg-auth-left .bx {
-        font-size: 1.1rem;
+    .login-panel-form {
+        padding: 52px 42px;
+        background: #fff;
     }
-    .auth-card {
-        border-radius: 1.5rem;
+    .form-control:focus {
+        box-shadow: 0 0 0 0.25rem rgba(22,163,74,0.2);
+        border-color: #1aa661;
+    }
+    .btn-success {
+        background: linear-gradient(135deg, #0d8b47, #1aa661);
+        border: none;
     }
     #show_hide_password .btn {
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
+    }
+    @media (max-width: 767.98px) {
+        .login-split {
+            flex-direction: column;
+        }
+        .login-panel {
+            width: 100%;
+        }
+        .login-panel-brand {
+            padding: 32px 28px;
+        }
+        .login-panel-form {
+            padding: 32px 28px;
+        }
     }
 </style>
 
