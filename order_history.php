@@ -79,7 +79,8 @@
 										  			$or_name 		= $row['or_name'];
 										  			$or_category 	= $row['or_category'];
 										  			$price 			= $row['price'];
-															  $quantity 		= (int) ($row['quantity'] ?? 1);
+															  $quantity = (int) ($row['quantity'] ?? 1);
+															  $order_unit = $row['order_unit'] ?? 'kilogram';
 															  $delivery_location = $row['delivery_location'] ?? '';
 															  $delivery_update = $row['delivery_update'] ?? '';
 										  			$or_image 		= $row['or_image'];
@@ -115,7 +116,7 @@
 
 															  	?>
 															  </td>
-															      <td><?php echo number_format($quantity); ?></td>
+															      <td><?php echo number_format($quantity); ?> <?php echo htmlspecialchars($order_unit); ?></td>
 															      <td><?php echo number_format($price, 2); ?> Taka</td>
 															      <td><?php echo nl2br(htmlspecialchars($delivery_location ?: 'Not provided')); ?><?php if ($delivery_update) { ?><br><small class="text-info">Update: <?php echo nl2br(htmlspecialchars($delivery_update)); ?></small><?php } ?></td>
 													      <td><?php echo $join_date; ?></td>
@@ -191,7 +192,7 @@
 								}
 								else { ?>
 
-									<h3>Total Price: <?php echo $totalPrice; ?> Taka</h3>
+											<h3>Total Price: UGX <?php echo number_format($totalPrice, 2); ?></h3>
 								    <form action="ease_payment.php" method="GET">
 								    	<input type="hidden" value="<?php echo $totalPrice; ?>" name="payment">
 								    	<input type="submit"  class="btn btn-success btn-modern text-uppercase" value="Proceed to Checkout" >

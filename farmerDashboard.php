@@ -63,7 +63,7 @@
                         <hr style="color: #72717f;">
                         <a href="farmerDashboard.php?do=Manage" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-box"></i> <span>&nbsp;My Products</span></a>
                         <a href="farmer_orders.php" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-cart-shopping"></i> <span>&nbsp;Orders</span></a>
-                        <a href="farmer_inquiries.php" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-regular fa-message"></i> <span>&nbsp;Buyer Inquiries</span></a>
+                        <a href="farmerDashboard.php?do=Inquiries" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-regular fa-message"></i> <span>&nbsp;Buyer Inquiries</span></a>
                         <a href="farmerDashboard.php?do=AddDoc" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-file-circle-plus"></i> <span>&nbsp;Add Documents</span></a>
                         <a href="farmerDashboard.php?do=ViewDoc" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-file-lines"></i> <span>&nbsp;View Documents</span></a>
                         <a href="farmerDashboard.php?do=Profile" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-user"></i> <span>&nbsp;Profile</span></a>
@@ -123,20 +123,6 @@
                       
                     <?php }
 
-                    else { ?>
-                      <li class="dropdown">
-                        <a class="dropdown-item dropdown-toggle" href="login.php">
-                          <i class="fa-solid fa-arrow-right-to-bracket px-1"></i> Login
-                        </a>
-                      </li>
-
-                      <li class="dropdown">
-                        <a class="dropdown-item dropdown-toggle" href="register.php">
-                          <i class="fa-regular fa-address-card px-1"></i> Regsiter
-                        </a>
-                      </li>
-
-                    <?php }
                   ?>
                   <!-- For users login or nor -->
                 </div>
@@ -173,6 +159,7 @@
                                     <th scope="col">Product Image</th>
                                     <th scope="col">Product Name</th>
                                     <th scope="col">Price (Ugx)</th>
+                                    <th scope="col">Unit</th>
                                     <th scope="col">Availability</th>
                                     <th scope="col">Category Name</th>
                                     <th scope="col">Status</th>
@@ -208,6 +195,7 @@
                                           $join_date    = $row['join_date'];
                                           $cat_image    = $row['image'];
                                           $price      = $row['price'];        
+                                          $product_unit = $row['product_unit'] ?? 'kilogram';
                                           $stock_quantity = (int) ($row['stock_quantity'] ?? 0);
                                           $seller_email   = $row['seller_email'];       
                                           $i++;
@@ -227,6 +215,7 @@
                                             </td>
                                             <td class="text-center"><?php echo $cat_name; ?></td>
                                             <td class="text-center"><?php echo $price; ?></td>
+                                            <td class="text-center">per <?php echo htmlspecialchars($product_unit); ?></td>
                                             <td class="text-center"><?php echo $stock_quantity > 0 ? '<span class="badge text-bg-success">IN STOCK</span>' : '<span class="badge text-bg-danger">OUT OF STOCK</span>'; ?></td>
                                             <td class="text-center">
                                               <?php  
@@ -318,6 +307,7 @@
                         $newRequestCount = 0;
                         $totalOrdersCount = 0;
                         $lowStockCount = 0;
+                        $pendingInquiryCount = 0;
 
                         if (!empty($farmerEmail)) {
                           $topProductSql = "SELECT c.cat_id, c.cat_name, c.cat_image, COALESCE(SUM(COALESCE(o.quantity, 1)), 0) AS demand_count " .
@@ -348,6 +338,7 @@
                           $newRequestCount = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM order_list o LEFT JOIN products p ON p.product_id=o.or_category LEFT JOIN category c ON c.cat_id=o.or_category WHERE (p.seller_email='$farmerEmail' OR c.seller_email='$farmerEmail') AND o.status=0"))['total'];
                           $totalOrdersCount = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM order_list o LEFT JOIN products p ON p.product_id=o.or_category LEFT JOIN category c ON c.cat_id=o.or_category WHERE (p.seller_email='$farmerEmail' OR c.seller_email='$farmerEmail')"))['total'];
                           $lowStockCount = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM products WHERE seller_email='$farmerEmail' AND status=1 AND stock_quantity <= low_stock_threshold"))['total'];
+                          $pendingInquiryCount = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM product_inquiries i INNER JOIN products p ON p.product_id=i.product_id WHERE p.seller_email='$farmerEmail' AND i.status=0"))['total'];
                         }
 
                         ?>
@@ -450,6 +441,7 @@
                               <div class="card-header bg-primary text-white">
                                 <h5 class="mb-0"><i class="fa-solid fa-bell me-2"></i>Notifications <?php if ($lowStockCount > 0) { ?><span class="badge bg-warning text-dark ms-2"><?php echo $lowStockCount; ?> low stock</span><?php } ?></h5>
                                 <a href="farmer_orders.php" class="btn btn-sm btn-light mt-2">Manage Orders</a>
+                                <a href="farmerDashboard.php?do=Inquiries" class="btn btn-sm btn-outline-light mt-2">Buyer Inquiries<?php if ($pendingInquiryCount > 0) { ?> (<?php echo $pendingInquiryCount; ?> pending)<?php } ?></a>
                               </div>
                               <div class="card-body">
                                 <?php if (count($customerRequests) > 0) { ?>
@@ -462,6 +454,7 @@
                                             <p class="mb-1 text-muted small">Product: <?php echo htmlspecialchars($request['product_name'] ?: 'Unknown'); ?></p>
                                             <p class="mb-1 text-muted small">Quantity: <?php echo number_format((int) ($request['quantity'] ?? 1)); ?> • Total: UGX <?php echo number_format((float) $request['price'], 2); ?></p>
                                             <p class="mb-0 text-muted small">Customer: <?php echo htmlspecialchars($request['user_id'] ?: 'Guest'); ?> • <?php echo htmlspecialchars($request['user_phone'] ?: 'No phone'); ?></p>
+                                            <p class="mb-0 text-muted small">Delivery location: <?php echo htmlspecialchars($request['delivery_location'] ?: 'Not provided'); ?></p>
                                           </div>
                                           <span class="badge bg-light text-dark"><?php echo date('M j', strtotime($request['join_date'])); ?></span>
                                         </div>
@@ -481,6 +474,77 @@
                             </div>
                           </div>
                         </div>
+                    <?php }
+
+                    else if ( $do == "Inquiries" ) {
+                        $farmerEmail = mysqli_real_escape_string($db, $_SESSION['user_email'] ?? $_SESSION['email'] ?? '');
+                        $inquiryMessage = '';
+                        $inquiryError = '';
+
+                        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_inquiry'])) {
+                          $inquiryId = (int) ($_POST['inquiry_id'] ?? 0);
+                          $inquiryStatus = max(0, min(2, (int) ($_POST['status'] ?? 0)));
+                          $response = mysqli_real_escape_string($db, trim($_POST['response'] ?? ''));
+                          $updateInquirySql = "UPDATE product_inquiries i INNER JOIN products p ON p.product_id=i.product_id SET i.status='$inquiryStatus', i.response='$response', i.updated_at=NOW() WHERE i.inquiry_id='$inquiryId' AND p.seller_email='$farmerEmail'";
+                          if (mysqli_query($db, $updateInquirySql)) {
+                            $inquiryMessage = 'Inquiry response saved.';
+                          } else {
+                            $inquiryError = 'Unable to save the inquiry response.';
+                          }
+                        }
+
+                        $inquirySql = "SELECT i.*, p.product_name, u.user_name, u.user_email FROM product_inquiries i INNER JOIN products p ON p.product_id=i.product_id LEFT JOIN users u ON u.user_id=i.buyer_id WHERE p.seller_email='$farmerEmail' ORDER BY i.created_at DESC";
+                        $inquiryQuery = mysqli_query($db, $inquirySql);
+                        $inquiryLabels = ['Pending', 'Responded', 'Resolved'];
+                        $inquiryClasses = ['warning', 'info', 'success'];
+                    ?>
+                      <div class="container-fluid pb-5">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                          <div>
+                            <h4 class="text-uppercase mb-1">Buyer Inquiries</h4>
+                            <p class="text-muted mb-0">Read buyer questions and respond from your dashboard.</p>
+                          </div>
+                          <a href="farmerDashboard.php?do=Home" class="btn btn-outline-secondary">Back to Dashboard</a>
+                        </div>
+                        <?php if ($inquiryMessage) { ?><div class="alert alert-success"><?php echo htmlspecialchars($inquiryMessage); ?></div><?php } ?>
+                        <?php if ($inquiryError) { ?><div class="alert alert-danger"><?php echo htmlspecialchars($inquiryError); ?></div><?php } ?>
+                        <div class="card shadow-sm">
+                          <div class="card-body">
+                            <div class="table-responsive">
+                              <table class="table table-striped align-middle">
+                                <thead class="table-dark">
+                                  <tr><th>Product</th><th>Buyer</th><th>Subject</th><th>Message</th><th>Status</th><th>Response</th></tr>
+                                </thead>
+                                <tbody>
+                                  <?php if ($inquiryQuery && mysqli_num_rows($inquiryQuery) > 0) { while ($inquiry = mysqli_fetch_assoc($inquiryQuery)) { $inquiryStatus = (int) $inquiry['status']; ?>
+                                    <tr>
+                                      <td><?php echo htmlspecialchars($inquiry['product_name']); ?></td>
+                                      <td><?php echo htmlspecialchars($inquiry['user_name'] ?: ($inquiry['user_email'] ?: $inquiry['buyer_email'])); ?></td>
+                                      <td><?php echo htmlspecialchars($inquiry['subject']); ?></td>
+                                      <td><?php echo nl2br(htmlspecialchars($inquiry['message'])); ?></td>
+                                      <td><span class="badge text-bg-<?php echo $inquiryClasses[$inquiryStatus] ?? 'secondary'; ?>"><?php echo $inquiryLabels[$inquiryStatus] ?? 'Pending'; ?></span></td>
+                                      <td>
+                                        <form method="post">
+                                          <input type="hidden" name="inquiry_id" value="<?php echo (int) $inquiry['inquiry_id']; ?>">
+                                          <select name="status" class="form-select form-select-sm mb-2">
+                                            <option value="0" <?php echo $inquiryStatus === 0 ? 'selected' : ''; ?>>Pending</option>
+                                            <option value="1" <?php echo $inquiryStatus === 1 ? 'selected' : ''; ?>>Responded</option>
+                                            <option value="2" <?php echo $inquiryStatus === 2 ? 'selected' : ''; ?>>Resolved</option>
+                                          </select>
+                                          <textarea name="response" class="form-control form-control-sm mb-2" rows="3" placeholder="Write a response"><?php echo htmlspecialchars($inquiry['response'] ?? ''); ?></textarea>
+                                          <button type="submit" name="update_inquiry" class="btn btn-sm btn-success">Save Response</button>
+                                        </form>
+                                      </td>
+                                    </tr>
+                                  <?php } } else { ?>
+                                    <tr><td colspan="6" class="text-center text-muted py-4">No buyer inquiries yet.</td></tr>
+                                  <?php } ?>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     <?php }
 
                     else if ( $do == "Contact" ) { 
@@ -519,7 +583,7 @@
 
                           <?php  
 
-                            $sessionId =  $_SESSION['user_id'];
+                            $sessionId = (int) ($_SESSION['user_id'] ?? 0);
                             $readUId_Sql = "SELECT * FROM users WHERE status=1 AND user_id='$sessionId'";
                             $readUId_Query = mysqli_query($db, $readUId_Sql);
 
@@ -763,12 +827,7 @@
                                   </div>
 
                                   <?php  
-                                    if (empty($_SESSION['user_id'])) {
-                                      ?>
-                                      <a href="login.php">Login to reserve your service</a>
-                                      <?php
-                                    }
-                                    else { ?>
+                                    if (!empty($_SESSION['user_id'])) { ?>
 
                                       <input type="hidden" name="status" value="0">
                                   <input type="hidden" name="useremail" value="<?php echo $_SESSION['email']; ?>">
@@ -827,8 +886,19 @@
                                   </div>
 
                                   <div class="mb-3">
-                                    <label for=""  class="form-label">Price</label>
+                                    <label for=""  class="form-label">Price per unit (UGX)</label>
                                     <input type="text" name="price" class="form-control" placeholder="enter price amount" required autocomplete="off">
+                                  </div>
+
+                                  <div class="mb-3">
+                                    <label for="productUnit" class="form-label">Unit</label>
+                                    <select name="product_unit" class="form-select" id="productUnit" required>
+                                      <option value="kilogram">Kilogram (kg)</option>
+                                      <option value="litre">Litre (L)</option>
+                                      <option value="gram">Gram (g)</option>
+                                      <option value="piece">Piece</option>
+                                      <option value="each">Each</option>
+                                    </select>
                                   </div>
 
                                   <div class="mb-3">
@@ -886,7 +956,7 @@
 
                                   <div class="mb-3">
                                     <input type="hidden" value="2" name="status">
-                                    <input type="hidden" name="seller_email" value="<?php echo $_SESSION['email']; ?>">
+                                    <input type="hidden" name="seller_email" value="<?php echo htmlspecialchars($_SESSION['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                                     <div class="form-check">
                                       <input type="checkbox" class="form-check-input" name="is_negotiable" value="1" id="farmerIsNegotiable">
                                       <label class="form-check-label" for="farmerIsNegotiable">Price is negotiable</label>
@@ -913,6 +983,9 @@
                       if (isset($_POST['addCategory'])) {
                         $productName = mysqli_real_escape_string($db, trim($_POST['catName']));
                         $price = mysqli_real_escape_string($db, trim($_POST['price']));
+                        $allowedUnits = ['kilogram', 'litre', 'gram', 'piece', 'each'];
+                        $product_unit = in_array($_POST['product_unit'] ?? '', $allowedUnits, true) ? $_POST['product_unit'] : 'kilogram';
+                        $product_unit = mysqli_real_escape_string($db, $product_unit);
                         $categoryId = !empty($_POST['is_parent']) ? (int) $_POST['is_parent'] : null;
                         $status = 2;
                         $seller_email = mysqli_real_escape_string($db, $_SESSION['email'] ?? '');
@@ -937,7 +1010,7 @@
                         }
 
                         $categoryValue = $categoryId ? "'$categoryId'" : 'NULL';
-                        $addSql = "INSERT INTO products (product_name, description, category_id, price, is_negotiable, view_count, harvest_date, seasonal_availability, stock_quantity, low_stock_threshold, seller_email, image, status, join_date) VALUES ('$productName', '$desc', $categoryValue, '$price', '$is_negotiable', 0, $harvestDateValue, '$seasonal_availability', '$stock_quantity', '$low_stock_threshold', '$seller_email', '$image', '$status', NOW())";
+                        $addSql = "INSERT INTO products (product_name, description, category_id, price, product_unit, is_negotiable, view_count, harvest_date, seasonal_availability, stock_quantity, low_stock_threshold, seller_email, image, status, join_date) VALUES ('$productName', '$desc', $categoryValue, '$price', '$product_unit', '$is_negotiable', 0, $harvestDateValue, '$seasonal_availability', '$stock_quantity', '$low_stock_threshold', '$seller_email', '$image', '$status', NOW())";
                         $addQuery = mysqli_query($db, $addSql);
 
                         if ($addQuery) {
@@ -967,6 +1040,7 @@
                             $join_date    = $row['join_date'];
                             $cat_image    = $row['image'];
                             $price      = $row['price'];
+                            $product_unit = $row['product_unit'] ?? 'kilogram';
                             $stock_quantity = (int) $row['stock_quantity'];
                             $is_negotiable = (int) ($row['is_negotiable'] ?? 0);
                             $harvest_date = $row['harvest_date'] ?? '';
@@ -990,8 +1064,19 @@
                                         </div>
 
                                         <div class="mb-3">
-                                          <label for="" class="form-label">Price (Ugx)</label>
+                                          <label for="" class="form-label">Price per unit (UGX)</label>
                                           <input type="number" step="0.01" name="price" class="form-control" placeholder="enter price amount" required autocomplete="off" value="<?php echo htmlspecialchars($price); ?>">
+                                        </div>
+
+                                        <div class="mb-3">
+                                          <label for="editProductUnit" class="form-label">Unit</label>
+                                          <select name="product_unit" class="form-select" id="editProductUnit" required>
+                                            <option value="kilogram" <?php echo $product_unit === 'kilogram' ? 'selected' : ''; ?>>Kilogram (kg)</option>
+                                            <option value="litre" <?php echo $product_unit === 'litre' ? 'selected' : ''; ?>>Litre (L)</option>
+                                            <option value="gram" <?php echo $product_unit === 'gram' ? 'selected' : ''; ?>>Gram (g)</option>
+                                            <option value="piece" <?php echo $product_unit === 'piece' ? 'selected' : ''; ?>>Piece</option>
+                                            <option value="each" <?php echo $product_unit === 'each' ? 'selected' : ''; ?>>Each</option>
+                                          </select>
                                         </div>
 
                                         <div class="mb-3">
@@ -1104,6 +1189,9 @@
                         $status = (int) $_POST['status'];
                         $desc = mysqli_real_escape_string($db, trim($_POST['desc']));
                         $price = mysqli_real_escape_string($db, trim($_POST['price']));
+                        $allowedUnits = ['kilogram', 'litre', 'gram', 'piece', 'each'];
+                        $product_unit = in_array($_POST['product_unit'] ?? '', $allowedUnits, true) ? $_POST['product_unit'] : 'kilogram';
+                        $product_unit = mysqli_real_escape_string($db, $product_unit);
                         $stock_quantity = max(0, (int) ($_POST['stock_quantity'] ?? 0));
                         $is_negotiable = isset($_POST['is_negotiable']) ? 1 : 0;
                         $harvest_date = trim($_POST['harvest_date'] ?? '');
@@ -1135,7 +1223,7 @@
                           }
                         }
 
-                        $upSql = "UPDATE products SET product_name='$productName', description='$desc', $categoryValue $setImageSql price='$price', stock_quantity='$stock_quantity', is_negotiable='$is_negotiable', $harvestDateValue seasonal_availability='$seasonal_availability', low_stock_threshold='$low_stock_threshold', status='$status' WHERE product_id='$updateProductId' AND seller_email='$sellerId'";
+                        $upSql = "UPDATE products SET product_name='$productName', description='$desc', $categoryValue $setImageSql price='$price', product_unit='$product_unit', stock_quantity='$stock_quantity', is_negotiable='$is_negotiable', $harvestDateValue seasonal_availability='$seasonal_availability', low_stock_threshold='$low_stock_threshold', status='$status' WHERE product_id='$updateProductId' AND seller_email='$sellerId'";
                         $updateQuery = mysqli_query($db, $upSql);
 
                         if ($updateQuery) {

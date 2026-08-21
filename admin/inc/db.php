@@ -18,6 +18,10 @@
 		if ($negotiableColumn && mysqli_num_rows($negotiableColumn) === 0) {
 			@mysqli_query($db, "ALTER TABLE products ADD COLUMN is_negotiable TINYINT(1) NOT NULL DEFAULT 0 AFTER price");
 		}
+		$productUnitColumn = mysqli_query($db, "SHOW COLUMNS FROM products LIKE 'product_unit'");
+		if ($productUnitColumn && mysqli_num_rows($productUnitColumn) === 0) {
+			@mysqli_query($db, "ALTER TABLE products ADD COLUMN product_unit VARCHAR(20) NOT NULL DEFAULT 'kilogram' AFTER price");
+		}
 		$viewCountColumn = mysqli_query($db, "SHOW COLUMNS FROM products LIKE 'view_count'");
 		if ($viewCountColumn && mysqli_num_rows($viewCountColumn) === 0) {
 			@mysqli_query($db, "ALTER TABLE products ADD COLUMN view_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER is_negotiable");
@@ -51,6 +55,7 @@
 			INDEX idx_inquiries_buyer (buyer_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 		$orderColumns = [
+			'order_unit' => "ALTER TABLE order_list ADD COLUMN order_unit VARCHAR(20) NOT NULL DEFAULT 'kilogram' AFTER quantity",
 			'delivery_location' => "ALTER TABLE order_list ADD COLUMN delivery_location TEXT DEFAULT NULL AFTER user_phone",
 			'delivery_notes' => "ALTER TABLE order_list ADD COLUMN delivery_notes TEXT DEFAULT NULL AFTER delivery_location",
 			'delivery_update' => "ALTER TABLE order_list ADD COLUMN delivery_update TEXT DEFAULT NULL AFTER status",

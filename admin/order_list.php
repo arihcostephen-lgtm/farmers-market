@@ -69,6 +69,7 @@
 										  			$or_category 	= $row['or_category'];
 															  $price 			= $row['price'];
 															  $quantity 		= (int) ($row['quantity'] ?? 1);
+															  $order_unit 		= $row['order_unit'] ?? 'kilogram';
 										  			$or_image 		= $row['or_image'];
 										  			$status 		= $row['status'];
 			  										  $delivery_update = $row['delivery_update'] ?? '';
@@ -106,8 +107,8 @@
 
 												      	?>
 												      </td>
-												      <td><?php echo number_format($quantity); ?></td>
-												      <td><?php echo number_format($price, 2); ?> Taka</td>
+												      <td><?php echo number_format($quantity); ?> <?php echo htmlspecialchars($order_unit); ?></td>
+												      <td><?php echo number_format($price, 2); ?></td>
 												      <td>
 												      	<?php  
 												      		if ($status == 1) { ?>
@@ -394,7 +395,7 @@
 												      	?>
 												      </td>
 												      <td><?php echo number_format($quantity); ?></td>
-												      <td><?php echo number_format($price, 2); ?> Taka</td>
+												      <td><?php echo number_format($price, 2); ?></td>
 												      <td><?php echo nl2br(htmlspecialchars($delivery_location ?: 'Not provided')); ?></td>
 												      <td>
 												      	<?php  

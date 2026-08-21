@@ -45,6 +45,7 @@
                   <th>Image</th>
                   <th>Product Name</th>
                   <th>Price (UGX)</th>
+                  <th>Unit</th>
                   <th>Negotiable</th>
                   <th>Harvest Date</th>
                   <th>Season</th>
@@ -67,7 +68,7 @@
                   if ($productCount == 0) {
                 ?>
                   <tr>
-                    <td colspan="15" class="text-center text-warning">No products found in the database.</td>
+                    <td colspan="16" class="text-center text-warning">No products found in the database.</td>
                   </tr>
                 <?php
                   } else {
@@ -76,6 +77,7 @@
                       $product_id = $row['product_id'];
                       $product_name = $row['product_name'];
                       $price = $row['price'];
+                      $product_unit = $row['product_unit'] ?? 'kilogram';
                       $is_negotiable = (int) ($row['is_negotiable'] ?? 0);
                       $harvest_date = $row['harvest_date'] ?? '';
                       $seasonal_availability = $row['seasonal_availability'] ?? '';
@@ -102,6 +104,7 @@
                     </td>
                     <td><?php echo htmlspecialchars($product_name); ?></td>
                     <td><?php echo number_format((float) $price, 2); ?></td>
+                    <td>per <?php echo htmlspecialchars($product_unit); ?></td>
                     <td><?php echo $is_negotiable ? '<span class="badge text-bg-warning text-dark">YES</span>' : '<span class="badge text-bg-secondary">NO</span>'; ?></td>
                     <td><?php echo $harvest_date ? htmlspecialchars(date('d M Y', strtotime($harvest_date))) : 'N/A'; ?></td>
                     <td><?php echo $seasonal_availability ? htmlspecialchars($seasonal_availability) : 'N/A'; ?></td>
@@ -194,8 +197,19 @@
                 </div>
 
                 <div class="mb-3">
-                        <label class="form-label">Price (Ugx)</label>
+                  <label class="form-label">Price per unit (UGX)</label>
                   <input type="number" step="0.01" name="price" class="form-control" placeholder="Enter product price" required>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Unit</label>
+                  <select name="product_unit" class="form-select" required>
+                    <option value="kilogram">Kilogram (kg)</option>
+                    <option value="litre">Litre (L)</option>
+                    <option value="gram">Gram (g)</option>
+                    <option value="piece">Piece</option>
+                    <option value="each">Each</option>
+                  </select>
                 </div>
 
                       <div class="mb-3">
@@ -276,6 +290,9 @@
           if (isset($_POST['addProduct'])) {
           $productName = mysqli_real_escape_string($db, trim($_POST['productName']));
           $price = mysqli_real_escape_string($db, trim($_POST['price']));
+          $allowedUnits = ['kilogram', 'litre', 'gram', 'piece', 'each'];
+          $product_unit = in_array($_POST['product_unit'] ?? '', $allowedUnits, true) ? $_POST['product_unit'] : 'kilogram';
+          $product_unit = mysqli_real_escape_string($db, $product_unit);
           $stock_quantity = max(0, (int) $_POST['stock_quantity']);
           $is_negotiable = isset($_POST['is_negotiable']) ? 1 : 0;
           $harvest_date = trim($_POST['harvest_date'] ?? '');
@@ -309,6 +326,7 @@
             description TEXT DEFAULT NULL,
             category_id INT UNSIGNED DEFAULT NULL,
             price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            product_unit VARCHAR(20) NOT NULL DEFAULT 'kilogram',
             is_negotiable TINYINT(1) NOT NULL DEFAULT 0,
             view_count INT UNSIGNED NOT NULL DEFAULT 0,
             harvest_date DATE DEFAULT NULL,
@@ -321,7 +339,7 @@
             join_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
           @mysqli_query($db, $createProductsSql);
-          $insertSql = "INSERT INTO products (product_name, description, category_id, price, is_negotiable, view_count, harvest_date, seasonal_availability, stock_quantity, low_stock_threshold, seller_email, image, status, join_date) VALUES ('$productName', '$desc', $categoryValue, '$price', '$is_negotiable', 0, $harvestDateValue, '$seasonal_availability', '$stock_quantity', '$low_stock_threshold', '$seller_email', '$image', '$status', NOW())";
+          $insertSql = "INSERT INTO products (product_name, description, category_id, price, product_unit, is_negotiable, view_count, harvest_date, seasonal_availability, stock_quantity, low_stock_threshold, seller_email, image, status, join_date) VALUES ('$productName', '$desc', $categoryValue, '$price', '$product_unit', '$is_negotiable', 0, $harvestDateValue, '$seasonal_availability', '$stock_quantity', '$low_stock_threshold', '$seller_email', '$image', '$status', NOW())";
           $insertQuery = mysqli_query($db, $insertSql);
 
           if ($insertQuery) {
@@ -350,6 +368,7 @@
             $status = (int) $row['status'];
             $product_image = $row['image'];
             $price = $row['price'];
+            $product_unit = $row['product_unit'] ?? 'kilogram';
             $is_negotiable = (int) ($row['is_negotiable'] ?? 0);
                       $harvest_date = $row['harvest_date'] ?? '';
                       $seasonal_availability = $row['seasonal_availability'] ?? '';
@@ -381,8 +400,19 @@
                       </div>
 
                       <div class="mb-3">
-                        <label class="form-label">Price (Ugx)</label>
+                        <label class="form-label">Price per unit (UGX)</label>
                         <input type="number" step="0.01" name="price" class="form-control" value="<?php echo htmlspecialchars($price); ?>" required>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label">Unit</label>
+                        <select name="product_unit" class="form-select" required>
+                          <option value="kilogram" <?php echo $product_unit === 'kilogram' ? 'selected' : ''; ?>>Kilogram (kg)</option>
+                          <option value="litre" <?php echo $product_unit === 'litre' ? 'selected' : ''; ?>>Litre (L)</option>
+                          <option value="gram" <?php echo $product_unit === 'gram' ? 'selected' : ''; ?>>Gram (g)</option>
+                          <option value="piece" <?php echo $product_unit === 'piece' ? 'selected' : ''; ?>>Piece</option>
+                          <option value="each" <?php echo $product_unit === 'each' ? 'selected' : ''; ?>>Each</option>
+                        </select>
                       </div>
 
                       <div class="mb-3">
@@ -480,6 +510,9 @@
           $updateProductId = (int) $_POST['updateProductId'];
           $productName = mysqli_real_escape_string($db, trim($_POST['productName']));
           $price = mysqli_real_escape_string($db, trim($_POST['price']));
+          $allowedUnits = ['kilogram', 'litre', 'gram', 'piece', 'each'];
+          $product_unit = in_array($_POST['product_unit'] ?? '', $allowedUnits, true) ? $_POST['product_unit'] : 'kilogram';
+          $product_unit = mysqli_real_escape_string($db, $product_unit);
           $stock_quantity = max(0, (int) $_POST['stock_quantity']);
           $is_negotiable = isset($_POST['is_negotiable']) ? 1 : 0;
           $harvest_date = trim($_POST['harvest_date'] ?? '');
@@ -514,7 +547,7 @@
           }
 
           $categoryValue = $category_id ? "category_id = '$category_id'," : '';
-          $updateSql = "UPDATE products SET product_name = '$productName', description = '$desc', $categoryValue $setImageSql price = '$price', is_negotiable = '$is_negotiable', $harvestDateValue seasonal_availability = '$seasonal_availability', stock_quantity = '$stock_quantity', low_stock_threshold = '$low_stock_threshold', seller_email = '$seller_email', status = '$status' WHERE product_id = '$updateProductId'";
+          $updateSql = "UPDATE products SET product_name = '$productName', description = '$desc', $categoryValue $setImageSql price = '$price', product_unit = '$product_unit', is_negotiable = '$is_negotiable', $harvestDateValue seasonal_availability = '$seasonal_availability', stock_quantity = '$stock_quantity', low_stock_threshold = '$low_stock_threshold', seller_email = '$seller_email', status = '$status' WHERE product_id = '$updateProductId'";
           $updateQuery = mysqli_query($db, $updateSql);
 
           if ($updateQuery) {

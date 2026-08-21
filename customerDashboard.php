@@ -222,7 +222,7 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                 <div class="d-flex align-items-center justify-content-between mb-3 comment-box p-3 rounded">
                                     <div>
                                         <h6 class="mb-1"><?php echo htmlspecialchars($order['or_name']); ?></h6>
-                                        <div class="text-muted">Quantity: <?php echo number_format((int) ($order['quantity'] ?? 1)); ?> • Category: <?php echo htmlspecialchars($order['or_category']); ?> • Ordered on <?php echo htmlspecialchars(date('M j, Y', strtotime($order['join_date']))); ?></div>
+                                        <div class="text-muted">Quantity: <?php echo number_format((int) ($order['quantity'] ?? 1)); ?> <?php echo htmlspecialchars($order['order_unit'] ?? 'kilogram'); ?> • Category: <?php echo htmlspecialchars($order['or_category']); ?> • Ordered on <?php echo htmlspecialchars(date('M j, Y', strtotime($order['join_date']))); ?></div>
                                     </div>
                                     <div class="text-end">
                                         <div class="h6 mb-1 text-success">UGX <?php echo number_format($order['price'], 2); ?> total</div>
@@ -255,7 +255,7 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                                 <div>
                                                     <h6 class="text-white"><?php echo htmlspecialchars($product['product_name']); ?></h6>
                                                     <p class="text-muted mb-2"><?php echo htmlspecialchars($product['description'] ?: 'Fresh farm produce'); ?></p>
-                                                    <small class="text-muted d-block mb-2">Available: <?php echo number_format((int) $product['stock_quantity']); ?></small>
+                                                    <small class="text-muted d-block mb-2">Available: <?php echo number_format((int) $product['stock_quantity']); ?> <?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?></small>
                                                     <?php echo (int) $product['stock_quantity'] > 0 ? '<span class="badge bg-success mb-2">In stock</span>' : '<span class="badge bg-danger mb-2">Out of stock</span>'; ?>
                                                     <?php if (!empty($product['is_negotiable'])): ?><span class="badge bg-warning text-dark mb-2">Price negotiable</span><?php endif; ?>
                                                     <?php if (!empty($product['harvest_date'])): ?><small class="text-muted d-block mb-2">Harvest date: <?php echo htmlspecialchars(date('d M Y', strtotime($product['harvest_date']))); ?></small><?php endif; ?>
@@ -264,7 +264,7 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                                     <div class="badge mb-2"><?php echo htmlspecialchars($product['farmer_name'] ?: 'Local Farm Market'); ?></div>
                                                 </div>
                                                 <div class="d-flex justify-content-between align-items-center mt-3">
-                                                    <span class="text-success h6">UGX <?php echo number_format($product['price'], 2); ?></span>
+                                                    <span class="text-success h6">UGX <?php echo number_format($product['price'], 2); ?> per <?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?></span>
                                                     <div class="d-flex gap-2">
                                                         <?php if (filter_var($product['seller_email'], FILTER_VALIDATE_EMAIL)) { ?>
                                                             <a href="mailto:<?php echo htmlspecialchars($product['seller_email']); ?>?subject=<?php echo rawurlencode('Question about ' . $product['product_name']); ?>&body=<?php echo rawurlencode('Hello, I have a question about your product: ' . $product['product_name']); ?>" class="btn btn-sm btn-outline-success">Contact Farmer</a>
@@ -311,14 +311,14 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                         <div class="card-body">
                                             <h6 class="text-white"><?php echo htmlspecialchars($product['product_name']); ?></h6>
                                             <p class="text-muted mb-2"><?php echo htmlspecialchars($product['description'] ?: 'Fresh farm produce'); ?></p>
-                                            <small class="text-muted d-block mb-2">Available: <?php echo number_format((int) $product['stock_quantity']); ?></small>
+                                            <small class="text-muted d-block mb-2">Available: <?php echo number_format((int) $product['stock_quantity']); ?> <?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?></small>
                                             <?php echo (int) $product['stock_quantity'] > 0 ? '<span class="badge bg-success mb-2">In stock</span>' : '<span class="badge bg-danger mb-2">Out of stock</span>'; ?>
                                             <?php if (!empty($product['is_negotiable'])): ?><span class="badge bg-warning text-dark mb-2">Price negotiable</span><?php endif; ?>
                                             <?php if (!empty($product['harvest_date'])): ?><small class="text-muted d-block mb-2">Harvest date: <?php echo htmlspecialchars(date('d M Y', strtotime($product['harvest_date']))); ?></small><?php endif; ?>
                                             <?php if (!empty($product['seasonal_availability'])): ?><small class="text-muted d-block mb-2">Season: <?php echo htmlspecialchars($product['seasonal_availability']); ?></small><?php endif; ?>
                                             <small class="text-muted d-block mb-2"><?php echo htmlspecialchars($product['cat_name'] ?: 'Uncategorized'); ?></small>
                                             <div class="d-flex justify-content-between align-items-center">
-                                                <span class="text-success">UGX <?php echo number_format($product['price'], 2); ?></span>
+                                                <span class="text-success">UGX <?php echo number_format($product['price'], 2); ?> per <?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?></span>
                                                 <div class="d-flex gap-2">
                                                     <?php if (filter_var($product['seller_email'], FILTER_VALIDATE_EMAIL)) { ?>
                                                         <a href="mailto:<?php echo htmlspecialchars($product['seller_email']); ?>?subject=<?php echo rawurlencode('Question about ' . $product['product_name']); ?>&body=<?php echo rawurlencode('Hello, I have a question about your product: ' . $product['product_name']); ?>" class="btn btn-sm btn-outline-success">Contact Farmer</a>

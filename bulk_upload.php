@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['products_csv'])) {
 
         if (!$errorMessages && $handle) {
             $sellerEmail = mysqli_real_escape_string($db, $_SESSION['email']);
-            $insertSql = "INSERT INTO products (product_name, description, category_id, price, is_negotiable, view_count, harvest_date, seasonal_availability, stock_quantity, low_stock_threshold, seller_email, status, join_date) VALUES (?, ?, ?, ?, ?, 0, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, 2, NOW())";
+            $insertSql = "INSERT INTO products (product_name, description, category_id, price, product_unit, is_negotiable, view_count, harvest_date, seasonal_availability, stock_quantity, low_stock_threshold, seller_email, status, join_date) VALUES (?, ?, ?, ?, ?, ?, 0, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, 2, NOW())";
             $statement = mysqli_prepare($db, $insertSql);
             if (!$statement) {
                 $errorMessages[] = 'Unable to prepare the bulk upload.';
@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['products_csv'])) {
                     $productName = $get('product_name');
                     $price = (float) $get('price');
                     $stockQuantity = max(0, (int) $get('stock_quantity'));
+                    $productUnit = in_array(strtolower($get('product_unit')), ['kilogram', 'litre', 'gram', 'piece', 'each'], true) ? strtolower($get('product_unit')) : 'kilogram';
                     if ($productName === '' || $price < 0) {
                         $errorMessages[] = 'Skipped a row with an empty product name or invalid price.';
                         continue;
@@ -57,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['products_csv'])) {
                     $harvestDate = $get('harvest_date');
                     $seasonalAvailability = $get('seasonal_availability');
                     $lowStockThreshold = max(0, (int) ($get('low_stock_threshold') ?: 5));
-                    mysqli_stmt_bind_param($statement, 'ssidissiis', $productName, $description, $categoryId, $price, $isNegotiable, $harvestDate, $seasonalAvailability, $stockQuantity, $lowStockThreshold, $sellerEmail);
+                    mysqli_stmt_bind_param($statement, 'ssidsisssis', $productName, $description, $categoryId, $price, $productUnit, $isNegotiable, $harvestDate, $seasonalAvailability, $stockQuantity, $lowStockThreshold, $sellerEmail);
                     if (mysqli_stmt_execute($statement)) {
                         $successCount++;
                     } else {
@@ -89,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['products_csv'])) {
           <h3 class="mb-0">Bulk Product Upload</h3>
           <a href="farmerDashboard.php?do=Manage" class="btn btn-outline-secondary">Back to Products</a>
         </div>
-        <p class="text-muted">Upload a CSV with columns: product_name, price, stock_quantity, description, category_id, is_negotiable, harvest_date, seasonal_availability, low_stock_threshold.</p>
+        <p class="text-muted">Upload a CSV with columns: product_name, price, product_unit (kilogram, litre, gram, piece, or each), stock_quantity, description, category_id, is_negotiable, harvest_date, seasonal_availability, low_stock_threshold.</p>
         <?php if ($successCount > 0) { ?><div class="alert alert-success"><?php echo $successCount; ?> product(s) uploaded and sent for admin approval.</div><?php } ?>
         <?php foreach ($errorMessages as $errorMessage) { ?><div class="alert alert-warning"><?php echo htmlspecialchars($errorMessage); ?></div><?php } ?>
         <form method="post" enctype="multipart/form-data">

@@ -2,8 +2,8 @@
 session_start();
 require_once __DIR__ . '/admin/inc/db.php';
 require_once __DIR__ . '/inc/language.php';
-if (empty($_SESSION['user_id']) || empty($_SESSION['email'])) { header('Location: login.php'); exit; }
-$farmerEmail = mysqli_real_escape_string($db, $_SESSION['email']);
+if (empty($_SESSION['user_id']) || empty($_SESSION['user_email']) && empty($_SESSION['email'])) { header('Location: login.php'); exit; }
+$farmerEmail = mysqli_real_escape_string($db, $_SESSION['user_email'] ?? $_SESSION['email']);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_inquiry'])) {
     $inquiryId = (int) $_POST['inquiry_id']; $status = max(0, min(2, (int) $_POST['status'])); $response = mysqli_real_escape_string($db, trim($_POST['response'] ?? ''));
     mysqli_query($db, "UPDATE product_inquiries i INNER JOIN products p ON p.product_id=i.product_id SET i.status='$status', i.response='$response', i.updated_at=NOW() WHERE i.inquiry_id='$inquiryId' AND p.seller_email='$farmerEmail'");
