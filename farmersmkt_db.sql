@@ -41,6 +41,16 @@ CREATE TABLE IF NOT EXISTS manager_activity_log (
   INDEX idx_manager_activity_type (action_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS supervisor_document_reviews (
+  review_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  document_path VARCHAR(500) NOT NULL,
+  status ENUM('approved', 'rejected') NOT NULL,
+  reviewed_by INT UNSIGNED NOT NULL,
+  reviewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_supervisor_document_path (document_path),
+  INDEX idx_supervisor_document_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS farmer_subscriptions (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   farmer_id INT UNSIGNED NOT NULL,

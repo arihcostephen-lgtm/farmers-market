@@ -13,6 +13,7 @@
 						<div class="d-flex flex-wrap gap-3 mb-4">
 							<a href="register.php" class="btn btn-success btn-lg px-4">Register as Farmer</a>
 							<a href="login.php" class="btn btn-outline-dark btn-lg px-4">Shop as Customer</a>
+							<a href="admin/index.php" class="btn btn-dark btn-lg px-4"><i class="fa-solid fa-user-shield me-2"></i>Staff Sign In</a>
 						</div>
 						<div class="row g-3">
 							<div class="col-sm-4">

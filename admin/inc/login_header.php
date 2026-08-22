@@ -34,7 +34,7 @@
     <link rel="stylesheet" href="assets/css/semi-dark.css" />
     <link rel="stylesheet" href="assets/css/header-colors.css" />
     <link rel="stylesheet" href="assets/css/custom.css" />
-    <title>Farmers Market | Admin Login</title>
+    <title>Farmers Market | Staff Sign In</title>
 </head>
 
 <body>

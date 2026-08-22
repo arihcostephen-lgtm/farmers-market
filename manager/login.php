@@ -1,6 +1,9 @@
 <?php
 session_start();
 ob_start();
+header('Location: ../admin/index.php');
+exit;
+
 include __DIR__ . '/../admin/inc/db.php';
 
 if (!empty($_SESSION['user_id']) && !empty($_SESSION['user_email']) && !empty($_SESSION['role']) && in_array((int) $_SESSION['role'], [4, 5], true)) {

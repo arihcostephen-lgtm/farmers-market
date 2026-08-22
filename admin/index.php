@@ -3,10 +3,8 @@ session_start();
 ob_start();
 include "inc/db.php";
 
-if (!empty($_SESSION['user_id']) && !empty($_SESSION['user_email']) && !empty($_SESSION['role']) && (int) $_SESSION['role'] === 1) {
-    header("Location: dashboard.php");
-    exit;
-}
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 
 $login_error = "";
 if (isset($_POST['adminSubmit'])) {
@@ -16,11 +14,11 @@ if (isset($_POST['adminSubmit'])) {
     $shaPass = sha1($password);
     $md5Pass = md5($password);
 
-    $readSql = "SELECT * FROM users WHERE user_email = '$email' AND role = 1 AND status = 1 LIMIT 1";
+    $readSql = "SELECT * FROM users WHERE user_email = '$email' AND role IN (1, 4, 5) AND status = 1 LIMIT 1";
     $readQuery = mysqli_query($db, $readSql);
 
     if (!$readQuery || mysqli_num_rows($readQuery) === 0) {
-        $login_error = 'Sorry! No active admin account was found for that email.';
+        $login_error = 'No active admin, manager, or supervisor account was found for that email.';
     } else {
         $row = mysqli_fetch_assoc($readQuery);
         if ($row['user_password'] === $shaPass || $row['user_password'] === $md5Pass) {
@@ -33,10 +31,14 @@ if (isset($_POST['adminSubmit'])) {
             $_SESSION['user_name'] = $row['user_name'];
             $_SESSION['user_email'] = $row['user_email'];
             $_SESSION['role'] = (int) $row['role'];
-            header("Location: dashboard.php");
+            if ((int) $row['role'] === 1) {
+                header("Location: dashboard.php");
+            } else {
+                header("Location: ../manager/dashboard.php");
+            }
             exit;
         } else {
-            $login_error = 'Invalid admin credentials.';
+            $login_error = 'Invalid login credentials.';
         }
     }
 }
@@ -79,48 +81,45 @@ if (isset($db)) {
 ?>
 <?php include 'inc/login_header.php'; ?>
 
-<div class="d-flex align-items-center justify-content-center min-vh-100 py-4">
+<div class="staff-login-page d-flex align-items-center justify-content-center min-vh-100">
     <div class="card border-0 overflow-hidden w-100 login-card">
         <div class="login-split">
             <div class="login-panel login-panel-brand d-flex flex-column justify-content-center">
-                <span class="badge bg-light text-success rounded-pill mb-3 align-self-start px-3 py-2 fw-semibold">Admin Access</span>
-                <h1 class="fw-bold mb-3" style="font-size: 2.1rem;">Farmers Market</h1>
-                <p class="mb-4" style="line-height: 1.7;">Welcome back, admin. Manage sellers, products, orders and dashboard insights from one secure portal.</p>
+                <span class="badge bg-light text-success rounded-pill mb-3 align-self-start px-3 py-2 fw-semibold">Staff Portal Access</span>
+                <h1 class="fw-bold mb-3" style="font-size: 2.1rem;"><a href="../index.php" class="brand-link">Farmers Market</a></h1>
+                <p class="mb-4" style="line-height: 1.7;">Sign in to access the dashboard assigned to your role.</p>
                 <ul class="list-unstyled mb-0">
-                    <li class="mb-2">• Control products and inventory</li>
-                    <li class="mb-2">• Approve sellers and monitor orders</li>
-                    <li class="mb-2">• Review marketplace performance</li>
-                    <li>• Access secure role-based dashboards</li>
+                    <li class="mb-2">• Admin: manage the marketplace</li>
+                    <li class="mb-2">• Manager: oversee operations and reports</li>
+                    <li>• Supervisor: manage field operations</li>
                 </ul>
             </div>
             <div class="login-panel login-panel-form">
-                <h3 class="mb-2 fw-bold">Admin Sign in</h3>
-                <p class="text-muted mb-4">Login to your Farmers Market dashboard</p>
+                <a href="../index.php" class="back-link mb-4"><i class="fa-solid fa-arrow-left me-2"></i>Back to marketplace</a>
+                <h3 class="mb-2 fw-bold">Staff Sign in</h3>
+                <p class="text-muted mb-4">Admin, manager and supervisor login</p>
 
                 <?php if (!empty($login_error)): ?>
-                    <div class="alert alert-warning" role="alert"><?php echo $login_error; ?></div>
+                    <div class="alert alert-warning" role="alert"><?php echo htmlspecialchars($login_error); ?></div>
                 <?php endif; ?>
 
                 <form action="" method="POST" class="row g-3">
                     <div class="col-12">
                         <label for="inputEmailAddress" class="form-label">Email Address</label>
-                        <input type="email" name="email" class="form-control form-control-lg" id="inputEmailAddress" placeholder="Email Address" required autocomplete="off">
+                        <input type="email" name="email" class="form-control form-control-lg" id="inputEmailAddress" placeholder="Email Address" required autocomplete="username">
                     </div>
                     <div class="col-12">
                         <label for="inputChoosePassword" class="form-label">Password</label>
                         <div class="input-group" id="show_hide_password">
-                            <input type="password" name="password" class="form-control form-control-lg border-end-0" id="inputChoosePassword" placeholder="Enter Password" required autocomplete="off">
-                            <button class="btn btn-outline-secondary" type="button"><i class='bx bx-hide'></i></button>
+                            <input type="password" name="password" class="form-control form-control-lg border-end-0" id="inputChoosePassword" placeholder="Enter Password" required autocomplete="current-password">
+                            <button class="btn btn-outline-secondary" type="button" aria-label="Show password"><i class='bx bx-hide'></i></button>
                         </div>
                     </div>
                     <div class="col-12">
                         <button type="submit" name="adminSubmit" class="btn btn-success btn-lg w-100">Sign in</button>
                     </div>
                     <div class="col-12 text-center">
-                        <a href="../manager/login.php" class="btn btn-outline-success btn-sm mt-2">Manager / Supervisor Login</a>
-                    </div>
-                    <div class="col-12 text-center">
-                        <p class="text-muted mb-0 small">Use your administrator email and password to continue.</p>
+                        <p class="text-muted mb-0 small">Your role determines the dashboard you will see.</p>
                     </div>
                 </form>
             </div>
@@ -139,8 +138,16 @@ if (isset($db)) {
         background: linear-gradient(135deg, #eafaf2, #d5f5e2 45%, #b9f2d0);
         font-family: Arial, sans-serif;
     }
+    .wrapper {
+        width: 100%;
+    }
+    .staff-login-page {
+        width: 100%;
+        padding: 24px;
+    }
     .login-card {
         max-width: 900px;
+        margin: 0 auto;
         border-radius: 22px;
         box-shadow: 0 25px 60px rgba(11, 74, 47, 0.18);
     }
@@ -158,9 +165,27 @@ if (isset($db)) {
         color: #fff;
         padding: 52px 42px;
     }
+    .brand-link {
+        color: #fff;
+        text-decoration: none;
+    }
+    .brand-link:hover {
+        color: #eafaf2;
+    }
     .login-panel-form {
         padding: 52px 42px;
         background: #fff;
+    }
+    .back-link {
+        display: inline-block;
+        color: #0d8b47;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+    .back-link:hover {
+        color: #0e5a3a;
+        text-decoration: underline;
     }
     .form-control:focus {
         box-shadow: 0 0 0 0.25rem rgba(22,163,74,0.2);
@@ -175,6 +200,9 @@ if (isset($db)) {
         border-bottom-left-radius: 0;
     }
     @media (max-width: 767.98px) {
+        .staff-login-page {
+            padding: 12px;
+        }
         .login-split {
             flex-direction: column;
         }

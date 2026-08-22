@@ -3,7 +3,7 @@ session_start();
 ob_start();
 
 if (empty($_SESSION['user_id']) || empty($_SESSION['user_email']) || empty($_SESSION['role']) || !in_array((int) $_SESSION['role'], [4, 5], true)) {
-    header('Location: ../manager/login.php');
+    header('Location: ../admin/index.php');
     exit;
 }
 
@@ -66,13 +66,19 @@ $managerStatusLabel = $managerRole === 4 ? 'Manager' : 'Supervisor';
                 </div>
                 <nav class="nav flex-column p-3 gap-1">
                     <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php"><i class="fa-solid fa-gauge me-2"></i>Dashboard</a>
-                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'admins.php' ? 'active' : ''; ?>" href="admins.php"><i class="fa-solid fa-user-shield me-2"></i>Admins & Supervisors</a>
-                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'farmers.php' ? 'active' : ''; ?>" href="farmers.php"><i class="fa-solid fa-tractor me-2"></i>Farmer Subscriptions</a>
-                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'transactions.php' ? 'active' : ''; ?>" href="transactions.php"><i class="fa-solid fa-money-check me-2"></i>Transactions</a>
-                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'taxes.php' ? 'active' : ''; ?>" href="taxes.php"><i class="fa-solid fa-percent me-2"></i>Tax Rules</a>
-                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'staff.php' ? 'active' : ''; ?>" href="staff.php"><i class="fa-solid fa-user-tie me-2"></i>Staff Payroll</a>
-                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'costs.php' ? 'active' : ''; ?>" href="costs.php"><i class="fa-solid fa-wallet me-2"></i>Extra Costs</a>
-                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'reports.php' ? 'active' : ''; ?>" href="reports.php"><i class="fa-solid fa-file-lines me-2"></i>Reports</a>
+                    <?php if ($managerRole === 5): ?>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'farmers.php' ? 'active' : ''; ?>" href="farmers.php"><i class="fa-solid fa-tractor me-2"></i>Farm Visits</a>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'documents.php' ? 'active' : ''; ?>" href="documents.php"><i class="fa-solid fa-file-circle-check me-2"></i>Approve Documents</a>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'reports.php' ? 'active' : ''; ?>" href="reports.php"><i class="fa-solid fa-file-lines me-2"></i>Field Reports</a>
+                    <?php else: ?>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'admins.php' ? 'active' : ''; ?>" href="admins.php"><i class="fa-solid fa-user-shield me-2"></i>Admins & Supervisors</a>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'farmers.php' ? 'active' : ''; ?>" href="farmers.php"><i class="fa-solid fa-tractor me-2"></i>Farmer Subscriptions</a>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'transactions.php' ? 'active' : ''; ?>" href="transactions.php"><i class="fa-solid fa-money-check me-2"></i>Transactions</a>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'taxes.php' ? 'active' : ''; ?>" href="taxes.php"><i class="fa-solid fa-percent me-2"></i>Tax Rules</a>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'staff.php' ? 'active' : ''; ?>" href="staff.php"><i class="fa-solid fa-user-tie me-2"></i>Staff Payroll</a>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'costs.php' ? 'active' : ''; ?>" href="costs.php"><i class="fa-solid fa-wallet me-2"></i>Extra Costs</a>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'reports.php' ? 'active' : ''; ?>" href="reports.php"><i class="fa-solid fa-file-lines me-2"></i>Reports</a>
+                    <?php endif; ?>
                 </nav>
             </aside>
             <main class="col-md-9 col-lg-10 content-wrap">

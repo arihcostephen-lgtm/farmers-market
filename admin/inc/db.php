@@ -81,6 +81,15 @@
 			INDEX idx_manager_activity_actor (actor_id),
 			INDEX idx_manager_activity_type (action_type)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS supervisor_document_reviews (
+			review_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			document_path VARCHAR(500) NOT NULL,
+			status ENUM('approved', 'rejected') NOT NULL,
+			reviewed_by INT UNSIGNED NOT NULL,
+			reviewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE KEY uq_supervisor_document_path (document_path),
+			INDEX idx_supervisor_document_status (status)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 		// Keep existing installations compatible with product quantity support.
 		$quantityColumns = [
 			'products' => "ALTER TABLE products ADD COLUMN stock_quantity INT UNSIGNED NOT NULL DEFAULT 0 AFTER price",

@@ -374,23 +374,44 @@
                         </div>
 
                         <?php if (!$activeSubscription) { ?>
-                          <div class="alert alert-warning shadow-sm">
-                            <h5 class="alert-heading"><i class="fa-solid fa-lock me-2"></i>Subscription required</h5>
-                            <p class="mb-3">Choose a subscription plan and submit your payment request. Your manager must verify and activate it before you can add products or receive orders.</p>
-                            <?php if (isset($_GET['subscription_submitted'])): ?><div class="alert alert-success mb-3">Your subscription payment request was submitted for manager approval.</div><?php endif; ?>
-                            <?php if ($subscriptionRequest && (int) $subscriptionRequest['status'] === 0): ?>
-                              <p class="mb-3">Selected plan: <strong><?php echo htmlspecialchars($subscriptionRequest['subscription_name']); ?></strong> · UGX <?php echo number_format((float) $subscriptionRequest['amount'], 2); ?> <span class="badge bg-secondary">Awaiting verification</span></p>
-                            <?php endif; ?>
-                            <?php if ($availablePlans && mysqli_num_rows($availablePlans) > 0): ?>
-                              <form method="post" class="row g-3 align-items-end">
-                                <div class="col-md-8"><label class="form-label" for="plan_id">Select a plan</label><select class="form-select" name="plan_id" id="plan_id" required><option value="">Choose a plan</option><?php while ($plan = mysqli_fetch_assoc($availablePlans)): ?><option value="<?php echo (int) $plan['plan_id']; ?>"><?php echo htmlspecialchars($plan['plan_name']); ?> · UGX <?php echo number_format((float) $plan['amount'], 2); ?> / <?php echo (int) $plan['duration_days']; ?> days</option><?php endwhile; ?></select></div>
-                                <div class="col-md-4"><button class="btn btn-success w-100" type="submit" name="request_subscription">Submit payment request</button></div>
-                              </form>
-                            <?php else: ?><p class="mb-0">No subscription plans are currently available. Please contact the manager.</p><?php endif; ?>
+                          <div class="alert alert-warning shadow-sm mb-4">
+                            <h5 class="alert-heading"><i class="fa-solid fa-lock me-2"></i>Choose a subscription plan</h5>
+                            <p class="mb-0">Select a plan below and submit your payment request. The manager will verify and activate your subscription before you can use farmer tools.</p>
                           </div>
                         <?php } else { ?>
-                          <div class="alert alert-success shadow-sm"><strong><i class="fa-solid fa-circle-check me-2"></i>Subscription active:</strong> <?php echo htmlspecialchars($activeSubscription['subscription_name']); ?> · valid for <?php echo (int) ($activeSubscription['duration_days'] ?? 30); ?> days.</div>
+                          <div class="alert alert-success shadow-sm mb-4"><strong><i class="fa-solid fa-circle-check me-2"></i>Subscription active:</strong> <?php echo htmlspecialchars($activeSubscription['subscription_name']); ?> · valid for <?php echo (int) ($activeSubscription['duration_days'] ?? 30); ?> days.</div>
                         <?php } ?>
+                        <?php if (isset($_GET['subscription_submitted'])): ?><div class="alert alert-success mb-4">Your subscription request was submitted for manager approval.</div><?php endif; ?>
+                        <?php if ($subscriptionRequest && (int) $subscriptionRequest['status'] === 0): ?>
+                          <div class="alert alert-info shadow-sm mb-4">Pending request: <strong><?php echo htmlspecialchars($subscriptionRequest['subscription_name']); ?></strong> · UGX <?php echo number_format((float) $subscriptionRequest['amount'], 2); ?> <span class="badge bg-secondary">Awaiting manager approval</span></div>
+                        <?php endif; ?>
+
+                        <div class="mb-4">
+                          <h4 class="mb-3">Available subscription plans</h4>
+                          <div class="row g-4">
+                            <?php if ($availablePlans && mysqli_num_rows($availablePlans) > 0): while ($plan = mysqli_fetch_assoc($availablePlans)): ?>
+                              <?php $isCurrentPlan = $activeSubscription && (int) $activeSubscription['plan_id'] === (int) $plan['plan_id']; ?>
+                              <div class="col-md-6 col-xl-4">
+                                <div class="card h-100 border <?php echo $isCurrentPlan ? 'border-success border-2' : ''; ?> shadow-sm">
+                                  <div class="card-body d-flex flex-column">
+                                    <?php if ($isCurrentPlan): ?><span class="badge bg-success align-self-start mb-2">Current plan</span><?php endif; ?>
+                                    <h5 class="fw-bold mb-2"><?php echo htmlspecialchars($plan['plan_name']); ?></h5>
+                                    <h3 class="text-success mb-1">UGX <?php echo number_format((float) $plan['amount'], 2); ?></h3>
+                                    <small class="text-muted mb-3">Valid for <?php echo (int) $plan['duration_days']; ?> days</small>
+                                    <p class="text-muted flex-grow-1"><?php echo htmlspecialchars($plan['description'] ?: 'Access farmer products, orders, inquiries, and reports.'); ?></p>
+                                    <?php if ($isCurrentPlan): ?>
+                                      <button type="button" class="btn btn-outline-success w-100" disabled>Active subscription</button>
+                                    <?php else: ?>
+                                      <form method="post"><input type="hidden" name="plan_id" value="<?php echo (int) $plan['plan_id']; ?>"><button class="btn btn-success w-100" type="submit" name="request_subscription"><i class="fa-solid fa-check me-2"></i>Subscribe to this plan</button></form>
+                                    <?php endif; ?>
+                                  </div>
+                                </div>
+                              </div>
+                            <?php endwhile; else: ?>
+                              <div class="col-12"><div class="alert alert-secondary mb-0">No subscription plans are currently available. Please contact the manager.</div></div>
+                            <?php endif; ?>
+                          </div>
+                        </div>
 
                         <div class="row g-4 mb-4">
                           <div class="col-xl-4 col-md-6">
