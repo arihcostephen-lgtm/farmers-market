@@ -1,6 +1,6 @@
 <?php include "inc/header.php"; ?>
 
-	<div role="main" class="main">
+	<div role="main" class="main public-home-page">
 
 		<!-- START: HERO SECTION -->
 		<section class="py-5" style="background: linear-gradient(135deg, #f7fdf4 0%, #eef8eb 100%);">

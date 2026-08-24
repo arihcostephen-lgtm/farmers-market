@@ -82,6 +82,13 @@
 					<div class="menu-title text-success">Product Inquiries</div>
 				</a>
 			</li>
+			<li>
+				<a href="supervisor_reports.php" class="">
+					<div class="parent-icon text-success"><i class='bx bx-file-blank'></i>
+					</div>
+					<div class="menu-title text-success">Supervisor Reports</div>
+				</a>
+			</li>
 
 			<li>
 				<a href="analytics.php" class="">

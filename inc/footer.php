@@ -81,6 +81,9 @@
 		
 		<!-- Theme Initialization Files -->
 		<script src="assets/js/theme.init.js"></script>
+		<?php if (in_array(basename($_SERVER['PHP_SELF'] ?? ''), ['index.php', 'login.php', 'register.php'], true)) { ?>
+		<script src="assets/js/public-modern.js"></script>
+		<?php } ?>
 		<!-- <script src="https://code.jquery.com/jquery-3.7.0.js"></script> -->
 		<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 		<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>

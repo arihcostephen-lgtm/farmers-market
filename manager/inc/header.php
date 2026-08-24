@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
 ob_start();
 
 if (empty($_SESSION['user_id']) || empty($_SESSION['user_email']) || empty($_SESSION['role']) || !in_array((int) $_SESSION['role'], [4, 5], true)) {
@@ -22,35 +24,16 @@ $managerStatusLabel = $managerRole === 4 ? 'Manager' : 'Supervisor';
     <title><?php echo htmlspecialchars($managerTitle); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="assets/css/dashboard-modern.css" rel="stylesheet">
     <script src="../admin/assets/plugins/chartjs/chart.min.js"></script>
-    <style>
-        body { background: #f3f7f4; color: #153126; }
-        .navbar { background: linear-gradient(135deg, #0c4d39, #123d29); }
-        .sidebar { background: #0d241d; min-height: calc(100vh - 72px); }
-        .sidebar .nav-link { color: rgba(255,255,255,.8); }
-        .sidebar .nav-link.active, .sidebar .nav-link:hover { background: rgba(255,255,255,.08); color: #fff; }
-        .content-wrap { padding: 24px; }
-        .card { border: 0; border-radius: 16px; box-shadow: 0 12px 26px rgba(10,30,22,.08); }
-        .metric { background: linear-gradient(135deg, #ebfff5, #f4f9f7); }
-        .badge-status { font-size: 12px; }
-        .table thead { background: #edf7f1; }
-        .data-table th, .data-table td { vertical-align: middle; }
-        .page-header { background: linear-gradient(135deg, #0d4c3b, #1d6d52); color: #fff; margin-bottom: 20px; border-radius: 16px; padding: 26px 28px; }
-        .chart-wrap { position: relative; height: 300px; }
-        .chart-wrap-doughnut { height: 300px; }
-        .alert-success { background: #dffbe8; color: #0d4d39; border-color: #a9e6bf; }
-        .alert-warning { background: #fff3cd; color: #7a5c00; border-color: #ffe39b; }
-        .alert-danger { background: #ffe5e5; color: #7f1d1d; border-color: #f5b7b1; }
-        @media (max-width: 767.98px) {
-            .content-wrap { padding: 16px; }
-            .chart-wrap, .chart-wrap-doughnut { height: 240px; }
-        }
-    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark px-4 py-3">
         <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="dashboard.php"><i class="fa-solid fa-tractor me-2"></i>Farmers Market Manager</a>
+            <a class="navbar-brand fw-bold" href="dashboard.php"><i class="fa-solid fa-tractor me-2"></i>Benny Farmers Market</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
             <div class="ms-auto d-flex align-items-center gap-3 text-white">
                 <span class="badge rounded-pill bg-light text-dark"><?php echo htmlspecialchars($managerStatusLabel); ?></span>
                 <span class="fw-semibold"><?php echo htmlspecialchars($managerName); ?></span>
@@ -61,7 +44,7 @@ $managerStatusLabel = $managerRole === 4 ? 'Manager' : 'Supervisor';
     <div class="container-fluid">
         <div class="row">
             <aside class="col-md-3 col-lg-2 sidebar p-0">
-                <div class="p-3 border-bottom border-secondary-subtle text-white fw-semibold">
+                <div class="sidebar-header">
                     <i class="fa-solid fa-bars-progress me-2"></i>Operations
                 </div>
                 <nav class="nav flex-column p-3 gap-1">
@@ -79,6 +62,8 @@ $managerStatusLabel = $managerRole === 4 ? 'Manager' : 'Supervisor';
                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'costs.php' ? 'active' : ''; ?>" href="costs.php"><i class="fa-solid fa-wallet me-2"></i>Extra Costs</a>
                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'reports.php' ? 'active' : ''; ?>" href="reports.php"><i class="fa-solid fa-file-lines me-2"></i>Reports</a>
                     <?php endif; ?>
+                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'profile.php' ? 'active' : ''; ?>" href="profile.php"><i class="fa-solid fa-user-pen me-2"></i>My Profile</a>
+                    <a class="nav-link text-danger" href="logout.php"><i class="fa-solid fa-right-from-bracket me-2"></i>Logout</a>
                 </nav>
             </aside>
             <main class="col-md-9 col-lg-10 content-wrap">

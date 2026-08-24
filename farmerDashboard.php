@@ -16,41 +16,15 @@
 
     <script src="https://kit.fontawesome.com/0c66e46c25.js" crossorigin="anonymous"></script>
 
+    <!-- Modern Dashboard CSS -->
+    <link rel="stylesheet" href="assets/css/farmer-dashboard-modern.css">
+    
     <!-- DATATABLE CSS LINK -->
     <link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/3.2.5/css/buttons.dataTables.css">
 
-    <!-- Theme Custom CSS -->
-    <link rel="stylesheet" href="assets/css/custom.css">
-
-
-    <style>
-      body, .main_body {
-        background-color: #E4E9F7;
-      }
-      #sidebar-nav {
-          width: 200px;
-      }
-
-      a.list-group-item.border-end-0.d-inline-block.text-truncate {
-          background: #11101D;
-          color: #fff;
-          border: 0;
-          line-height: 4em;
-      }
-
-      a.list-group-item.border-end-0.d-inline-block.text-truncate:hover{
-        border-bottom: 1px solid #fff;        
-        color: #fff;
-        border-radius: 5px; 
-        transition: 0.2s ease-in-out;
-        background: #1d1b31;
-      }
-
-      a.border.rounded-3.p-1.text-decoration-none {
-          color: #11101D;
-      }
-    </style>
+    <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
   <body>
     <section class="">
@@ -62,7 +36,7 @@
                         <a href="farmerDashboard.php?do=Home" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-gauge-simple-high"></i> <span>&nbsp;Dashboard</span> </a>
                         <hr style="color: #72717f;">
                         <a href="farmerDashboard.php?do=Manage" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-box"></i> <span>&nbsp;My Products</span></a>
-                        <a href="farmer_orders.php" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-cart-shopping"></i> <span>&nbsp;Orders</span></a>
+                        <a href="farmerDashboard.php?do=Orders" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-cart-shopping"></i> <span>&nbsp;Orders</span></a>
                         <a href="farmerDashboard.php?do=Inquiries" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-regular fa-message"></i> <span>&nbsp;Buyer Inquiries</span></a>
                         <a href="farmerDashboard.php?do=AddDoc" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-file-circle-plus"></i> <span>&nbsp;Add Documents</span></a>
                         <a href="farmerDashboard.php?do=ViewDoc" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-file-lines"></i> <span>&nbsp;View Documents</span></a>
@@ -137,6 +111,12 @@
 
                     $farmerAccessEmail = $_SESSION['email'] ?? $_SESSION['user_email'] ?? '';
                     $farmerAccessEmailEscaped = mysqli_real_escape_string($db, $farmerAccessEmail);
+                    if ($do === 'Orders' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_order'])) {
+                      $orderId = (int) ($_POST['order_id'] ?? 0);
+                      $orderStatus = max(0, min(3, (int) ($_POST['status'] ?? 0)));
+                      $deliveryUpdate = mysqli_real_escape_string($db, trim($_POST['delivery_update'] ?? ''));
+                      mysqli_query($db, "UPDATE order_list o INNER JOIN products p ON p.product_id=o.or_category SET o.status='$orderStatus', o.delivery_update='$deliveryUpdate', o.updated_at=NOW() WHERE o.or_id='$orderId' AND p.seller_email='$farmerAccessEmailEscaped'");
+                    }
                     $activeSubscriptionQuery = mysqli_query($db, "SELECT fs.*, sp.description, sp.duration_days FROM farmer_subscriptions fs LEFT JOIN subscription_plans sp ON sp.plan_id=fs.plan_id WHERE fs.farmer_id=" . (int) ($_SESSION['user_id'] ?? 0) . " AND fs.status=1 LIMIT 1");
                     $activeSubscription = $activeSubscriptionQuery ? mysqli_fetch_assoc($activeSubscriptionQuery) : null;
                     if ((int) ($_SESSION['role'] ?? 0) === 2 && !$activeSubscription && $do !== 'Home') {
@@ -148,36 +128,38 @@
                       <div class="container pb-5">
                         <div class="row">
                           <div class="col-lg-12">
-                              <h4 class="text-uppercase">Manage All Products</h4>
-
-                              <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                <a href="farmerDashboard.php?do=Add" class="btn btn-dark">Add New Product</a>
-                                <a href="bulk_upload.php" class="btn btn-success">Bulk Upload</a>
-                                <a href="farmerDashboard.php?do=ManageTrash" class="btn btn-danger">Trash</a>
+                              <div class="d-flex justify-content-between align-items-center mb-4">
+                                <div>
+                                  <h4 class="fw-bold mb-1">My Products</h4>
+                                  <p class="text-muted mb-0">Manage your product listings</p>
+                                </div>
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                  <a href="farmerDashboard.php?do=Add" class="btn btn-success btn-sm"><i class="fa-solid fa-plus me-1"></i>Add Product</a>
+                                  <a href="bulk_upload.php" class="btn btn-info btn-sm"><i class="fa-solid fa-upload me-1"></i>Bulk Upload</a>
+                                  <a href="farmerDashboard.php?do=ManageTrash" class="btn btn-danger btn-sm"><i class="fa-solid fa-trash me-1"></i>Trash</a>
+                                </div>
                               </div>
-                              
-                            
-                            <hr>                           
 
                             <!-- START: TABLE -->
-                            <div class="table-responsive" style="padding: 30px; box-shadow: 0px 1px 8px #ccc; border-radius: 10px;">
-                              <table id="example" class="table table-striped table-hover table-bordered">
-                                <thead class="thead-dark">
-                                  <tr>
-                                    <th scope="col">#Sl.</th>
-                                    <th scope="col">Product Image</th>
-                                    <th scope="col">Product Name</th>
-                                    <th scope="col">Price (Ugx)</th>
-                                    <th scope="col">Unit</th>
-                                    <th scope="col">Availability</th>
-                                    <th scope="col">Category Name</th>
-                                    <th scope="col">Status</th>
-                                    <th scope="col">Join Date</th>
-                                    <th scope="col">Action</th>
-                                  </tr>
-                                </thead>
+                            <div class="card">
+                              <div class="card-body p-0">
+                                <div class="table-responsive">
+                                  <table id="example" class="table table-hover align-middle mb-0">
+                                    <thead>
+                                      <tr>
+                                        <th>#</th>
+                                        <th>Product</th>
+                                        <th>Price</th>
+                                        <th>Unit</th>
+                                        <th>Stock</th>
+                                        <th>Category</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Action</th>
+                                      </tr>
+                                    </thead>
 
-                                <tbody>
+                                    <tbody>
                                   <?php  
                                     if (!empty($_SESSION['email'])) {
                                       $sellerId = $_SESSION['email'];
@@ -211,78 +193,69 @@
                                           ?>
 
                                           <tr>
-                                            <th scope="row" class="text-center"><?php echo $i; ?></th>
-                                            <td class="text-center">
+                                            <td><?php echo $i; ?></td>
+                                            <td>
+                                              <div class="d-flex align-items-center gap-2">
+                                                <?php  
+                                                  if (!empty($cat_image)) {
+                                                    echo '<img src="admin/assets/images/products/' . htmlspecialchars($cat_image) . '" style="width: 40px; height: 40px; object-fit: cover; border-radius: 8px;">';
+                                                  } else {
+                                                    echo '<div style="width: 40px; height: 40px; background: rgba(16, 184, 130, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-box-open text-success"></i></div>';
+                                                  }
+                                                ?>
+                                                <strong><?php echo $cat_name; ?></strong>
+                                              </div>
+                                            </td>
+                                            <td>UGX <?php echo number_format($price); ?></td>
+                                            <td><small><?php echo htmlspecialchars($product_unit); ?></small></td>
+                                            <td><?php echo $stock_quantity > 0 ? '<span class="badge bg-success">In Stock (' . $stock_quantity . ')</span>' : '<span class="badge bg-danger">Out of Stock</span>'; ?></td>
+                                            <td>
                                               <?php  
-                                                if (!empty($cat_image)) {
-                                              echo '<img src="admin/assets/images/products/' . htmlspecialchars($cat_image) . '" style="width: 60px">';
-                                            }
-                                            else {
-                                              echo '<img src="admin/assets/images/category/default.jpg" style="width: 60px">';
-                                            }
+                                                if (!empty($row['cat_name'])) {
+                                                  echo '<span class="badge bg-secondary">' . htmlspecialchars($row['cat_name']) . '</span>';
+                                                } else {
+                                                  echo '<span class="badge bg-secondary">Uncategorized</span>';
+                                                }
                                               ?>
                                             </td>
-                                            <td class="text-center"><?php echo $cat_name; ?></td>
-                                            <td class="text-center"><?php echo $price; ?></td>
-                                            <td class="text-center">per <?php echo htmlspecialchars($product_unit); ?></td>
-                                            <td class="text-center"><?php echo $stock_quantity > 0 ? '<span class="badge text-bg-success">IN STOCK</span>' : '<span class="badge text-bg-danger">OUT OF STOCK</span>'; ?></td>
-                                            <td class="text-center">
-                                              <?php  
-
-                                                if (!empty($row['cat_name'])) {
-                                                  echo '<span class="badge text-bg-secondary">' . htmlspecialchars($row['cat_name']) . '</span>';
-                                                } else {
-                                                  echo '<span class="badge text-bg-secondary">Uncategorized</span>';
-                                                }
-
-                                              ?>
-                                        </td>
-                                            <td class="text-center">
+                                            <td>
                                               <?php  
                                                 if ($status == 1) { ?>
-                                                  <span class="badge text-bg-success">ACTIVE</span>
-                                                <?php }
-                                                else if ($status == 0) { ?>
-                                                  <span class="badge text-bg-danger">INACTIVE</span>
-                                                <?php }
-                                                else if ($status == 2) { ?>
-                                                  <span class="badge text-bg-warning">PENDING</span>
+                                                  <span class="badge bg-success">Active</span>
+                                                <?php } else if ($status == 0) { ?>
+                                                  <span class="badge bg-danger">Inactive</span>
+                                                <?php } else if ($status == 2) { ?>
+                                                  <span class="badge bg-warning">Pending</span>
                                                 <?php }
                                               ?>
                                             </td>
-                                            <td class="text-center"><?php echo $join_date; ?></td>
+                                            <td><small class="text-muted"><?php echo date('M j', strtotime($join_date)); ?></small></td>
                                             <td>
-                                            <div class="action-btn">
-                                              <ul>
-                                                  <li>
-                                                    <a href="farmerDashboard.php?do=Edit&uId=<?php echo $cat_id; ?>"><i class="fa-regular fa-pen-to-square edit"></i></a>
-                                                  </li>
-                                                  <li>
-                                                    <a href=""  data-bs-toggle="modal" data-bs-target="#uId<?php echo $cat_id; ?>"><i class="fa-regular fa-trash-can trush"></i></a>
-                                                  </li>
-                                              </ul>
-                                            </div>
+                                              <div class="d-flex gap-2">
+                                                <a href="farmerDashboard.php?do=Edit&uId=<?php echo $cat_id; ?>" class="btn btn-sm btn-outline-primary" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
+                                                <a href="#" data-bs-toggle="modal" data-bs-target="#uId<?php echo $cat_id; ?>" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fa-solid fa-trash-can"></i></a>
+                                              </div>
 
-                                            <!-- Modal Start -->
-                                            <div class="modal fade" id="uId<?php echo $cat_id; ?>" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                                              <div class="modal-dialog" >
-                                                <div class="modal-content">
-                                                  <div class="modal-header">
-                                                    <h3 class="modal-title" id="exampleModalLabel">Are You Sure?? To Move <i class="fa-regular fa-face-frown"></i><br> <span style="color: green;"><?php echo $cat_name; ?></span> Trash folder!!</h3>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
-                                                    </button>
-                                                  </div>
-                                                  <div class="modal-body">
-                                                    <div class="modal-btn">
-                                                      <a href="farmerDashboard.php?do=Trash&tId=<?php echo $cat_id; ?>"class="btn btn-danger me-3">Trash</a>
-                                                      <a href="" class="btn btn-success" data-dismiss="modal">Close</a>
+                                              <!-- Modal Start -->
+                                              <div class="modal fade" id="uId<?php echo $cat_id; ?>" tabindex="-1" aria-hidden="true">
+                                                <div class="modal-dialog modal-sm">
+                                                  <div class="modal-content">
+                                                    <div class="modal-header">
+                                                      <h5 class="modal-title">Delete Product?</h5>
+                                                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                      <p>Move <strong><?php echo htmlspecialchars($cat_name); ?></strong> to trash?</p>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                      <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                                      <a href="farmerDashboard.php?do=Trash&tId=<?php echo $cat_id; ?>" class="btn btn-danger btn-sm">Move to Trash</a>
                                                     </div>
                                                   </div>
                                                 </div>
                                               </div>
-                                            </div>
-                                            <!-- Modal End -->
-                                           </td>
+                                              <!-- Modal End -->
+                                            </td>
                                           </tr>
 
                                           <?php
@@ -305,6 +278,61 @@
 
                           </div>
                         </div>
+                      </div>
+                    <?php }
+
+                    else if ( $do == "Orders" ) {
+                      $orderQuery = mysqli_query($db, "SELECT o.*, p.product_name FROM order_list o INNER JOIN products p ON p.product_id=o.or_category WHERE p.seller_email='$farmerAccessEmailEscaped' ORDER BY o.or_id DESC");
+                      $orderStatuses = ['Pending', 'Confirmed', 'Fulfilled', 'Cancelled'];
+                      $orderClasses = ['warning', 'info', 'success', 'danger'];
+                    ?>
+                      <div class="container-fluid px-0 pb-5">
+                        <div class="page-header text-start">
+                          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                            <div>
+                              <span class="text-uppercase small">Sales workspace</span>
+                              <h2><i class="fa-solid fa-boxes-stacked me-2"></i>Farmer Orders</h2>
+                              <p class="mb-0">Review customer orders and keep delivery information current.</p>
+                            </div>
+                            <a href="farmerDashboard.php?do=Home" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>Back to Dashboard</a>
+                          </div>
+                        </div>
+
+                        <section class="card" aria-labelledby="orders-heading">
+                          <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 id="orders-heading" class="mb-0"><i class="fa-solid fa-list-check text-success me-2"></i>Order Queue</h5>
+                            <span class="badge bg-success"><?php echo $orderQuery ? mysqli_num_rows($orderQuery) : 0; ?> orders</span>
+                          </div>
+                          <div class="card-body p-0">
+                            <div class="table-responsive">
+                              <table class="table table-hover align-middle mb-0 orders-table">
+                                <thead>
+                                  <tr><th>Product</th><th>Buyer</th><th>Quantity</th><th>Total</th><th>Delivery</th><th>Status</th><th>Update</th></tr>
+                                </thead>
+                                <tbody>
+                                  <?php if ($orderQuery && mysqli_num_rows($orderQuery) > 0) { while ($order = mysqli_fetch_assoc($orderQuery)) { $orderStatus = (int) $order['status']; ?>
+                                    <tr>
+                                      <td><strong><?php echo htmlspecialchars($order['product_name'] ?: $order['or_name']); ?></strong></td>
+                                      <td><span><?php echo htmlspecialchars($order['user_id']); ?></span><small class="d-block text-muted"><i class="fa-solid fa-phone me-1"></i><?php echo htmlspecialchars($order['user_phone']); ?></small></td>
+                                      <td><?php echo number_format((int) ($order['quantity'] ?? 1)); ?> <small class="text-muted"><?php echo htmlspecialchars($order['order_unit'] ?? 'kilogram'); ?></small></td>
+                                      <td><strong class="text-success">UGX <?php echo number_format((float) ($order['total_amount'] ?? $order['price'] ?? 0), 2); ?></strong></td>
+                                      <td><span><i class="fa-solid fa-location-dot text-success me-1"></i><?php echo nl2br(htmlspecialchars($order['delivery_location'] ?? 'Not provided')); ?></span><?php if (!empty($order['delivery_notes'])) { ?><small class="d-block text-muted mt-1"><?php echo nl2br(htmlspecialchars($order['delivery_notes'])); ?></small><?php } ?></td>
+                                      <td><span class="badge bg-<?php echo $orderClasses[$orderStatus] ?? 'secondary'; ?>"><?php echo $orderStatuses[$orderStatus] ?? 'Pending'; ?></span><?php if (!empty($order['delivery_update'])) { ?><small class="d-block text-muted mt-1"><?php echo nl2br(htmlspecialchars($order['delivery_update'])); ?></small><?php } ?></td>
+                                      <td>
+                                        <form method="post" class="d-flex flex-column gap-2" style="min-width: 190px">
+                                          <input type="hidden" name="order_id" value="<?php echo (int) $order['or_id']; ?>">
+                                          <select name="status" class="form-select form-select-sm" aria-label="Order status"><?php foreach ($orderStatuses as $statusIndex => $statusLabel) { ?><option value="<?php echo $statusIndex; ?>" <?php echo $statusIndex === $orderStatus ? 'selected' : ''; ?>><?php echo $statusLabel; ?></option><?php } ?></select>
+                                          <textarea name="delivery_update" class="form-control form-control-sm" rows="2" placeholder="Add delivery update"><?php echo htmlspecialchars($order['delivery_update'] ?? ''); ?></textarea>
+                                          <button type="submit" name="update_order" class="btn btn-sm btn-success"><i class="fa-solid fa-check me-1"></i>Save Update</button>
+                                        </form>
+                                      </td>
+                                    </tr>
+                                  <?php } } else { ?><tr><td colspan="7" class="text-center text-muted py-5"><i class="fa-solid fa-inbox d-block fs-3 mb-2"></i>No orders yet.</td></tr><?php } ?>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </section>
                       </div>
                     <?php }
 
@@ -369,132 +397,128 @@
 
                         ?>
                         <div class="page-header pt-3 mb-4">
-                          <h2 class="text-center">Farmer Dashboard</h2>
-                          <p class="text-center text-muted">Your farm's most in-demand products and customer reachouts at a glance.</p>
+                          <h2>Farmer Dashboard</h2>
+                          <p>Your farm's most in-demand products and customer activity at a glance.</p>
                         </div>
 
                         <?php if (!$activeSubscription) { ?>
                           <div class="alert alert-warning shadow-sm mb-4">
-                            <h5 class="alert-heading"><i class="fa-solid fa-lock me-2"></i>Choose a subscription plan</h5>
-                            <p class="mb-0">Select a plan below and submit your payment request. The manager will verify and activate your subscription before you can use farmer tools.</p>
+                            <h5 class="alert-heading"><i class="fa-solid fa-lock me-2"></i>Subscription Required</h5>
+                            <p class="mb-0">Choose a plan below to unlock all farmer dashboard features. Your request will be verified by our manager.</p>
                           </div>
                         <?php } else { ?>
-                          <div class="alert alert-success shadow-sm mb-4"><strong><i class="fa-solid fa-circle-check me-2"></i>Subscription active:</strong> <?php echo htmlspecialchars($activeSubscription['subscription_name']); ?> · valid for <?php echo (int) ($activeSubscription['duration_days'] ?? 30); ?> days.</div>
+                          <div class="alert alert-success shadow-sm mb-4"><strong><i class="fa-solid fa-circle-check me-2"></i>Subscription Active:</strong> <?php echo htmlspecialchars($activeSubscription['subscription_name']); ?></div>
                         <?php } ?>
-                        <?php if (isset($_GET['subscription_submitted'])): ?><div class="alert alert-success mb-4">Your subscription request was submitted for manager approval.</div><?php endif; ?>
+                        <?php if (isset($_GET['subscription_submitted'])): ?><div class="alert alert-success mb-4"><i class="fa-solid fa-check me-2"></i>Subscription request submitted! Awaiting manager approval.</div><?php endif; ?>
                         <?php if ($subscriptionRequest && (int) $subscriptionRequest['status'] === 0): ?>
-                          <div class="alert alert-info shadow-sm mb-4">Pending request: <strong><?php echo htmlspecialchars($subscriptionRequest['subscription_name']); ?></strong> · UGX <?php echo number_format((float) $subscriptionRequest['amount'], 2); ?> <span class="badge bg-secondary">Awaiting manager approval</span></div>
+                          <div class="alert alert-info shadow-sm mb-4"><i class="fa-solid fa-hourglass-half me-2"></i><strong>Pending Approval:</strong> <?php echo htmlspecialchars($subscriptionRequest['subscription_name']); ?> · <span class="badge bg-secondary">Awaiting review</span></div>
                         <?php endif; ?>
 
                         <div class="mb-4">
-                          <h4 class="mb-3">Available subscription plans</h4>
-                          <div class="row g-4">
+                          <h5 class="mb-3"><i class="fa-solid fa-layer-group me-2"></i>Subscription Plans</h5>
+                          <div class="row g-3">
                             <?php if ($availablePlans && mysqli_num_rows($availablePlans) > 0): while ($plan = mysqli_fetch_assoc($availablePlans)): ?>
                               <?php $isCurrentPlan = $activeSubscription && (int) $activeSubscription['plan_id'] === (int) $plan['plan_id']; ?>
-                              <div class="col-md-6 col-xl-4">
-                                <div class="card h-100 border <?php echo $isCurrentPlan ? 'border-success border-2' : ''; ?> shadow-sm">
-                                  <div class="card-body d-flex flex-column">
-                                    <?php if ($isCurrentPlan): ?><span class="badge bg-success align-self-start mb-2">Current plan</span><?php endif; ?>
-                                    <h5 class="fw-bold mb-2"><?php echo htmlspecialchars($plan['plan_name']); ?></h5>
-                                    <h3 class="text-success mb-1">UGX <?php echo number_format((float) $plan['amount'], 2); ?></h3>
-                                    <small class="text-muted mb-3">Valid for <?php echo (int) $plan['duration_days']; ?> days</small>
-                                    <p class="text-muted flex-grow-1"><?php echo htmlspecialchars($plan['description'] ?: 'Access farmer products, orders, inquiries, and reports.'); ?></p>
-                                    <?php if ($isCurrentPlan): ?>
-                                      <button type="button" class="btn btn-outline-success w-100" disabled>Active subscription</button>
+                              <div class="col-md-6 col-lg-4">
+                                <div class="card h-100 <?php echo $isCurrentPlan ? 'border-2' : ''; ?>">
+                                  <div class="card-body">
+                                    <?php if ($isCurrentPlan): ?><span class="badge bg-success mb-2">Active Plan</span><?php endif; ?>
+                                    <h5 class="fw-bold"><?php echo htmlspecialchars($plan['plan_name']); ?></h5>
+                                    <h4 class="text-success mb-2">UGX <?php echo number_format((float) $plan['amount'], 0); ?></h4>
+                                    <small class="text-muted"><?php echo (int) $plan['duration_days']; ?> days access</small>
+                                    <p class="mt-2 mb-3 small"><?php echo htmlspecialchars($plan['description'] ?: 'Access all farmer features'); ?></p>
+                                    <?php if (!$isCurrentPlan): ?>
+                                      <form method="post" class="d-inline-block w-100"><input type="hidden" name="plan_id" value="<?php echo (int) $plan['plan_id']; ?>"><button class="btn btn-success w-100 btn-sm" type="submit" name="request_subscription"><i class="fa-solid fa-check me-1"></i>Select Plan</button></form>
                                     <?php else: ?>
-                                      <form method="post"><input type="hidden" name="plan_id" value="<?php echo (int) $plan['plan_id']; ?>"><button class="btn btn-success w-100" type="submit" name="request_subscription"><i class="fa-solid fa-check me-2"></i>Subscribe to this plan</button></form>
+                                      <button type="button" class="btn btn-outline-success w-100 btn-sm" disabled>Current</button>
                                     <?php endif; ?>
                                   </div>
                                 </div>
                               </div>
                             <?php endwhile; else: ?>
-                              <div class="col-12"><div class="alert alert-secondary mb-0">No subscription plans are currently available. Please contact the manager.</div></div>
+                              <div class="col-12"><div class="alert alert-secondary mb-0">No plans available.</div></div>
                             <?php endif; ?>
                           </div>
                         </div>
 
                         <div class="row g-4 mb-4">
-                          <div class="col-xl-4 col-md-6">
-                            <div class="card shadow-sm border-start border-success border-4 h-100">
-                              <div class="card-body">
-                                <h6 class="text-uppercase text-muted">New customer requests</h6>
-                                <h3 class="fw-bold mb-2"><?php echo number_format($newRequestCount); ?></h3>
-                                <p class="mb-0 text-muted">Customers who have selected your products</p>
-                              </div>
+                          <div class="col-xl-3 col-md-6">
+                            <div class="card stat-card h-100">
+                              <i class="fa-solid fa-inbox text-success fs-5 mb-2"></i>
+                              <small>New Orders</small>
+                              <h3><?php echo number_format($newRequestCount); ?></h3>
+                              <p>Pending review</p>
                             </div>
                           </div>
-                          <div class="col-xl-4 col-md-6">
-                            <div class="card shadow-sm border-start border-primary border-4 h-100">
-                              <div class="card-body">
-                                <h6 class="text-uppercase text-muted">Total orders</h6>
-                                <h3 class="fw-bold mb-2"><?php echo number_format($totalOrdersCount); ?></h3>
-                                <p class="mb-0 text-muted">All orders placed for your products</p>
-                              </div>
+                          <div class="col-xl-3 col-md-6">
+                            <div class="card stat-card h-100">
+                              <i class="fa-solid fa-shopping-bag text-success fs-5 mb-2"></i>
+                              <small>Total Orders</small>
+                              <h3><?php echo number_format($totalOrdersCount); ?></h3>
+                              <p>All time</p>
                             </div>
                           </div>
-                          <div class="col-xl-4 col-md-12">
-                            <div class="card shadow-sm border-start border-warning border-4 h-100">
-                              <div class="card-body">
-                                <h6 class="text-uppercase text-muted">Demand trend</h6>
-                                <p class="mb-3 text-muted">How in demand your catalog is this week.</p>
-                                <div class="progress" style="height: 12px;">
-                                  <div class="progress-bar bg-warning" role="progressbar" style="width: <?php echo min(100, $newRequestCount * 15); ?>%;" aria-valuenow="<?php echo $newRequestCount; ?>" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-                              </div>
+                          <div class="col-xl-3 col-md-6">
+                            <div class="card stat-card h-100">
+                              <i class="fa-solid fa-triangle-exclamation text-warning fs-5 mb-2"></i>
+                              <small>Low Stock Items</small>
+                              <h3><?php echo number_format($lowStockCount); ?></h3>
+                              <p>Needs action</p>
+                            </div>
+                          </div>
+                          <div class="col-xl-3 col-md-6">
+                            <div class="card stat-card h-100">
+                              <i class="fa-solid fa-message text-info fs-5 mb-2"></i>
+                              <small>Buyer Inquiries</small>
+                              <h3><?php echo number_format($pendingInquiryCount); ?></h3>
+                              <p>Unanswered</p>
                             </div>
                           </div>
                         </div>
 
-                        <div class="row g-4">
-                          <div class="col-xl-7">
-                            <div class="card shadow-sm h-100">
-                              <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                                <div>
-                                  <h5 class="mb-0"><i class="fa-solid fa-chart-simple me-2"></i>Top Products in Demand</h5>
-                                  <small class="text-light">Live ranking from your active products and order quantities.</small>
-                                </div>
+                        <div class="row g-4 mb-4">
+                          <div class="col-lg-8">
+                            <div class="card h-100">
+                              <div class="card-header">
+                                <h5 class="mb-0"><i class="fa-solid fa-chart-line me-2"></i>Top Products</h5>
+                                <small class="text-muted">Your most requested products</small>
                               </div>
-                              <div class="card-body p-0">
+                              <div class="card-body">
                                 <div class="table-responsive">
                                   <table class="table table-hover align-middle mb-0">
-                                    <thead class="table-light">
+                                    <thead>
                                       <tr>
                                         <th>Product</th>
                                         <th>Orders</th>
-                                        <th>Status</th>
+                                        <th>Trend</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       <?php if (count($topProducts) > 0) {
                                         foreach ($topProducts as $product) {
                                           $demand = (int) $product['demand_count'];
-                                          $statusLabel = $demand > 5 ? 'Hot' : ($demand > 0 ? 'Rising' : 'New');
-                                          $statusClass = $demand > 5 ? 'badge bg-danger' : ($demand > 0 ? 'badge bg-success' : 'badge bg-secondary');
+                                          $trend = $demand > 5 ? '<span class="badge bg-danger">Hot</span>' : ($demand > 0 ? '<span class="badge bg-success">Rising</span>' : '<span class="badge bg-secondary">New</span>');
                                           ?>
                                           <tr>
                                             <td>
-                                              <div class="d-flex align-items-center gap-3">
-                                                <div class="rounded-3 overflow-hidden" style="width: 50px; height: 50px; background: #f4f5f8; display:flex; align-items:center; justify-content:center;">
-                                                  <?php if (!empty($product['cat_image'])) { ?>
-                                                    <img src="admin/assets/images/products/<?php echo htmlspecialchars($product['cat_image']); ?>" alt="<?php echo htmlspecialchars($product['cat_name']); ?>" style="width: 100%; height: 100%; object-fit: cover;">
-                                                  <?php } else { ?>
-                                                    <i class="fa-solid fa-box-open fa-lg text-muted"></i>
-                                                  <?php } ?>
-                                                </div>
+                                              <div class="d-flex align-items-center gap-2">
+                                                <?php if (!empty($product['cat_image'])) { ?>
+                                                  <img src="admin/assets/images/products/<?php echo htmlspecialchars($product['cat_image']); ?>" alt="<?php echo htmlspecialchars($product['cat_name']); ?>" style="width: 40px; height: 40px; object-fit: cover; border-radius: 8px;">
+                                                <?php } else { ?>
+                                                  <div style="width: 40px; height: 40px; background: rgba(16, 184, 130, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-box-open text-success"></i></div>
+                                                <?php } ?>
                                                 <div>
-                                                  <h6 class="mb-1"><?php echo htmlspecialchars($product['cat_name']); ?></h6>
-                                                  <small class="text-muted">ID <?php echo htmlspecialchars($product['cat_id']); ?></small>
+                                                  <strong><?php echo htmlspecialchars($product['cat_name']); ?></strong>
+                                                  <br><small class="text-muted">#<?php echo htmlspecialchars($product['cat_id']); ?></small>
                                                 </div>
                                               </div>
                                             </td>
-                                            <td><?php echo number_format($demand); ?></td>
-                                            <td><span class="<?php echo $statusClass; ?>"><?php echo $statusLabel; ?></span></td>
+                                            <td><strong><?php echo number_format($demand); ?></strong></td>
+                                            <td><?php echo $trend; ?></td>
                                           </tr>
                                         <?php }
                                       } else { ?>
-                                        <tr>
-                                          <td colspan="3" class="text-center py-4 text-muted">No demand data available yet.</td>
-                                        </tr>
+                                        <tr><td colspan="3" class="text-center py-4 text-muted">No order data yet.</td></tr>
                                       <?php } ?>
                                     </tbody>
                                   </table>
@@ -502,44 +526,107 @@
                               </div>
                             </div>
                           </div>
-                          <div class="col-xl-5">
-                            <div class="card shadow-sm h-100">
-                              <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0"><i class="fa-solid fa-bell me-2"></i>Notifications <?php if ($lowStockCount > 0) { ?><span class="badge bg-warning text-dark ms-2"><?php echo $lowStockCount; ?> low stock</span><?php } ?></h5>
-                                <a href="farmer_orders.php" class="btn btn-sm btn-light mt-2">Manage Orders</a>
-                                <a href="farmerDashboard.php?do=Inquiries" class="btn btn-sm btn-outline-light mt-2">Buyer Inquiries<?php if ($pendingInquiryCount > 0) { ?> (<?php echo $pendingInquiryCount; ?> pending)<?php } ?></a>
+                          <div class="col-lg-4">
+                            <div class="card h-100">
+                              <div class="card-header">
+                                <h5 class="mb-0"><i class="fa-solid fa-bell me-2"></i>Quick Actions</h5>
                               </div>
                               <div class="card-body">
-                                <?php if (count($customerRequests) > 0) { ?>
-                                  <div class="list-group">
-                                    <?php foreach ($customerRequests as $request) { ?>
-                                      <div class="list-group-item list-group-item-action mb-3 rounded-3 shadow-sm">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                          <div>
-                                            <h6 class="mb-1"><?php echo htmlspecialchars($request['or_name']); ?></h6>
-                                            <p class="mb-1 text-muted small">Product: <?php echo htmlspecialchars($request['product_name'] ?: 'Unknown'); ?></p>
-                                            <p class="mb-1 text-muted small">Quantity: <?php echo number_format((int) ($request['quantity'] ?? 1)); ?> • Total: UGX <?php echo number_format((float) $request['price'], 2); ?></p>
-                                            <p class="mb-0 text-muted small">Customer: <?php echo htmlspecialchars($request['user_id'] ?: 'Guest'); ?> • <?php echo htmlspecialchars($request['user_phone'] ?: 'No phone'); ?></p>
-                                            <p class="mb-0 text-muted small">Delivery location: <?php echo htmlspecialchars($request['delivery_location'] ?: 'Not provided'); ?></p>
-                                          </div>
-                                          <span class="badge bg-light text-dark"><?php echo date('M j', strtotime($request['join_date'])); ?></span>
-                                        </div>
-                                        <?php if (filter_var($request['customer_email'], FILTER_VALIDATE_EMAIL)) { ?>
-                                          <a href="mailto:<?php echo htmlspecialchars($request['customer_email']); ?>?subject=<?php echo rawurlencode('Reply about ' . ($request['product_name'] ?: $request['or_name'])); ?>&body=<?php echo rawurlencode('Hello, regarding your interest in ' . ($request['product_name'] ?: $request['or_name']) . ':'); ?>" class="btn btn-sm btn-outline-primary mt-3">Reply Customer</a>
-                                        <?php } ?>
-                                      </div>
-                                    <?php } ?>
-                                  </div>
-                                <?php } else { ?>
-                                  <div class="text-center py-5">
-                                    <i class="fa-solid fa-comments fa-2x text-muted mb-3"></i>
-                                    <p class="mb-0 text-muted">No new inquiries or orders. New customer activity will appear here.</p>
+                                <div class="d-grid gap-2">
+                                  <a href="farmerDashboard.php?do=Orders" class="btn btn-success btn-sm"><i class="fa-solid fa-shopping-bag me-1"></i>Manage Orders</a>
+                                  <a href="farmerDashboard.php?do=Inquiries" class="btn btn-info btn-sm"><i class="fa-solid fa-message me-1"></i>Buyer Inquiries <?php if ($pendingInquiryCount > 0) echo "($pendingInquiryCount)"; ?></a>
+                                  <a href="farmerDashboard.php?do=Manage" class="btn btn-warning btn-sm"><i class="fa-solid fa-box me-1"></i>My Products</a>
+                                  <a href="farmerDashboard.php?do=Profile" class="btn btn-secondary btn-sm"><i class="fa-solid fa-user me-1"></i>Profile</a>
+                                </div>
+                                <?php if ($lowStockCount > 0) { ?>
+                                  <div class="alert alert-warning mt-3 mb-0">
+                                    <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                                    <strong><?php echo $lowStockCount; ?></strong> products low on stock
                                   </div>
                                 <?php } ?>
                               </div>
                             </div>
                           </div>
                         </div>
+
+                        <div class="row g-4">
+                          <div class="col-lg-6">
+                            <div class="card h-100">
+                              <div class="card-header">
+                                <h5 class="mb-0"><i class="fa-solid fa-chart-pie me-2"></i>Order Status Distribution</h5>
+                              </div>
+                              <div class="card-body">
+                                <canvas id="orderStatusChart" height="300"></canvas>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="col-lg-6">
+                            <div class="card h-100">
+                              <div class="card-header">
+                                <h5 class="mb-0"><i class="fa-solid fa-list-check me-2"></i>Recent Orders</h5>
+                              </div>
+                              <div class="card-body">
+                                <?php if (count($customerRequests) > 0) { ?>
+                                  <div class="list-group list-group-flush">
+                                    <?php foreach (array_slice($customerRequests, 0, 5) as $request) { ?>
+                                      <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                          <div>
+                                            <h6 class="mb-1"><?php echo htmlspecialchars($request['or_name']); ?></h6>
+                                            <small class="text-muted"><?php echo htmlspecialchars($request['product_name'] ?: 'Unknown'); ?></small>
+                                            <br>
+                                            <small class="text-success">UGX <?php echo number_format((float) $request['price'], 0); ?></small>
+                                          </div>
+                                          <small class="text-muted"><?php echo date('M j', strtotime($request['join_date'])); ?></small>
+                                        </div>
+                                      </div>
+                                    <?php } ?>
+                                  </div>
+                                <?php } else { ?>
+                                  <p class="text-center text-muted py-4">No recent orders</p>
+                                <?php } ?>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <script>
+                          document.addEventListener('DOMContentLoaded', function() {
+                            const chartCtx = document.getElementById('orderStatusChart');
+                            if (chartCtx) {
+                              new Chart(chartCtx, {
+                                type: 'doughnut',
+                                data: {
+                                  labels: ['Pending', 'Processing', 'Completed', 'Cancelled'],
+                                  datasets: [{
+                                    data: [<?php echo $newRequestCount; ?>, 0, <?php echo ($totalOrdersCount - $newRequestCount); ?>, 0],
+                                    backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#ef4444'],
+                                    borderWidth: 2,
+                                    borderColor: '#0d1725'
+                                  }]
+                                },
+                                options: {
+                                  responsive: true,
+                                  maintainAspectRatio: false,
+                                  cutout: '60%',
+                                  plugins: {
+                                    legend: {
+                                      position: 'bottom',
+                                      labels: { color: '#d7ffe8', padding: 15, font: { size: 12, weight: 600 } }
+                                    },
+                                    tooltip: {
+                                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                      borderColor: '#10b981',
+                                      borderWidth: 1,
+                                      titleColor: '#fff',
+                                      bodyColor: '#fff'
+                                    }
+                                  }
+                                }
+                              });
+                            }
+                          });
+                        </script>
                     <?php }
 
                     else if ( $do == "Inquiries" ) {
@@ -550,9 +637,16 @@
                         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_inquiry'])) {
                           $inquiryId = (int) ($_POST['inquiry_id'] ?? 0);
                           $inquiryStatus = max(0, min(2, (int) ($_POST['status'] ?? 0)));
-                          $response = mysqli_real_escape_string($db, trim($_POST['response'] ?? ''));
+                          $responseText = trim($_POST['response'] ?? '');
+                          $response = mysqli_real_escape_string($db, $responseText);
+                          $buyerQuery = mysqli_query($db, "SELECT i.buyer_email, u.user_email, p.product_name, i.subject FROM product_inquiries i INNER JOIN products p ON p.product_id=i.product_id LEFT JOIN users u ON u.user_id=i.buyer_id WHERE i.inquiry_id='$inquiryId' AND p.seller_email='$farmerEmail' LIMIT 1");
+                          $buyer = $buyerQuery ? mysqli_fetch_assoc($buyerQuery) : null;
                           $updateInquirySql = "UPDATE product_inquiries i INNER JOIN products p ON p.product_id=i.product_id SET i.status='$inquiryStatus', i.response='$response', i.updated_at=NOW() WHERE i.inquiry_id='$inquiryId' AND p.seller_email='$farmerEmail'";
                           if (mysqli_query($db, $updateInquirySql)) {
+                            $buyerEmail = $buyer['user_email'] ?? $buyer['buyer_email'] ?? '';
+                            if (filter_var($buyerEmail, FILTER_VALIDATE_EMAIL) && $responseText !== '') {
+                              farmers_market_send_email($db, $buyerEmail, 'Response to your inquiry: ' . ($buyer['subject'] ?? 'Product inquiry'), "Your inquiry about " . ($buyer['product_name'] ?? 'a product') . " has received a response.\n\n" . $responseText);
+                            }
                             $inquiryMessage = 'Inquiry response saved.';
                           } else {
                             $inquiryError = 'Unable to save the inquiry response.';
@@ -567,19 +661,19 @@
                       <div class="container-fluid pb-5">
                         <div class="d-flex justify-content-between align-items-center mb-4">
                           <div>
-                            <h4 class="text-uppercase mb-1">Buyer Inquiries</h4>
+                            <h4 class="fw-bold mb-1">Buyer Inquiries</h4>
                             <p class="text-muted mb-0">Read buyer questions and respond from your dashboard.</p>
                           </div>
-                          <a href="farmerDashboard.php?do=Home" class="btn btn-outline-secondary">Back to Dashboard</a>
+                          <a href="farmerDashboard.php?do=Home" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>Back</a>
                         </div>
                         <?php if ($inquiryMessage) { ?><div class="alert alert-success"><?php echo htmlspecialchars($inquiryMessage); ?></div><?php } ?>
                         <?php if ($inquiryError) { ?><div class="alert alert-danger"><?php echo htmlspecialchars($inquiryError); ?></div><?php } ?>
-                        <div class="card shadow-sm">
+                        <div class="card">
                           <div class="card-body">
                             <div class="table-responsive">
-                              <table class="table table-striped align-middle">
-                                <thead class="table-dark">
-                                  <tr><th>Product</th><th>Buyer</th><th>Subject</th><th>Message</th><th>Status</th><th>Response</th></tr>
+                              <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                  <tr><th>Product</th><th>Buyer</th><th>Subject</th><th>Message</th><th>Status</th><th>Action</th></tr>
                                 </thead>
                                 <tbody>
                                   <?php if ($inquiryQuery && mysqli_num_rows($inquiryQuery) > 0) { while ($inquiry = mysqli_fetch_assoc($inquiryQuery)) { $inquiryStatus = (int) $inquiry['status']; ?>
@@ -588,18 +682,46 @@
                                       <td><?php echo htmlspecialchars($inquiry['user_name'] ?: ($inquiry['user_email'] ?: $inquiry['buyer_email'])); ?></td>
                                       <td><?php echo htmlspecialchars($inquiry['subject']); ?></td>
                                       <td><?php echo nl2br(htmlspecialchars($inquiry['message'])); ?></td>
-                                      <td><span class="badge text-bg-<?php echo $inquiryClasses[$inquiryStatus] ?? 'secondary'; ?>"><?php echo $inquiryLabels[$inquiryStatus] ?? 'Pending'; ?></span></td>
+                                      <td><span class="badge bg-<?php echo $inquiryClasses[$inquiryStatus] ?? 'secondary'; ?>"><?php echo $inquiryLabels[$inquiryStatus] ?? 'Pending'; ?></span></td>
                                       <td>
-                                        <form method="post">
-                                          <input type="hidden" name="inquiry_id" value="<?php echo (int) $inquiry['inquiry_id']; ?>">
-                                          <select name="status" class="form-select form-select-sm mb-2">
-                                            <option value="0" <?php echo $inquiryStatus === 0 ? 'selected' : ''; ?>>Pending</option>
-                                            <option value="1" <?php echo $inquiryStatus === 1 ? 'selected' : ''; ?>>Responded</option>
-                                            <option value="2" <?php echo $inquiryStatus === 2 ? 'selected' : ''; ?>>Resolved</option>
-                                          </select>
-                                          <textarea name="response" class="form-control form-control-sm mb-2" rows="3" placeholder="Write a response"><?php echo htmlspecialchars($inquiry['response'] ?? ''); ?></textarea>
-                                          <button type="submit" name="update_inquiry" class="btn btn-sm btn-success">Save Response</button>
-                                        </form>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#inquiryModal<?php echo (int) $inquiry['inquiry_id']; ?>"><i class="fa-solid fa-reply me-1"></i>Respond</button>
+                                        
+                                        <!-- Response Modal -->
+                                        <div class="modal fade" id="inquiryModal<?php echo (int) $inquiry['inquiry_id']; ?>" tabindex="-1" aria-hidden="true">
+                                          <div class="modal-dialog modal-lg">
+                                            <div class="modal-content">
+                                              <div class="modal-header">
+                                                <h5 class="modal-title">Respond to Inquiry</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                              </div>
+                                              <form method="post">
+                                                <div class="modal-body">
+                                                  <p><strong>Product:</strong> <?php echo htmlspecialchars($inquiry['product_name']); ?></p>
+                                                  <p><strong>Original Message:</strong></p>
+                                                  <p class="bg-light p-3 rounded"><?php echo nl2br(htmlspecialchars($inquiry['message'])); ?></p>
+                                                  
+                                                  <input type="hidden" name="inquiry_id" value="<?php echo (int) $inquiry['inquiry_id']; ?>">
+                                                  <div class="mb-3">
+                                                    <label for="status<?php echo (int) $inquiry['inquiry_id']; ?>" class="form-label">Status</label>
+                                                    <select name="status" class="form-select" id="status<?php echo (int) $inquiry['inquiry_id']; ?>">
+                                                      <option value="0" <?php echo $inquiryStatus === 0 ? 'selected' : ''; ?>>Pending</option>
+                                                      <option value="1" <?php echo $inquiryStatus === 1 ? 'selected' : ''; ?>>Responded</option>
+                                                      <option value="2" <?php echo $inquiryStatus === 2 ? 'selected' : ''; ?>>Resolved</option>
+                                                    </select>
+                                                  </div>
+                                                  <div class="mb-3">
+                                                    <label for="response<?php echo (int) $inquiry['inquiry_id']; ?>" class="form-label">Your Response</label>
+                                                    <textarea name="response" class="form-control" id="response<?php echo (int) $inquiry['inquiry_id']; ?>" rows="4" placeholder="Write your response here..."><?php echo htmlspecialchars($inquiry['response'] ?? ''); ?></textarea>
+                                                  </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                  <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                                  <button type="submit" name="update_inquiry" class="btn btn-success btn-sm"><i class="fa-solid fa-check me-1"></i>Save Response</button>
+                                                </div>
+                                              </form>
+                                            </div>
+                                          </div>
+                                        </div>
                                       </td>
                                     </tr>
                                   <?php } } else { ?>
@@ -632,25 +754,75 @@
                         }
 
                         ?>
-                        <div class="page-header pt-3" style="padding: 30px; box-shadow: 0px 1px 8px #ccc; border-radius: 10px;  margin: 0px auto;">
-                          <h2 class="text-center pb-5">Contact Info</h2>
-
-                          <div>
-                            <p><i class="fa-solid fa-envelope"></i> &nbsp; <?php echo htmlspecialchars($contact_email ?: 'Not available'); ?></p>
-                            <p><i class="fa-solid fa-phone"></i> &nbsp; <?php echo htmlspecialchars($contact_phone ?: 'Not available'); ?></p>
-                            <p><i class="fa-solid fa-map-pin"></i> &nbsp; <?php echo htmlspecialchars($contact_address ?: 'Not available'); ?></p>
+                        <div class="container pb-5">
+                          <div class="row">
+                            <div class="col-lg-8 offset-lg-2">
+                              <div class="d-flex justify-content-between align-items-center mb-4">
+                                <div>
+                                  <h4 class="fw-bold mb-1">Contact Information</h4>
+                                  <p class="text-muted mb-0">Your account contact details</p>
+                                </div>
+                                <a href="farmerDashboard.php?do=Home" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>Back</a>
+                              </div>
+                              
+                              <div class="card">
+                                <div class="card-body">
+                                  <div class="row">
+                                    <div class="col-lg-6">
+                                      <div class="d-flex gap-3 mb-4">
+                                        <div style="width: 48px; height: 48px; background: rgba(16, 184, 130, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                          <i class="fa-solid fa-envelope text-success fs-5"></i>
+                                        </div>
+                                        <div>
+                                          <p class="text-muted mb-1">Email</p>
+                                          <p class="fw-semibold"><?php echo htmlspecialchars($contact_email ?: 'Not available'); ?></p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                      <div class="d-flex gap-3 mb-4">
+                                        <div style="width: 48px; height: 48px; background: rgba(16, 184, 130, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                          <i class="fa-solid fa-phone text-success fs-5"></i>
+                                        </div>
+                                        <div>
+                                          <p class="text-muted mb-1">Phone</p>
+                                          <p class="fw-semibold"><?php echo htmlspecialchars($contact_phone ?: 'Not available'); ?></p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div class="d-flex gap-3">
+                                    <div style="width: 48px; height: 48px; background: rgba(16, 184, 130, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                      <i class="fa-solid fa-map-pin text-success fs-5"></i>
+                                    </div>
+                                    <div>
+                                      <p class="text-muted mb-1">Address</p>
+                                      <p class="fw-semibold"><?php echo htmlspecialchars($contact_address ?: 'Not available'); ?></p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                     <?php }
 
                     else if ( $do == "Profile" ) { ?>
-                        <div class="page-header pt-3" style="padding: 30px; box-shadow: 0px 1px 8px #ccc; border-radius: 10px;  margin: 0px auto;">
-                          <h2 class="text-center pb-5">Profile Update</h2>
+                        <div class="container pb-5">
+                          <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div>
+                              <h4 class="fw-bold mb-1">Profile Settings</h4>
+                              <p class="text-muted mb-0">Update your account information</p>
+                            </div>
+                            <a href="farmerDashboard.php?do=Home" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>Back</a>
+                          </div>
+                          <div class="card">
+                            <div class="card-body">
 
                           <?php  
 
                             $sessionId = (int) ($_SESSION['user_id'] ?? 0);
-                            $readUId_Sql = "SELECT * FROM users WHERE status=1 AND user_id='$sessionId'";
+                            $readUId_Sql = "SELECT u.*, f.farm_id, f.farm_name, f.farm_address AS farm_location, f.farm_document FROM users u LEFT JOIN farmer f ON f.farm_email COLLATE utf8mb4_unicode_ci = u.user_email COLLATE utf8mb4_unicode_ci WHERE u.status=1 AND u.user_id='$sessionId'";
                             $readUId_Query = mysqli_query($db, $readUId_Sql);
 
                             while( $row = mysqli_fetch_assoc($readUId_Query) ) {
@@ -663,6 +835,10 @@
                               $status     = $row['status'];
                               $user_image   = $row['user_image'];
                               $join_date    = $row['join_date'];
+                              $farm_id      = (int) ($row['farm_id'] ?? 0);
+                              $farm_name    = $row['farm_name'] ?? '';
+                              $farm_location = $row['farm_location'] ?? '';
+                              $farm_document = $row['farm_document'] ?? '';
 
                               ?>
 
@@ -672,6 +848,11 @@
                                     <div class="mb-3">
                                       <label for="" class="form-label">Full Name</label>
                                       <input type="text" name="fname" class="form-control" required autocomplete="off" autofocus value="<?php echo $user_name; ?>">
+                                    </div>
+
+                                    <div class="mb-3">
+                                      <label for="farmerEmailProfile" class="form-label">Email Address</label>
+                                      <input type="email" id="farmerEmailProfile" class="form-control" value="<?php echo htmlspecialchars($user_email); ?>" readonly>
                                     </div>
 
                                     <div class="mb-3">
@@ -696,6 +877,17 @@
                                       <textarea name="address" class="form-control" autocomplete="off" autofocus cols="30" rows="7"><?php echo $user_address; ?></textarea>
                                     </div>
 
+                                    <?php if ((int) $role === 2) { ?>
+                                      <div class="mb-3">
+                                        <label for="farmNameProfile" class="form-label">Farm name</label>
+                                        <input type="text" name="farm_name" id="farmNameProfile" class="form-control" value="<?php echo htmlspecialchars($farm_name); ?>" required>
+                                      </div>
+                                      <div class="mb-3">
+                                        <label for="farmLocationProfile" class="form-label">Farm location</label>
+                                        <textarea name="farm_location" id="farmLocationProfile" class="form-control" rows="4" required><?php echo htmlspecialchars($farm_location); ?></textarea>
+                                      </div>
+                                    <?php } ?>
+
                                     
                                   </div>
 
@@ -711,30 +903,50 @@
                                       <input type="hidden" value="1" name="status">
                                     </div>
 
-                                    <div class="mb-3">
-                                      <label for="">Image</label>
-                                      <br>
-                                      <?php  
-                                            if (!empty($user_image)) {
-                                          echo '<img src="admin/assets/images/seller/' . $user_image . '" style="width: 100%; height: 200px;">';
-                                        }
-                                        else {
-                                          echo "Sorry! No Image Uploaded.";
-                                        }
-                                          ?>  
-                                          <br><br>
-                                      <input type="file" name="image" class="form-control">
-                                    </div>
+                                    <?php if ((int) $role === 2) { ?>
+                                      <div class="mb-3">
+                                        <label for="farmDocumentProfile" class="form-label">Farm document (optional)</label>
+                                        <?php if ($farm_document) { ?><a href="<?php echo htmlspecialchars($farm_document); ?>" target="_blank" rel="noopener" class="d-block text-success mb-2"><i class="fa-solid fa-file-lines me-1"></i>View current document</a><?php } ?>
+                                        <input type="file" name="farm_document" id="farmDocumentProfile" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.txt">
+                                        <small class="text-muted">Optional. Maximum size: 10 MB.</small>
+                                      </div>
+                                    <?php } ?>
 
                                     <div class="d-grid gap-2">
                                       <input type="hidden" name="updateUserId" value="<?php echo $user_id; ?>">
-                                      <input type="submit" name="updateUser" class="btn btn-dark btn-lg btn-block">
+                                      <input type="submit" name="updateUser" class="btn btn-success btn-lg" value="Save Profile">
                                     </div>
                                   </div>
                                 </div>
                               </form>
 
                               <?php  
+                                if (isset($_POST['updateUser']) && (int) $role === 2) {
+                                  $profileFarmLocation = mysqli_real_escape_string($db, trim($_POST['farm_location'] ?? ''));
+                                  $profileFarmName = mysqli_real_escape_string($db, trim($_POST['farm_name'] ?? ''));
+                                  $profileEmail = mysqli_real_escape_string($db, $_SESSION['email'] ?? $_SESSION['user_email'] ?? '');
+                                  $farmDocumentSql = '';
+                                  if (!empty($_FILES['farm_document']['name']) && $_FILES['farm_document']['error'] === UPLOAD_ERR_OK) {
+                                    $documentExtension = strtolower(pathinfo($_FILES['farm_document']['name'], PATHINFO_EXTENSION));
+                                    if (in_array($documentExtension, ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'doc', 'docx', 'txt'], true) && $_FILES['farm_document']['size'] <= 10 * 1024 * 1024) {
+                                      $documentName = bin2hex(random_bytes(8)) . '.' . $documentExtension;
+                                      $documentDirectory = __DIR__ . '/uploads/docs/' . md5($_SESSION['email'] ?? $_SESSION['user_email']) . '/';
+                                      if (!is_dir($documentDirectory)) {
+                                        mkdir($documentDirectory, 0755, true);
+                                      }
+                                      if (move_uploaded_file($_FILES['farm_document']['tmp_name'], $documentDirectory . $documentName)) {
+                                        $farmDocumentSql = ", farm_document='uploads/docs/" . md5($_SESSION['email'] ?? $_SESSION['user_email']) . "/$documentName'";
+                                      }
+                                    }
+                                  }
+                                  $farmExistsQuery = mysqli_query($db, "SELECT farm_id FROM farmer WHERE farm_email COLLATE utf8mb4_unicode_ci='$profileEmail' COLLATE utf8mb4_unicode_ci LIMIT 1");
+                                  if ($farmExistsQuery && mysqli_num_rows($farmExistsQuery) > 0) {
+                                    mysqli_query($db, "UPDATE farmer SET farm_name='$profileFarmName', farm_phone='" . mysqli_real_escape_string($db, $_POST['phone'] ?? $user_phone) . "', farm_address='$profileFarmLocation'$farmDocumentSql WHERE farm_email COLLATE utf8mb4_unicode_ci='$profileEmail' COLLATE utf8mb4_unicode_ci");
+                                  } else {
+                                    mysqli_query($db, "INSERT INTO farmer (farm_name, farm_phone, farm_email, farm_address, farm_document, status, join_date) VALUES ('$profileFarmName', '" . mysqli_real_escape_string($db, $_POST['phone'] ?? $user_phone) . "', '$profileEmail', '$profileFarmLocation', '', 1, NOW())");
+                                  }
+                                }
+
                                 if (isset($_POST['updateUser'])) {
                                 $updateUserId   = mysqli_real_escape_string($db, $_POST['updateUserId']);
                                 $fname      = mysqli_real_escape_string($db, $_POST['fname']);
@@ -745,8 +957,8 @@
                                 $role       = mysqli_real_escape_string($db, $_POST['role']);
                                 $status     = mysqli_real_escape_string($db, $_POST['status']);
                                 
-                                $image      = mysqli_real_escape_string($db,$_FILES['image']['name']);
-                                $temp_img     = $_FILES['image']['tmp_name'];
+                                $image      = mysqli_real_escape_string($db, $_FILES['image']['name'] ?? '');
+                                $temp_img     = $_FILES['image']['tmp_name'] ?? '';
 
                                 // Only Password & Only Image Change
                                 if (!empty($password) && !empty($image)) {
@@ -856,18 +1068,26 @@
 
                             ?>
 
-                                
+                            </div>
+                          </div>
                         </div>
                     <?php }
 
                     else if ( $do == "Support" ) { ?>
-                        <div class="page-header pt-3" style="padding: 30px; box-shadow: 0px 1px 8px #ccc; border-radius: 10px;  margin: 0px auto;">
-                          <h2 class="text-center pb-5">Support</h2>
+                        <div class="container pb-5">
+                          <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div>
+                              <h4 class="fw-bold mb-1">Support</h4>
+                              <p class="text-muted mb-0">Send a message to the market support team</p>
+                            </div>
+                            <a href="farmerDashboard.php?do=Home" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>Back</a>
+                          </div>
 
-                          <div>
+                          <div class="row justify-content-center">
                             <!-- for form -->
-                            <div class="col-lg-6" style="margin: 0px auto;">
-                              <div class="contact_form" style="box-shadow: 1px 10px 15px #ccc; border-top: 4px solid #08c; border-radius: 5px; color: #000; background: #F7F7F7; font-size: 16px; padding: 34px;">
+                            <div class="col-lg-8">
+                              <div class="card">
+                                <div class="card-body">
 
                                 <?php  
                                   if(isset($_SESSION['msg'])) {
@@ -928,6 +1148,7 @@
                                   }
                                 ?>
 
+                                </div>
                               </div>
                             </div>
                             <!-- for form -->
@@ -939,11 +1160,17 @@
                       <div class="container pb-5">
                         <div class="row">
                           <div class="col-lg-12">
-                            <h4 class="text-uppercase">ADD NEW PRODUCT</h4>
-                            <hr>
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                              <div>
+                                <h4 class="fw-bold mb-1">Add New Product</h4>
+                                <p class="text-muted mb-0">Create a new product listing</p>
+                              </div>
+                              <a href="farmerDashboard.php?do=Manage" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>Back</a>
+                            </div>
 
                             <!-- ########## START: FORM ########## -->
-                            <form action="farmerDashboard.php?do=Store" method="POST" enctype="multipart/form-data" style="padding: 30px; box-shadow: 0px 1px 8px #ccc; border-radius: 10px;">
+                            <form action="farmerDashboard.php?do=Store" method="POST" enctype="multipart/form-data" class="card">
+                              <div class="card-body">
                               <div class="row">
                                 <div class="col-lg-6">
                                   <div class="mb-3">
@@ -1031,7 +1258,7 @@
 
                                   <div class="mb-3">
                                     <div class="d-grid gap-2">
-                                      <input type="submit" name="addCategory" class="btn btn-dark btn-lg btn-block" value="Add New Product">
+                                      <input type="submit" name="addCategory" class="btn btn-success btn-lg" value="Add Product">
                                     </div>
                                   </div>
                                 </div>
@@ -1117,11 +1344,17 @@
                               <div class="container pb-5">
                               <div class="row">
                                 <div class="col-lg-12">
-                                  <h4 class="text-uppercase">UPDATE PRODUCT</h4>
-                                  <hr>
+                                  <div class="d-flex justify-content-between align-items-center mb-4">
+                                    <div>
+                                      <h4 class="fw-bold mb-1">Update Product</h4>
+                                      <p class="text-muted mb-0">Edit product details and pricing</p>
+                                    </div>
+                                    <a href="farmerDashboard.php?do=Manage" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>Back</a>
+                                  </div>
 
                                   <!-- ########## START: FORM ########## -->
-                                  <form action="farmerDashboard.php?do=Update" method="POST" enctype="multipart/form-data" style="padding: 30px; box-shadow: 0px 1px 8px #ccc; border-radius: 10px;">
+                                  <form action="farmerDashboard.php?do=Update" method="POST" enctype="multipart/form-data" class="card">
+                                    <div class="card-body">
                                     <div class="row">
                                       <div class="col-lg-6">
                                         <div class="mb-3">
@@ -1228,13 +1461,14 @@
                                         <div class="mb-3">
                                           <div class="d-grid gap-2">
                                             <input type="hidden" name="updateCategoryId" value="<?php echo $cat_id; ?>">
-                                            <input type="submit" name="updateCategory" class="btn btn-dark btn-lg btn-block" value="Update Product">
+                                            <input type="submit" name="updateCategory" class="btn btn-success btn-lg" value="Update Product">
                                             
                                           </div>
                                         </div>
                                       </div>
                                     </div>
-                                  </div>                          
+                                    </div>
+                                  </form>
                                   </form>
                                   <!-- ########## END: FORM ########## -->
 
@@ -1654,17 +1888,19 @@
                                           <td><?php echo $fileSizeKB; ?> KB</td>
                                           <td><?php echo $uploadDate; ?></td>
                                           <td>
-                                            <a href="uploads/docs/<?php echo md5($farmerEmail); ?>/<?php echo rawurlencode($fileName); ?>"
-                                               class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener">
-                                              <i class="fa-solid fa-eye"></i> View
-                                            </a>
-                                            <a href="uploads/docs/<?php echo md5($farmerEmail); ?>/<?php echo rawurlencode($fileName); ?>" class="btn btn-sm btn-outline-secondary" download><i class="fa-solid fa-download"></i> Download</a>
-                                            <form method="post" class="d-inline" onsubmit="return confirm('Delete this document?');">
-                                              <input type="hidden" name="file" value="<?php echo $fileName; ?>">
-                                              <button type="submit" name="delete_doc" class="btn btn-sm btn-outline-danger">
-                                                <i class="fa-solid fa-trash"></i> Delete
-                                              </button>
-                                            </form>
+                                            <div class="document-actions">
+                                              <a href="uploads/docs/<?php echo md5($farmerEmail); ?>/<?php echo rawurlencode($fileName); ?>"
+                                                 class="btn btn-xs btn-outline-primary" target="_blank" rel="noopener" title="View document">
+                                                <i class="fa-solid fa-eye"></i><span>View</span>
+                                              </a>
+                                              <a href="uploads/docs/<?php echo md5($farmerEmail); ?>/<?php echo rawurlencode($fileName); ?>" class="btn btn-xs btn-outline-secondary" download title="Download document"><i class="fa-solid fa-download"></i><span>Download</span></a>
+                                              <form method="post" class="d-inline" onsubmit="return confirm('Delete this document?');">
+                                                <input type="hidden" name="file" value="<?php echo $fileName; ?>">
+                                                <button type="submit" name="delete_doc" class="btn btn-xs btn-outline-danger" title="Delete document">
+                                                  <i class="fa-solid fa-trash"></i><span>Delete</span>
+                                                </button>
+                                              </form>
+                                            </div>
                                           </td>
                                         </tr>
                                         <?php endforeach; ?>

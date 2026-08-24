@@ -81,6 +81,9 @@
 		<link rel="stylesheet" href="assets/css/custom.css">
 
 		<link rel="stylesheet" href="assets/css/customize.css">
+		<?php if (in_array(basename($_SERVER['PHP_SELF'] ?? ''), ['index.php', 'login.php', 'register.php'], true)) { ?>
+		<link rel="stylesheet" href="assets/css/public-modern.css">
+		<?php } ?>
 
 		<!-- Head Libs -->
 		<script src="assets/vendor/modernizr/modernizr.min.js"></script>

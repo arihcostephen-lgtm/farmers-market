@@ -2,9 +2,9 @@
 	include "inc/header.php";
 ?>
 
-			<div role="main" class="main">
+			<div role="main" class="main public-auth-page">
 
-				<section class="page-header page-header-modern b`g-color-light-scale-1 page-header-md">
+				<section class="page-header page-header-modern bg-color-light-scale-1 page-header-md">
 					<div class="container">
 						<div class="row">
 
@@ -29,7 +29,7 @@
 						<div class="row pb-5">
 							<div class="col-lg-12">
 								<!-- ########## START: MAIN BODY ########## -->
-								<div class="card">
+								<div class="card public-auth-card">
 									<div class="card-body" style="box-shadow: 1px 10px 15px #ccc; border-top: 4px solid #08c;; border-radius: 5px; color: #000; background: #F7F7F7; font-size: 16px;">
  
 										<form action="" method="POST" enctype="multipart/form-data">
@@ -47,12 +47,12 @@
 
 													<div class="form-group">
 														<label for="">Password</label>
-														<input type="password" name="password" class="form-control" required autocomplete="off" autofocus placeholder="password..">
+														<input type="password" name="password" class="form-control" data-password="new" required autocomplete="new-password" autofocus placeholder="password..">
 													</div>
 
 													<div class="form-group">
 														<label for="">Re-type Password</label>
-														<input type="password" name="re_password" class="form-control" required autocomplete="off" autofocus placeholder="re-type password..">
+														<input type="password" name="re_password" class="form-control" data-password="confirmation" required autocomplete="new-password" autofocus placeholder="re-type password..">
 													</div>
 												</div>
 
@@ -67,6 +67,21 @@
 														<textarea name="address" class="form-control" autocomplete="off" autofocus cols="30" rows="7"  placeholder="address.."></textarea>
 													</div>
 
+																	<div id="farmerDetails" class="d-none">
+																			<div class="form-group">
+																				<label for="farmName">Farm name</label>
+																				<input type="text" name="farm_name" id="farmName" class="form-control" placeholder="Name of your farm">
+																			</div>
+																		<div class="form-group">
+																			<label for="farmLocation">Farm location</label>
+																			<textarea name="farm_location" id="farmLocation" class="form-control" rows="3" placeholder="Village, district, landmark or GPS details"></textarea>
+																		</div>
+																		<div class="form-group">
+																			<label for="farmDocument">Farm document (optional)</label>
+																			<input type="file" name="farm_document" id="farmDocument" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.txt">
+																		</div>
+																	</div>
+
 													
 												</div>
 
@@ -76,7 +91,20 @@
 														<label for="role">Account Type</label>
 														<select name="role" id="role" class="form-select" required>
 												<option value="3" selected>Customer</option>
-												<option value="2">Farmer (pending admin approval)</option>
+																		<option value="2">Farmer (pending admin approval)</option>
+																	</select>
+																	<script>
+																		const accountType = document.getElementById('role');
+																		const farmerDetails = document.getElementById('farmerDetails');
+																		const farmLocation = document.getElementById('farmLocation');
+																		function toggleFarmerDetails() {
+																			const isFarmer = accountType.value === '2';
+																			farmerDetails.classList.toggle('d-none', !isFarmer);
+																			farmLocation.required = isFarmer;
+																		}
+																		accountType.addEventListener('change', toggleFarmerDetails);
+																		toggleFarmerDetails();
+																	</script>
 													<div class="form-group">
 														<label for="">Image</label>
 														<input type="file" name="image" class="form-control-file" >
@@ -100,8 +128,18 @@
 												$re_password 	= mysqli_real_escape_string($db, $_POST['re_password']);
 												$phone 			= mysqli_real_escape_string($db, $_POST['phone']);
 												$address 		= mysqli_real_escape_string($db, $_POST['address']);
+																							$farmLocation = trim($_POST['farm_location'] ?? '');
+																							$farmName = trim($_POST['farm_name'] ?? '');
+																							$farmNameEscaped = mysqli_real_escape_string($db, $farmName);
+																							$farmLocationEscaped = mysqli_real_escape_string($db, $farmLocation);
 												$role 			= (int) $_POST['role'];
 												$status 		= ($role == 2) ? 2 : 1;
+																							$documentValid = $role !== 2 || $farmLocation !== '';
+																							$documentValid = $documentValid && ($role !== 2 || $farmName !== '');
+																							if (!$documentValid) {
+																								$registrationMessage = $farmName === '' ? 'Farm name is required for farmer registration.' : 'Farm location is required for farmer registration.';
+																								$registrationType = 'warning';
+																							}
 
 												$image 			= mysqli_real_escape_string($db, $_FILES['image']['name']);
 												$temp_image 	= $_FILES['image']['tmp_name'];
@@ -125,15 +163,40 @@
 														} else {
 															$img = '';
 														}
+
+																												$farmDocument = '';
+																												if ($role === 2 && !empty($_FILES['farm_document']['name'])) {
+																													$allowedDocumentExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'doc', 'docx', 'txt'];
+																													$documentExtension = strtolower(pathinfo($_FILES['farm_document']['name'], PATHINFO_EXTENSION));
+																													if ($_FILES['farm_document']['error'] !== UPLOAD_ERR_OK || !in_array($documentExtension, $allowedDocumentExtensions, true) || $_FILES['farm_document']['size'] > 10 * 1024 * 1024) {
+																														$documentValid = false;
+																														$registrationMessage = 'The farm document must be a supported file up to 10 MB.';
+																														$registrationType = 'warning';
+																													} else {
+																														$documentName = bin2hex(random_bytes(8)) . '.' . $documentExtension;
+																														$documentDirectory = __DIR__ . '/uploads/docs/' . md5($_POST['email']) . '/';
+																														if (!is_dir($documentDirectory)) {
+																																mkdir($documentDirectory, 0755, true);
+																																}
+																														if (move_uploaded_file($_FILES['farm_document']['tmp_name'], $documentDirectory . $documentName)) {
+																															$farmDocument = 'uploads/docs/' . md5($_POST['email']) . '/' . $documentName;
+																													}
+																													}
+																												}
 														
-														$addUserSql = "INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status, user_image, join_date) VALUES ('$fullname', '$email', '$hassedPass', '$phone', '$address', '$role', '$status', '$img', now())";
-														$addUserQuery = mysqli_query($db, $addUserSql);
+																												$addUserSql = "INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status, user_image, join_date) VALUES ('$fullname', '$email', '$hassedPass', '$phone', '$address', '$role', '$status', '$img', now())";
+																												$addUserQuery = $documentValid ? mysqli_query($db, $addUserSql) : false;
 
 														if ($addUserQuery) {
+																													if ($role === 2) {
+																														mysqli_query($db, "INSERT INTO farmer (farm_name, farm_phone, farm_email, farm_address, farm_document, status, join_date) VALUES ('$farmNameEscaped', '$phone', '$email', '$farmLocationEscaped', '" . mysqli_real_escape_string($db, $farmDocument) . "', 1, NOW())");
+																													}
 															header("Location: login.php?status=success");
 															exit;
 														} else {
-															$registrationMessage = 'Registration failed. Please try again.';
+																												if ($registrationMessage === '') {
+																													$registrationMessage = 'Registration failed. Please try again.';
+																												}
 															$registrationType = 'danger';
 														}
 													}

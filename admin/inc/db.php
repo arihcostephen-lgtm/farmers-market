@@ -81,6 +81,33 @@
 			INDEX idx_manager_activity_actor (actor_id),
 			INDEX idx_manager_activity_type (action_type)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS supervisor_reports (
+			report_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			supervisor_id INT UNSIGNED NOT NULL,
+			supervisor_name VARCHAR(150) NOT NULL,
+			title VARCHAR(200) NOT NULL,
+			report_body TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_supervisor_reports_created (created_at),
+			INDEX idx_supervisor_reports_supervisor (supervisor_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS farm_visits (
+			visit_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			farm_id INT UNSIGNED NOT NULL,
+			supervisor_id INT UNSIGNED NOT NULL,
+			visit_date DATE NOT NULL,
+			status ENUM('Scheduled', 'Completed', 'Cancelled') NOT NULL DEFAULT 'Scheduled',
+			notes TEXT DEFAULT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT NULL,
+			INDEX idx_farm_visits_farm (farm_id),
+			INDEX idx_farm_visits_supervisor (supervisor_id),
+			INDEX idx_farm_visits_date (visit_date)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		$farmDocumentColumn = mysqli_query($db, "SHOW COLUMNS FROM farmer LIKE 'farm_document'");
+		if ($farmDocumentColumn && mysqli_num_rows($farmDocumentColumn) === 0) {
+			@mysqli_query($db, "ALTER TABLE farmer ADD COLUMN farm_document VARCHAR(255) DEFAULT NULL AFTER farm_address");
+		}
 		mysqli_query($db, "CREATE TABLE IF NOT EXISTS supervisor_document_reviews (
 			review_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 			document_path VARCHAR(500) NOT NULL,

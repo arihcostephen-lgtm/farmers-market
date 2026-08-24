@@ -1,0 +1,189 @@
+/* Shared public experience for login, registration, and home. */
+:root {
+    --public-ink: #10231c;
+    --public-muted: #587064;
+    --public-green: #087f5b;
+    --public-green-dark: #07553f;
+    --public-mint: #dff7e9;
+    --public-line: #c9dfd2;
+    --public-surface: #ffffff;
+}
+
+.public-auth-page,
+.public-home-page {
+    background: #f4faf6;
+    color: var(--public-ink);
+}
+
+.public-auth-page .page-header {
+    background: linear-gradient(135deg, #063c2d, #087f5b) !important;
+    border: 0;
+    min-height: 190px;
+}
+
+.public-auth-page .page-header h1,
+.public-auth-page .page-header .breadcrumb,
+.public-auth-page .page-header .breadcrumb a,
+.public-auth-page .page-header .breadcrumb .active {
+    color: #f4fff8 !important;
+}
+
+.public-auth-page .public-auth-card {
+    position: relative;
+    max-width: 820px;
+    margin: -52px auto 0;
+    padding: 42px !important;
+    background: var(--public-surface) !important;
+    border: 1px solid var(--public-line);
+    border-top: 5px solid var(--public-green) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 20px 45px rgba(7, 85, 63, .14) !important;
+    color: var(--public-ink) !important;
+    z-index: 2;
+}
+
+.public-auth-page .public-auth-card > .card-body {
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    color: var(--public-ink) !important;
+}
+
+.public-auth-page .public-auth-card label,
+.public-auth-page .public-auth-card .form-label,
+.public-auth-page .public-auth-card .form-check-label {
+    color: var(--public-ink) !important;
+    font-weight: 600;
+}
+
+.public-auth-page .public-auth-card .form-control,
+.public-auth-page .public-auth-card .form-select,
+.public-auth-page .public-auth-card .input-group-text {
+    min-height: 46px;
+    background: #fbfffc !important;
+    border: 1px solid var(--public-line) !important;
+    color: var(--public-ink) !important;
+}
+
+.public-auth-page .public-auth-card textarea.form-control {
+    min-height: auto;
+}
+
+.public-auth-page .public-auth-card .form-control:focus,
+.public-auth-page .public-auth-card .form-select:focus {
+    border-color: var(--public-green) !important;
+    box-shadow: 0 0 0 3px rgba(8, 127, 91, .14) !important;
+}
+
+.public-auth-page .public-auth-card .input-group-text {
+    color: var(--public-green) !important;
+}
+
+.public-auth-page .public-auth-card .btn-primary,
+.public-auth-page .public-auth-card .btn-success {
+    background: var(--public-green) !important;
+    border-color: var(--public-green) !important;
+    color: #fff !important;
+    font-weight: 700;
+}
+
+.public-auth-page .public-auth-card a {
+    color: var(--public-green-dark);
+    font-weight: 700;
+}
+
+.public-auth-page .public-auth-card .alert {
+    color: var(--public-ink);
+    border-radius: 10px;
+}
+
+.public-home-page {
+    background: #f4faf6;
+}
+
+.public-home-page > section:first-child {
+    background: linear-gradient(135deg, #e5f8ec 0%, #f8fcf7 58%, #d6f0e1 100%) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.public-home-page > section:first-child::after {
+    content: '';
+    position: absolute;
+    width: 280px;
+    height: 280px;
+    right: -100px;
+    top: -80px;
+    border: 35px solid rgba(8, 127, 91, .1);
+    border-radius: 50%;
+}
+
+.public-home-page > section:first-child .container,
+.public-home-page > section:first-child .card,
+.public-home-page > section:first-child h1,
+.public-home-page > section:first-child p,
+.public-home-page > section:first-child a {
+    position: relative;
+    z-index: 1;
+}
+
+.public-home-page > section:first-child h1 {
+    color: var(--public-ink) !important;
+    letter-spacing: 0;
+}
+
+.public-home-page > .main > section:first-child .lead,
+.public-home-page .text-muted {
+    color: var(--public-muted) !important;
+}
+
+.public-home-page .btn-success {
+    background: var(--public-green) !important;
+    border-color: var(--public-green) !important;
+}
+
+.public-home-page .btn-outline-dark {
+    color: var(--public-green-dark) !important;
+    border-color: var(--public-green-dark) !important;
+}
+
+.public-home-page .btn-outline-dark:hover {
+    background: var(--public-green-dark) !important;
+    color: #fff !important;
+}
+
+.public-home-page h2,
+.public-home-page h3,
+.public-home-page h4,
+.public-home-page h5,
+.public-home-page h6 {
+    color: var(--public-ink);
+}
+
+.public-home-page .card {
+    border-color: var(--public-line) !important;
+    box-shadow: 0 12px 25px rgba(7, 85, 63, .08) !important;
+}
+
+.public-reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity .55s ease, transform .55s ease;
+}
+
+.public-reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+    .public-auth-page .public-auth-card {
+        margin: -30px 16px 0;
+        padding: 26px 20px !important;
+    }
+
+    .public-home-page > section:first-child .display-4 {
+        font-size: 2.25rem;
+    }
+}

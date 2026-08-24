@@ -2,6 +2,7 @@
 session_start();
 ob_start();
 require_once __DIR__ . '/admin/inc/db.php';
+require_once __DIR__ . '/admin/inc/email.php';
 require_once __DIR__ . '/inc/language.php';
 
 if (empty($_SESSION['user_id'])) {
@@ -24,6 +25,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_inquiry']) && 
         $buyerEmail = mysqli_real_escape_string($db, $_SESSION['user_email'] ?? '');
         $insert = "INSERT INTO product_inquiries (product_id, buyer_id, buyer_email, subject, message, status, created_at) VALUES ('$productId', '$buyerId', '$buyerEmail', '$subject', '$inquiryText', 0, NOW())";
         if (mysqli_query($db, $insert)) {
+            farmers_market_send_email(
+                $db,
+                $product['seller_email'],
+                'New inquiry about ' . $product['product_name'],
+                "A customer submitted a new product inquiry.\n\n"
+                    . "Product: " . $product['product_name'] . "\n"
+                    . "Subject: " . $_POST['subject'] . "\n\n"
+                    . $_POST['message'],
+                $_SESSION['user_email'] ?? ''
+            );
             $message = 'Your inquiry was sent. It is now pending a response.';
         } else {
             $error = 'Unable to send your inquiry right now.';

@@ -4,6 +4,64 @@ $notice = '';
 $error = '';
 $managerId = (int) $_SESSION['user_id'];
 
+if ($managerRole === 5) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_visit'])) {
+        $farmId = (int) ($_POST['farm_id'] ?? 0);
+        $visitDate = mysqli_real_escape_string($db, $_POST['visit_date'] ?? '');
+        $visitStatus = in_array($_POST['visit_status'] ?? '', ['Scheduled', 'Completed', 'Cancelled'], true) ? $_POST['visit_status'] : 'Scheduled';
+        $visitStatus = mysqli_real_escape_string($db, $visitStatus);
+        $visitNotes = mysqli_real_escape_string($db, trim($_POST['visit_notes'] ?? ''));
+        $validDate = DateTime::createFromFormat('Y-m-d', $_POST['visit_date'] ?? '');
+        if ($farmId < 1 || !$validDate || $validDate->format('Y-m-d') !== ($_POST['visit_date'] ?? '')) {
+            $error = 'Select a valid farm and visit date.';
+        } else {
+            $visit = mysqli_query($db, "INSERT INTO farm_visits (farm_id, supervisor_id, visit_date, status, notes) SELECT farm_id, '$managerId', '$visitDate', '$visitStatus', '$visitNotes' FROM farmer WHERE farm_id='$farmId' AND status=1");
+            $notice = $visit ? 'Farm visit saved successfully.' : 'Unable to save the farm visit.';
+        }
+    }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_visit'])) {
+        $visitId = (int) ($_POST['visit_id'] ?? 0);
+        mysqli_query($db, "DELETE FROM farm_visits WHERE visit_id='$visitId' AND supervisor_id='$managerId'");
+        $notice = 'Farm visit removed.';
+    }
+    $farmDirectory = mysqli_query($db, "SELECT farm_id, farm_name, farm_email, farm_phone, farm_address, farm_document FROM farmer WHERE status=1 ORDER BY farm_name ASC");
+    $visitHistory = mysqli_query($db, "SELECT v.*, f.farm_name, f.farm_phone, f.farm_address FROM farm_visits v INNER JOIN farmer f ON f.farm_id=v.farm_id WHERE v.supervisor_id='$managerId' ORDER BY v.visit_date DESC, v.visit_id DESC");
+    ?>
+    <div class="page-header">
+        <div class="text-uppercase small fw-semibold opacity-75">Field operations</div>
+        <h2 class="mb-0 mt-2">Farm visits</h2>
+    </div>
+    <?php if ($notice !== ''): ?><div class="alert alert-success"><i class="fa-solid fa-circle-check me-2"></i><?php echo htmlspecialchars($notice); ?></div><?php endif; ?>
+    <?php if ($error !== ''): ?><div class="alert alert-danger"><i class="fa-solid fa-circle-exclamation me-2"></i><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
+    <div class="row g-4 mb-4">
+        <div class="col-xl-5">
+            <div class="card p-4">
+                <h5 class="mb-1"><i class="fa-solid fa-calendar-plus text-success me-2"></i>Schedule a visit</h5>
+                <p class="text-muted mb-3">Choose a farmer and record the visit plan.</p>
+                <form method="post">
+                    <div class="mb-3"><label class="form-label" for="farmId">Farm</label><select class="form-select" name="farm_id" id="farmId" required><option value="">Select a farm</option><?php if ($farmDirectory): while ($farm = mysqli_fetch_assoc($farmDirectory)): ?><option value="<?php echo (int) $farm['farm_id']; ?>"><?php echo htmlspecialchars($farm['farm_name']); ?><?php echo $farm['farm_phone'] ? ' - ' . htmlspecialchars($farm['farm_phone']) : ''; ?></option><?php endwhile; endif; ?></select></div>
+                    <div class="mb-3"><label class="form-label" for="visitDate">Visit date</label><input class="form-control" type="date" name="visit_date" id="visitDate" min="<?php echo date('Y-m-d'); ?>" required></div>
+                    <div class="mb-3"><label class="form-label" for="visitStatus">Status</label><select class="form-select" name="visit_status" id="visitStatus"><option>Scheduled</option><option>Completed</option><option>Cancelled</option></select></div>
+                    <div class="mb-3"><label class="form-label" for="visitNotes">Notes</label><textarea class="form-control" name="visit_notes" id="visitNotes" rows="4" placeholder="Add objectives, findings, or follow-up actions"></textarea></div>
+                    <button type="submit" name="save_visit" class="btn btn-success"><i class="fa-solid fa-calendar-check me-2"></i>Save Visit</button>
+                </form>
+            </div>
+        </div>
+        <div class="col-xl-7">
+            <div class="card p-4 h-100">
+                <h5 class="mb-1"><i class="fa-solid fa-map-location-dot text-success me-2"></i>Farmer directory</h5>
+                <p class="text-muted mb-3">Active farms available for field visits.</p>
+                <div class="table-responsive"><table class="table table-hover data-table"><thead><tr><th>Farm name</th><th>Farmer contact</th><th>Location</th><th>Document</th></tr></thead><tbody><?php if ($farmDirectory && mysqli_num_rows($farmDirectory) > 0): mysqli_data_seek($farmDirectory, 0); while ($farm = mysqli_fetch_assoc($farmDirectory)): ?><tr><td><strong><?php echo htmlspecialchars($farm['farm_name']); ?></strong></td><td><?php echo htmlspecialchars($farm['farm_phone'] ?: 'Phone not recorded'); ?><small class="d-block text-muted"><?php echo htmlspecialchars($farm['farm_email'] ?: 'Email not recorded'); ?></small></td><td><?php echo htmlspecialchars($farm['farm_address'] ?: 'Address not recorded'); ?></td><td><?php if (!empty($farm['farm_document'])): ?><a class="btn btn-sm btn-outline-primary" href="../<?php echo htmlspecialchars($farm['farm_document']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-eye me-1"></i>View</a><?php else: ?><span class="text-muted">Not provided</span><?php endif; ?></td></tr><?php endwhile; else: ?><tr><td colspan="4" class="text-center text-muted">No active farms found.</td></tr><?php endif; ?></tbody></table></div>
+            </div>
+        </div>
+    </div>
+    <div class="card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0"><i class="fa-solid fa-clock-rotate-left text-success me-2"></i>My visit history</h5><span class="badge bg-success">Private supervisor view</span></div>
+        <div class="table-responsive"><table class="table table-hover data-table"><thead><tr><th>Farm</th><th>Date</th><th>Status</th><th>Notes</th><th>Action</th></tr></thead><tbody><?php if ($visitHistory && mysqli_num_rows($visitHistory) > 0): while ($visit = mysqli_fetch_assoc($visitHistory)): ?><tr><td><strong><?php echo htmlspecialchars($visit['farm_name']); ?></strong><small class="d-block text-muted"><?php echo htmlspecialchars($visit['farm_address'] ?: 'Address not recorded'); ?></small></td><td><?php echo date('M j, Y', strtotime($visit['visit_date'])); ?></td><td><span class="badge bg-<?php echo $visit['status'] === 'Completed' ? 'success' : ($visit['status'] === 'Cancelled' ? 'danger' : 'warning'); ?>"><?php echo htmlspecialchars($visit['status']); ?></span></td><td><?php echo nl2br(htmlspecialchars($visit['notes'] ?: 'No notes recorded')); ?></td><td><form method="post" onsubmit="return confirm('Remove this visit?');"><input type="hidden" name="visit_id" value="<?php echo (int) $visit['visit_id']; ?>"><button type="submit" name="delete_visit" class="btn btn-sm btn-outline-danger" title="Remove visit"><i class="fa-solid fa-trash"></i></button></form></td></tr><?php endwhile; else: ?><tr><td colspan="5" class="text-center text-muted py-4">No visits scheduled yet.</td></tr><?php endif; ?></tbody></table></div>
+    </div>
+    <?php include __DIR__ . '/inc/footer.php'; exit;
+}
+
 if (isset($_POST['save_plan'])) {
     $planId = (int) ($_POST['plan_id'] ?? 0);
     $planName = mysqli_real_escape_string($db, trim($_POST['plan_name'] ?? ''));

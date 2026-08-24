@@ -78,6 +78,22 @@
 - Session management with regeneration
 - HTTPS enforced in production
 
+## Email Notifications
+
+The application sends support, product, inquiry, and other notifications through PHPMailer. Configure SMTP before using email features by setting these environment variables for the Apache/PHP process:
+
+```text
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USERNAME=your-smtp-username
+MAIL_PASSWORD=your-smtp-password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=notifications@example.com
+MAIL_FROM_NAME=Farmers Market
+```
+
+On Windows/XAMPP, define the variables in the Apache service environment or `httpd.conf`, then restart Apache. Use an application password for providers such as Gmail. The sender address falls back to the configured site contact email when `MAIL_FROM_ADDRESS` is omitted. Email failures are logged through PHP's error log and do not expose SMTP credentials to users.
+
 ---
 
 ## Project Structure (Clean & Organized)

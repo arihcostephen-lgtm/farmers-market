@@ -1,6 +1,6 @@
 <?php include "inc/header.php"; ?>
 
-	<div role="main" class="main">
+	<div role="main" class="main public-auth-page">
 		<!-- ########## START: TOP HEADING ########## -->
 		<section class="page-header page-header-modern bg-color-light-scale-1 page-header-md"
 		style="background-image: linear-gradient(to left, rgba(0,0,0,0.4), rgba(0,0,0,0.4)) ,url(assets/images/breadcrumb.jpg);
@@ -31,7 +31,7 @@
 		<section class="py-5">
         <div class="container">
           <div class="row pb-5">
-            <div class="col-lg-6 offset-lg-3" style="border-top: 4px solid #08c; padding: 29px 52px 39px; box-shadow: 1px 10px 15px #ccc; border-radius: 5px; background: #F7F7F7; font-size: 16px; color: #000;">
+			<div class="col-lg-6 offset-lg-3 public-auth-card" style="border-top: 4px solid #08c; padding: 29px 52px 39px; box-shadow: 1px 10px 15px #ccc; border-radius: 5px; background: #F7F7F7; font-size: 16px; color: #000;">
 
               <?php if (isset($_GET['status']) && $_GET['status'] === 'success') { ?>
                 <div class="alert alert-success" role="alert">
@@ -58,12 +58,12 @@
 								</div>
 
 								<div class="input-group form-group">
-								  <input type="password" name="password" class="form-control" id="myInput" placeholder="enter your password..." required autocomplete="off" value="">
+								  <input type="password" name="password" class="form-control" id="myInput" placeholder="enter your password..." required autocomplete="current-password" value="">
 								  <span class="input-group-text" id="basic-addon2"><i class="fa-solid fa-lock"></i></span>
 								</div>
 
 								<div class="form-group form-check">
-								  <input type="checkbox" class="form-check-input" id="exampleCheck1" onclick="myFunction()" checked>
+								  <input type="checkbox" class="form-check-input" id="exampleCheck1" onclick="myFunction()">
 								  <label class="form-check-label" for="exampleCheck1">Show Password</label>
 								</div>
 
@@ -77,10 +77,6 @@
 								  }
 								}
 
-								window.onload = function() {
-								  document.getElementById("exampleCheck1").checked = true;
-								  document.getElementById("myInput").type = "text";
-								};
 								</script>
 
 

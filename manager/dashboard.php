@@ -28,13 +28,11 @@ $farmList = mysqli_query($db, "SELECT farm_name, farm_address, farm_phone, join_
 $activityList = mysqli_query($db, "SELECT action_type, target_type, notes, created_at FROM manager_activity_log ORDER BY created_at DESC LIMIT 5");
 ?>
 <style>
-    .field-hero { background: linear-gradient(135deg, #124b3a, #176b57 58%, #e0a458); color: #fff; border-radius: 16px; padding: 28px; margin-bottom: 20px; }
     .field-hero .eyebrow { color: #d8f7df; letter-spacing: .08em; font-size: .75rem; font-weight: 700; text-transform: uppercase; }
     .field-stat { border-left: 4px solid #1c8b61; }
     .field-stat .stat-icon { color: #1c8b61; font-size: 1.25rem; }
-    .action-tile { display: block; height: 100%; color: inherit; text-decoration: none; border: 1px solid #dce9e1; border-radius: 12px; padding: 18px; transition: transform .2s ease, box-shadow .2s ease; }
-    .action-tile:hover { color: inherit; transform: translateY(-2px); box-shadow: 0 10px 20px rgba(10, 60, 40, .1); }
-    .action-tile i { color: #147a55; font-size: 1.4rem; }
+    .action-tile h6 { color: var(--text-primary); font-weight: 600; margin-bottom: 8px; }
+    .action-tile p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0; }
     .visit-row { border-bottom: 1px solid #edf2ee; padding: 13px 0; }
     .visit-row:last-child { border-bottom: 0; }
 </style>
@@ -54,10 +52,10 @@ $activityList = mysqli_query($db, "SELECT action_type, target_type, notes, creat
 <?php endif; ?>
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
     <div>
-        <div class="text-uppercase small fw-semibold opacity-75">Manager overview</div>
+        <div class="text-uppercase small fw-semibold">Manager overview</div>
         <h2 class="mb-0 mt-2">Operations dashboard</h2>
     </div>
-    <a href="reports.php" class="btn btn-light text-success fw-semibold">View reports</a>
+    <a href="reports.php" class="btn btn-light text-success fw-semibold"><i class="fa-solid fa-file-lines me-2"></i>View reports</a>
 </div>
 
 <?php
@@ -109,6 +107,14 @@ if ($statusQuery) {
 
 $costChartQuery = mysqli_query($db, "SELECT COALESCE((SELECT SUM(salary) FROM staff_payroll WHERE status = 1), 0) AS payroll_total, COALESCE((SELECT SUM(amount) FROM extra_costs), 0) AS extra_costs_total");
 $costChart = $costChartQuery ? mysqli_fetch_assoc($costChartQuery) : ['payroll_total' => 0, 'extra_costs_total' => 0];
+$approvedSubscriptionQuery = mysqli_query($db, "SELECT COUNT(*) AS active_count, COALESCE(SUM(fs.amount), 0) AS active_amount FROM farmer_subscriptions fs INNER JOIN users u ON u.user_id = fs.farmer_id WHERE fs.status = 1 AND u.role = 2");
+$approvedSubscriptionTotals = $approvedSubscriptionQuery ? mysqli_fetch_assoc($approvedSubscriptionQuery) : ['active_count' => 0, 'active_amount' => 0];
+$inquirySummaryQuery = mysqli_query($db, "SELECT COUNT(*) AS total_inquiries, COUNT(DISTINCT i.buyer_id) AS unique_customers, COUNT(DISTINCT p.seller_email) AS contacted_farmers FROM product_inquiries i INNER JOIN products p ON p.product_id = i.product_id");
+$inquirySummary = $inquirySummaryQuery ? mysqli_fetch_assoc($inquirySummaryQuery) : ['total_inquiries' => 0, 'unique_customers' => 0, 'contacted_farmers' => 0];
+$activeFarmerCountQuery = mysqli_query($db, "SELECT COUNT(*) AS total FROM users WHERE role = 2 AND status = 1");
+$activeFarmerCount = $activeFarmerCountQuery ? (int) mysqli_fetch_assoc($activeFarmerCountQuery)['total'] : 0;
+$inquiryRate = $activeFarmerCount > 0 ? ((int) $inquirySummary['contacted_farmers'] / $activeFarmerCount) * 100 : 0;
+$recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_name, p.seller_email, buyer.user_name AS customer_name, buyer.user_email AS customer_email, farmer.user_name AS farmer_name FROM product_inquiries i INNER JOIN products p ON p.product_id = i.product_id LEFT JOIN users buyer ON buyer.user_id = i.buyer_id LEFT JOIN users farmer ON farmer.user_email COLLATE utf8mb4_unicode_ci = p.seller_email COLLATE utf8mb4_unicode_ci AND farmer.role = 2 ORDER BY i.created_at DESC LIMIT 10");
 ?>
 
 <div class="row g-4 mb-4">
@@ -137,7 +143,17 @@ $costChart = $costChartQuery ? mysqli_fetch_assoc($costChartQuery) : ['payroll_t
         <div class="card metric p-4 h-100">
             <div class="small text-uppercase text-muted">Active subscriptions</div>
             <h3 class="mt-2 mb-1"><?php echo number_format($totals['subscriptions']); ?></h3>
-            <small class="text-success">UGX <?php echo number_format($totals['costs'], 2); ?> extra costs</small>
+            <small class="text-success">UGX <?php echo number_format((float) $approvedSubscriptionTotals['active_amount'], 2); ?> approved amount</small>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card metric p-4 h-100">
+            <div class="small text-uppercase text-muted">Customer inquiries</div>
+            <h3 class="mt-2 mb-1"><?php echo number_format((int) $inquirySummary['total_inquiries']); ?></h3>
+            <small class="text-success"><?php echo number_format($inquiryRate, 1); ?>% of active farmers contacted</small>
         </div>
     </div>
 </div>
@@ -166,6 +182,36 @@ $costChart = $costChartQuery ? mysqli_fetch_assoc($costChartQuery) : ['payroll_t
             </div>
             <div class="chart-wrap chart-wrap-doughnut"><canvas id="orderStatusChart"></canvas></div>
         </div>
+    </div>
+</div>
+
+<div class="card p-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h5 class="mb-1">Customer to farmer inquiries</h5>
+            <small class="text-muted">See which customer contacted which farmer.</small>
+        </div>
+        <i class="fa-solid fa-comments text-success fs-4"></i>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover data-table">
+            <thead>
+                <tr><th>Customer</th><th>Farmer</th><th>Product</th><th>Subject</th><th>Submitted</th></tr>
+            </thead>
+            <tbody>
+                <?php if ($recentInquiries && mysqli_num_rows($recentInquiries) > 0): while ($inquiry = mysqli_fetch_assoc($recentInquiries)): ?>
+                    <tr>
+                        <td><strong><?php echo htmlspecialchars($inquiry['customer_name'] ?: ($inquiry['customer_email'] ?: 'Customer')); ?></strong></td>
+                        <td><?php echo htmlspecialchars($inquiry['farmer_name'] ?: $inquiry['seller_email']); ?></td>
+                        <td><?php echo htmlspecialchars($inquiry['product_name']); ?></td>
+                        <td><?php echo htmlspecialchars($inquiry['subject']); ?></td>
+                        <td><small><?php echo date('M j, Y g:i a', strtotime($inquiry['created_at'])); ?></small></td>
+                    </tr>
+                <?php endwhile; else: ?>
+                    <tr><td colspan="5" class="text-center text-muted py-4">No customer inquiries yet.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -288,7 +334,8 @@ $costChart = $costChartQuery ? mysqli_fetch_assoc($costChartQuery) : ['payroll_t
             <ul class="list-group list-group-flush">
                 <li class="list-group-item d-flex justify-content-between px-0"><span>Payroll</span><strong>UGX <?php echo number_format($totals['staff'], 2); ?></strong></li>
                 <li class="list-group-item d-flex justify-content-between px-0"><span>Extra costs</span><strong>UGX <?php echo number_format($totals['costs'], 2); ?></strong></li>
-                <li class="list-group-item d-flex justify-content-between px-0"><span>Approved subscriptions</span><strong><?php echo number_format($totals['subscriptions']); ?></strong></li>
+                <li class="list-group-item d-flex justify-content-between px-0"><span>Approved subscriptions</span><strong><?php echo number_format((int) $approvedSubscriptionTotals['active_count']); ?></strong></li>
+                <li class="list-group-item d-flex justify-content-between px-0"><span>Subscription amount</span><strong>UGX <?php echo number_format((float) $approvedSubscriptionTotals['active_amount'], 2); ?></strong></li>
                 <li class="list-group-item d-flex justify-content-between px-0"><span>Pending farmer approvals</span><strong><?php echo number_format($totals['pending']); ?></strong></li>
             </ul>
         </div>
@@ -296,7 +343,9 @@ $costChart = $costChartQuery ? mysqli_fetch_assoc($costChartQuery) : ['payroll_t
 </div>
 
 <script>
-    const chartFont = { family: 'Arial, sans-serif' };
+    const chartFont = { family: 'Arial, sans-serif', color: '#d7ffe8' };
+    const chartBgColor = '#0d1725';
+    const chartGridColor = 'rgba(16, 184, 130, 0.1)';
     const currencyTooltip = (value) => 'UGX ' + Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     new Chart(document.getElementById('salesTrendChart'), {
@@ -307,11 +356,14 @@ $costChart = $costChartQuery ? mysqli_fetch_assoc($costChartQuery) : ['payroll_t
                 {
                     label: 'Sales',
                     data: <?php echo json_encode(array_values($trendTotals)); ?>,
-                    borderColor: '#0d8b47',
-                    backgroundColor: 'rgba(13, 139, 71, 0.12)',
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 184, 130, 0.12)',
                     fill: true,
                     tension: 0.35,
-                    pointRadius: 2
+                    pointRadius: 4,
+                    pointBackgroundColor: '#10b981',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
                 },
                 {
                     label: 'Tax',
@@ -320,7 +372,10 @@ $costChart = $costChartQuery ? mysqli_fetch_assoc($costChartQuery) : ['payroll_t
                     backgroundColor: 'rgba(245, 158, 11, 0.08)',
                     fill: true,
                     tension: 0.35,
-                    pointRadius: 2
+                    pointRadius: 4,
+                    pointBackgroundColor: '#f59e0b',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
                 }
             ]
         },
@@ -328,10 +383,20 @@ $costChart = $costChartQuery ? mysqli_fetch_assoc($costChartQuery) : ['payroll_t
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
-            scales: { x: { grid: { display: false } }, y: { beginAtZero: true } },
+            scales: {
+                x: { grid: { display: true, color: chartGridColor }, ticks: { color: chartFont.color } },
+                y: { beginAtZero: true, grid: { color: chartGridColor }, ticks: { color: chartFont.color } }
+            },
             plugins: {
-                legend: { position: 'top', labels: { font: chartFont } },
-                tooltip: { callbacks: { label: (context) => context.dataset.label + ': ' + currencyTooltip(context.raw) } }
+                legend: { position: 'top', labels: { font: chartFont, usePointStyle: true } },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    borderColor: '#10b981',
+                    borderWidth: 1,
+                    titleFont: chartFont,
+                    bodyFont: chartFont,
+                    callbacks: { label: (context) => context.dataset.label + ': ' + currencyTooltip(context.raw) }
+                }
             }
         }
     });
@@ -344,14 +409,17 @@ $costChart = $costChartQuery ? mysqli_fetch_assoc($costChartQuery) : ['payroll_t
                 data: <?php echo json_encode($statusCounts); ?>,
                 backgroundColor: ['#f59e0b', '#38bdf8', '#10b981', '#ef4444'],
                 borderWidth: 3,
-                borderColor: '#fff'
+                borderColor: chartBgColor
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             cutout: '66%',
-            plugins: { legend: { position: 'bottom', labels: { font: chartFont, padding: 14 } } }
+            plugins: {
+                legend: { position: 'bottom', labels: { font: chartFont, padding: 14, usePointStyle: true } },
+                tooltip: { backgroundColor: 'rgba(0, 0, 0, 0.8)', borderColor: '#10b981', borderWidth: 1, titleFont: chartFont, bodyFont: chartFont }
+            }
         }
     });
 
@@ -362,18 +430,28 @@ $costChart = $costChartQuery ? mysqli_fetch_assoc($costChartQuery) : ['payroll_t
             datasets: [{
                 label: 'UGX',
                 data: [<?php echo (float) $costChart['payroll_total']; ?>, <?php echo (float) $costChart['extra_costs_total']; ?>],
-                backgroundColor: ['#2563eb', '#f97316'],
-                borderRadius: 7,
+                backgroundColor: ['#10b981', '#f97316'],
+                borderRadius: 8,
                 maxBarThickness: 56
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { x: { grid: { display: false } }, y: { beginAtZero: true } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: chartFont.color } },
+                y: { beginAtZero: true, grid: { color: chartGridColor }, ticks: { color: chartFont.color } }
+            },
             plugins: {
-                legend: { display: false },
-                tooltip: { callbacks: { label: (context) => currencyTooltip(context.raw) } }
+                legend: { labels: { font: chartFont } },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    borderColor: '#10b981',
+                    borderWidth: 1,
+                    titleFont: chartFont,
+                    bodyFont: chartFont,
+                    callbacks: { label: (context) => currencyTooltip(context.raw) }
+                }
             }
         }
     });

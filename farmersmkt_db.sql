@@ -41,6 +41,31 @@ CREATE TABLE IF NOT EXISTS manager_activity_log (
   INDEX idx_manager_activity_type (action_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS supervisor_reports (
+  report_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  supervisor_id INT UNSIGNED NOT NULL,
+  supervisor_name VARCHAR(150) NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  report_body TEXT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_supervisor_reports_created (created_at),
+  INDEX idx_supervisor_reports_supervisor (supervisor_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS farm_visits (
+  visit_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  farm_id INT UNSIGNED NOT NULL,
+  supervisor_id INT UNSIGNED NOT NULL,
+  visit_date DATE NOT NULL,
+  status ENUM('Scheduled', 'Completed', 'Cancelled') NOT NULL DEFAULT 'Scheduled',
+  notes TEXT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT NULL,
+  INDEX idx_farm_visits_farm (farm_id),
+  INDEX idx_farm_visits_supervisor (supervisor_id),
+  INDEX idx_farm_visits_date (visit_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS supervisor_document_reviews (
   review_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   document_path VARCHAR(500) NOT NULL,
@@ -143,6 +168,7 @@ CREATE TABLE IF NOT EXISTS farmer (
   farm_phone VARCHAR(30) DEFAULT NULL,
   farm_email VARCHAR(150) DEFAULT NULL,
   farm_address TEXT DEFAULT NULL,
+  farm_document VARCHAR(255) DEFAULT NULL,
   farm_about TEXT DEFAULT NULL,
   farm_image VARCHAR(255) DEFAULT NULL,
   status TINYINT(1) NOT NULL DEFAULT 1,

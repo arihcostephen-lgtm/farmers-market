@@ -1,5 +1,21 @@
 <?php include __DIR__ . '/inc/header.php'; ?>
 <?php
+$notice = '';
+$isSupervisor = $managerRole === 5;
+
+if ($isSupervisor && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_report'])) {
+    $title = mysqli_real_escape_string($db, trim($_POST['title'] ?? ''));
+    $reportBody = mysqli_real_escape_string($db, trim($_POST['report_body'] ?? ''));
+    $supervisorId = (int) ($_SESSION['user_id'] ?? 0);
+    $supervisorName = mysqli_real_escape_string($db, $managerName);
+    if ($title !== '' && $reportBody !== '') {
+        $insertReport = mysqli_query($db, "INSERT INTO supervisor_reports (supervisor_id, supervisor_name, title, report_body) VALUES ('$supervisorId', '$supervisorName', '$title', '$reportBody')");
+        $notice = $insertReport ? 'Report submitted to the manager.' : 'Unable to submit the report.';
+    } else {
+        $notice = 'Enter a title and report details before submitting.';
+    }
+}
+
 $systemSummary = [
     'customers' => (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM users WHERE role = 3"))['total'],
     'farmers' => (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM users WHERE role = 2"))['total'],
@@ -10,11 +26,61 @@ $systemSummary = [
     'staff' => (float) mysqli_fetch_assoc(mysqli_query($db, "SELECT COALESCE(SUM(salary),0) AS total FROM staff_payroll WHERE status = 1"))['total'],
     'costs' => (float) mysqli_fetch_assoc(mysqli_query($db, "SELECT COALESCE(SUM(amount),0) AS total FROM extra_costs"))['total'],
 ];
+$reportViewerId = (int) ($_SESSION['user_id'] ?? 0);
+$reportQuerySql = $isSupervisor
+    ? "SELECT report_id, supervisor_name, title, report_body, created_at FROM supervisor_reports WHERE supervisor_id='$reportViewerId' ORDER BY created_at DESC"
+    : "SELECT report_id, supervisor_name, title, report_body, created_at FROM supervisor_reports ORDER BY created_at DESC";
+$supervisorReports = mysqli_query($db, $reportQuerySql);
 ?>
 <div class="page-header">
     <div class="text-uppercase small fw-semibold opacity-75">Reports</div>
     <h2 class="mb-0 mt-2">System-wide performance overview</h2>
 </div>
+
+<?php if ($notice !== ''): ?>
+    <div class="alert alert-<?php echo strpos($notice, 'Unable') === 0 || strpos($notice, 'Enter') === 0 ? 'warning' : 'success'; ?>"><i class="fa-solid fa-circle-info me-2"></i><?php echo htmlspecialchars($notice); ?></div>
+<?php endif; ?>
+
+<?php if ($isSupervisor): ?>
+    <div class="card p-4 mb-4">
+        <h5 class="mb-1"><i class="fa-solid fa-pen-to-square text-success me-2"></i>Write field report</h5>
+        <p class="text-muted mb-3">Submit operational findings for manager review.</p>
+        <form method="post">
+            <div class="row g-3">
+                <div class="col-12"><label class="form-label" for="reportTitle">Report title</label><input class="form-control" id="reportTitle" name="title" maxlength="200" required placeholder="Example: Kyambogo farm visit summary"></div>
+                <div class="col-12"><label class="form-label" for="reportBody">Report details</label><textarea class="form-control" id="reportBody" name="report_body" rows="7" required placeholder="Record findings, actions, risks, or recommendations."></textarea></div>
+                <div class="col-12"><button type="submit" name="submit_report" class="btn btn-success"><i class="fa-solid fa-paper-plane me-2"></i>Submit Report</button></div>
+            </div>
+        </form>
+    </div>
+    <div class="card p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0"><i class="fa-solid fa-clock-rotate-left text-success me-2"></i>My submitted reports</h5><span class="badge bg-success">Private view</span></div>
+        <div class="table-responsive">
+            <table class="table table-hover data-table">
+                <thead><tr><th>Report</th><th>Details</th><th>Submitted</th></tr></thead>
+                <tbody>
+                    <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): while ($report = mysqli_fetch_assoc($supervisorReports)): ?>
+                        <tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo nl2br(htmlspecialchars($report['report_body'])); ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr>
+                    <?php endwhile; else: ?><tr><td colspan="3" class="text-center text-muted py-4">You have not submitted any reports yet.</td></tr><?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+<?php else: ?>
+    <div class="card p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0"><i class="fa-solid fa-file-lines text-success me-2"></i>Supervisor reports</h5><span class="badge bg-success">Manager view</span></div>
+        <div class="table-responsive">
+            <table class="table table-hover data-table">
+                <thead><tr><th>Report</th><th>Supervisor</th><th>Details</th><th>Submitted</th></tr></thead>
+                <tbody>
+                    <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): while ($report = mysqli_fetch_assoc($supervisorReports)): ?>
+                        <tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo htmlspecialchars($report['supervisor_name']); ?></td><td class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr>
+                    <?php endwhile; else: ?><tr><td colspan="4" class="text-center text-muted py-4">No supervisor reports submitted yet.</td></tr><?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+<?php endif; ?>
 
 <div class="row g-4 mb-4">
     <?php foreach ($systemSummary as $key => $value): ?>
