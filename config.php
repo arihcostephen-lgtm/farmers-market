@@ -1,4 +1,11 @@
 <?php
+if (!function_exists('env_value')) {
+  function env_value($name, $default = '') {
+    $value = getenv($name);
+    return $value === false ? $default : trim($value);
+  }
+}
+
 ob_start();
 date_default_timezone_set('Africa/Nairobi');
 session_start();

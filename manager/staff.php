@@ -11,6 +11,10 @@ if ((int) ($_SESSION['role'] ?? 0) !== 4) {
 <?php
 
 $notice = '';
+$currentManagerId = (int) ($_SESSION['user_id'] ?? 0);
+$currentManagerName = strtolower(trim((string) ($_SESSION['user_name'] ?? '')));
+$currentManagerEmail = strtolower(trim((string) ($_SESSION['user_email'] ?? '')));
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_staff']) || isset($_POST['update_staff']))) {
     $salary = max(0, (float) ($_POST['salary'] ?? 0));
     $status = isset($_POST['status']) && (int) $_POST['status'] === 1 ? 1 : 0;
@@ -18,13 +22,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_staff']) || isse
 
     if (isset($_POST['add_staff'])) {
         $userId = (int) ($_POST['user_id'] ?? 0);
-        $userQuery = mysqli_query($db, "SELECT user_name, user_email, user_phone, role FROM users WHERE user_id='$userId' AND role IN (1, 5) AND status=1 LIMIT 1");
-        $selectedUser = $userQuery ? mysqli_fetch_assoc($userQuery) : null;
-        $roleLabels = [1 => 'Admin', 5 => 'Supervisor'];
-        $name = $selectedUser ? mysqli_real_escape_string($db, $selectedUser['user_name']) : '';
-        $role = $selectedUser ? mysqli_real_escape_string($db, $roleLabels[(int) $selectedUser['role']] ?? 'Staff') : '';
-        $email = $selectedUser ? mysqli_real_escape_string($db, $selectedUser['user_email']) : '';
-        $phone = $selectedUser ? mysqli_real_escape_string($db, $selectedUser['user_phone'] ?? '') : '';
+        if ($userId === $currentManagerId) {
+            $notice = 'You cannot add yourself to the payroll list.';
+        } else {
+            $userQuery = mysqli_query($db, "SELECT user_name, user_email, user_phone, role FROM users WHERE user_id='$userId' AND role IN (1, 5) AND status=1 LIMIT 1");
+            $selectedUser = $userQuery ? mysqli_fetch_assoc($userQuery) : null;
+            $roleLabels = [1 => 'Admin', 5 => 'Supervisor'];
+            $name = $selectedUser ? mysqli_real_escape_string($db, $selectedUser['user_name']) : '';
+            $role = $selectedUser ? mysqli_real_escape_string($db, $roleLabels[(int) $selectedUser['role']] ?? 'Staff') : '';
+            $email = $selectedUser ? mysqli_real_escape_string($db, $selectedUser['user_email']) : '';
+            $phone = $selectedUser ? mysqli_real_escape_string($db, $selectedUser['user_phone'] ?? '') : '';
+        }
     } else {
         $name = mysqli_real_escape_string($db, trim($_POST['staff_name'] ?? ''));
         $role = mysqli_real_escape_string($db, trim($_POST['staff_role'] ?? ''));
@@ -52,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_staff'])) {
 }
 
 $staffList = mysqli_query($db, "SELECT * FROM staff_payroll ORDER BY created_at DESC");
-$availableStaff = mysqli_query($db, "SELECT user_id, user_name, user_email, user_phone, role FROM users WHERE role IN (1, 5) AND status=1 ORDER BY user_name ASC");
+$availableStaff = mysqli_query($db, "SELECT user_id, user_name, user_email, user_phone, role FROM users WHERE role IN (1, 5) AND status=1 AND user_id != '$currentManagerId' ORDER BY user_name ASC");
 ?>
 <div class="page-header">
     <div class="text-uppercase small fw-semibold opacity-75">Payroll</div>
@@ -101,6 +109,13 @@ $availableStaff = mysqli_query($db, "SELECT user_id, user_name, user_email, user
             </thead>
             <tbody>
                 <?php while ($member = mysqli_fetch_assoc($staffList)): ?>
+                    <?php
+                        $memberName = strtolower(trim((string) ($member['staff_name'] ?? '')));
+                        $memberEmail = strtolower(trim((string) ($member['email'] ?? '')));
+                        if ($memberName === $currentManagerName || $memberEmail === $currentManagerEmail) {
+                            continue;
+                        }
+                    ?>
                     <tr>
                         <td><?php echo htmlspecialchars($member['staff_name']); ?></td>
                         <td><?php echo htmlspecialchars($member['staff_role']); ?></td>

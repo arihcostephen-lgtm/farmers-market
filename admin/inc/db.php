@@ -69,6 +69,20 @@
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_extra_costs_created_by (created_by)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS extra_cost_requests (
+			request_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			requested_by INT UNSIGNED NOT NULL,
+			requested_by_name VARCHAR(150) NOT NULL,
+			cost_name VARCHAR(150) NOT NULL,
+			amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+			reason TEXT NOT NULL,
+			status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+			approved_by INT UNSIGNED DEFAULT NULL,
+			approved_at DATETIME DEFAULT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_extra_cost_requests_status (status),
+			INDEX idx_extra_cost_requests_requested_by (requested_by)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 		mysqli_query($db, "CREATE TABLE IF NOT EXISTS manager_activity_log (
 			log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 			actor_id INT UNSIGNED NOT NULL,
@@ -175,7 +189,8 @@
 			'delivery_update' => "ALTER TABLE order_list ADD COLUMN delivery_update TEXT DEFAULT NULL AFTER status",
 			'tax_amount' => "ALTER TABLE order_list ADD COLUMN tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER price",
 			'total_amount' => "ALTER TABLE order_list ADD COLUMN total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER tax_amount",
-			'updated_at' => "ALTER TABLE order_list ADD COLUMN updated_at DATETIME DEFAULT NULL AFTER join_date"
+			'updated_at' => "ALTER TABLE order_list ADD COLUMN updated_at DATETIME DEFAULT NULL AFTER join_date",
+			'payment_status' => "ALTER TABLE order_list ADD COLUMN payment_status ENUM('unpaid', 'pending', 'paid', 'failed') NOT NULL DEFAULT 'unpaid' AFTER status"
 		];
 		$managerRoleCheck = mysqli_query($db, "SHOW COLUMNS FROM users LIKE 'role'");
 		if ($managerRoleCheck && mysqli_num_rows($managerRoleCheck) > 0) {
@@ -190,6 +205,24 @@
 				@mysqli_query($db, $alterSql);
 			}
 		}
+		@mysqli_query($db, "CREATE TABLE IF NOT EXISTS payment_transactions (
+			payment_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			order_id INT UNSIGNED NOT NULL,
+			user_id INT UNSIGNED NOT NULL,
+			provider ENUM('mtn_uganda', 'airtel_uganda', 'ussd') NOT NULL,
+			amount DECIMAL(12,2) NOT NULL,
+			phone VARCHAR(30) NOT NULL,
+			reference VARCHAR(100) NOT NULL,
+			provider_reference VARCHAR(150) DEFAULT NULL,
+			status ENUM('pending', 'successful', 'failed') NOT NULL DEFAULT 'pending',
+			provider_response TEXT DEFAULT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT NULL,
+			UNIQUE KEY uq_payment_reference (reference),
+			INDEX idx_payment_order (order_id),
+			INDEX idx_payment_provider_reference (provider_reference),
+			INDEX idx_payment_status (status)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 		$commentColumns = [
 			'response' => "ALTER TABLE comments ADD COLUMN response TEXT DEFAULT NULL AFTER comments",
 			'responded_at' => "ALTER TABLE comments ADD COLUMN responded_at DATETIME DEFAULT NULL AFTER response"

@@ -32,8 +32,9 @@ if (isset($_POST['place_order'])) {
     $orderUnit = mysqli_real_escape_string($db, $product['product_unit'] ?? 'kilogram');
     $insertSql = "INSERT INTO order_list (user_id, user_phone, delivery_location, delivery_notes, or_name, or_category, price, tax_amount, total_amount, quantity, order_unit, status, join_date) VALUES ('$userId', '$userPhone', '$deliveryLocation', '$deliveryNotes', '$productName', '$productId', '$subtotal', '$taxAmount', '$totalPrice', '$quantity', '$orderUnit', 0, NOW())";
     if ($db->query($insertSql) && $db->query("UPDATE products SET stock_quantity = stock_quantity - $quantity WHERE product_id = $productId AND stock_quantity >= $quantity")) {
+      $newOrderId = $db->insert_id;
       $db->commit();
-      header("Location: customerDashboard.php");
+      header("Location: payment.php?order_id=" . (int) $newOrderId);
       exit;
     }
     }

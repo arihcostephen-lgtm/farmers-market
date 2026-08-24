@@ -94,6 +94,31 @@ MAIL_FROM_NAME=Farmers Market
 
 On Windows/XAMPP, define the variables in the Apache service environment or `httpd.conf`, then restart Apache. Use an application password for providers such as Gmail. The sender address falls back to the configured site contact email when `MAIL_FROM_ADDRESS` is omitted. Email failures are logged through PHP's error log and do not expose SMTP credentials to users.
 
+## Uganda Mobile Money Provisioning
+
+Orders use UGX mobile money through the provider APIs. The payment callback must be reachable over HTTPS by the provider. Add these variables to the Apache/PHP environment before enabling live payments:
+
+```text
+PAYMENT_CALLBACK_URL=https://your-domain.example/payment_callback.php
+PAYMENT_CALLBACK_SECRET=generate-a-long-random-value
+MTN_UGANDA_BASE_URL=https://sandbox.momodeveloper.mtn.com
+MTN_UGANDA_TARGET_ENVIRONMENT=sandbox
+MTN_UGANDA_SUBSCRIPTION_KEY=...
+MTN_UGANDA_API_USER=...
+MTN_UGANDA_API_KEY=...
+AIRTEL_UGANDA_BASE_URL=https://openapiuat.airtel.africa
+AIRTEL_UGANDA_CLIENT_ID=...
+AIRTEL_UGANDA_CLIENT_SECRET=...
+USSD_SHORT_CODE=*165#
+SMS_API_URL=https://api.africastalking.com/version1/messaging
+SMS_USERNAME=...
+SMS_API_KEY=...
+```
+
+Create an MTN MoMo Uganda Collection application and subscription key, then provision the API user and key in the MTN developer portal. Create an Airtel Money Uganda merchant application and use its UAT credentials first. Replace the MTN base URL and target environment with the values supplied for production only after UAT reconciliation succeeds. `USSD_SHORT_CODE` is a manual fallback: USSD is not a generic push-payment API, so its merchant code and customer instructions must match the merchant account issued by MTN or Airtel. SMS uses Africa's Talking as the default adapter; an empty SMS configuration safely disables receipts without blocking payment confirmation.
+
+The callback records provider responses idempotently, marks the order paid only for a successful status, and sends an SMS receipt when configured. Include the same secret in the callback URL as `https://your-domain.example/payment_callback.php?secret=generate-a-long-random-value` when registering it with the provider. Protect the callback at the web-server layer with HTTPS and the provider's callback/signature mechanism where the approved account supports one; do not expose API secrets in the repository.
+
 ---
 
 ## Project Structure (Clean & Organized)

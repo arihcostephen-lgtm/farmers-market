@@ -144,6 +144,7 @@
 													      <td>
 																	<div class="action-btn">
 																		<ul>
+																															<?php if (($row['payment_status'] ?? 'unpaid') !== 'paid' && (int) $status !== 3) { ?><li><a href="payment.php?order_id=<?php echo (int) $or_id; ?>" class="btn btn-success">Pay</a></li><?php } ?>
 																		    <li>
 																		      <a href=""  data-toggle="modal" data-target="#did<?php echo $or_id; ?>"><button type="button" class="btn btn-danger">Cancel</button></a>
 																		    </li>
@@ -193,10 +194,7 @@
 								else { ?>
 
 											<h3>Total Price: UGX <?php echo number_format($totalPrice, 2); ?></h3>
-								    <form action="ease_payment.php" method="GET">
-								    	<input type="hidden" value="<?php echo $totalPrice; ?>" name="payment">
-								    	<input type="submit"  class="btn btn-success btn-modern text-uppercase" value="Proceed to Checkout" >
-								    </form>
+																													<p class="text-muted">Use the Pay button beside a pending order to pay with MTN MoMo, Airtel Money, or USSD.</p>
 
 								<?php }
 

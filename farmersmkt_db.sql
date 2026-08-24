@@ -274,11 +274,31 @@ CREATE TABLE IF NOT EXISTS order_list (
   order_unit VARCHAR(20) NOT NULL DEFAULT 'kilogram',
   or_image VARCHAR(255) DEFAULT NULL,
   status TINYINT(1) NOT NULL DEFAULT 0,
+  payment_status ENUM('unpaid', 'pending', 'paid', 'failed') NOT NULL DEFAULT 'unpaid',
   delivery_update TEXT DEFAULT NULL,
   join_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT NULL,
   INDEX idx_order_status (status),
   INDEX idx_order_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS payment_transactions (
+  payment_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  user_id INT UNSIGNED NOT NULL,
+  provider ENUM('mtn_uganda', 'airtel_uganda', 'ussd') NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  phone VARCHAR(30) NOT NULL,
+  reference VARCHAR(100) NOT NULL,
+  provider_reference VARCHAR(150) DEFAULT NULL,
+  status ENUM('pending', 'successful', 'failed') NOT NULL DEFAULT 'pending',
+  provider_response TEXT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT NULL,
+  UNIQUE KEY uq_payment_reference (reference),
+  INDEX idx_payment_order (order_id),
+  INDEX idx_payment_provider_reference (provider_reference),
+  INDEX idx_payment_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS product_inquiries (

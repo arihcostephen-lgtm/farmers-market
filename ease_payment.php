@@ -1,6 +1,8 @@
 
 
-<?php  
+<?php
+	header('Location: order_history.php');
+	exit;
 	
 	if (isset( $_GET['payment'] )) {
 		$amount = $_GET['payment'];

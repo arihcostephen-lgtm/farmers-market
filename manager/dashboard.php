@@ -59,11 +59,13 @@ $activityList = mysqli_query($db, "SELECT action_type, target_type, notes, creat
 </div>
 
 <?php
+$orderValueSummary = mysqli_fetch_assoc(mysqli_query($db, "SELECT COALESCE(SUM(price), 0) AS subtotal_total, COALESCE(SUM(tax_amount), 0) AS tax_total, COALESCE(SUM(price + tax_amount), 0) AS revenue_total FROM order_list"));
 $totals = [
     'admins' => (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM users WHERE role IN (1,4,5) AND status = 1"))['total'],
     'farmers' => (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM users WHERE role = 2"))['total'],
     'transactions' => (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM order_list"))['total'],
-    'tax' => (float) mysqli_fetch_assoc(mysqli_query($db, "SELECT COALESCE(SUM(tax_amount),0) AS total FROM order_list"))['total'],
+    'tax' => (float) ($orderValueSummary['tax_total'] ?? 0),
+    'revenue' => (float) ($orderValueSummary['revenue_total'] ?? 0),
     'staff' => (float) mysqli_fetch_assoc(mysqli_query($db, "SELECT COALESCE(SUM(salary),0) AS total FROM staff_payroll WHERE status = 1"))['total'],
     'costs' => (float) mysqli_fetch_assoc(mysqli_query($db, "SELECT COALESCE(SUM(amount),0) AS total FROM extra_costs"))['total'],
     'subscriptions' => (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM farmer_subscriptions WHERE status = 1"))['total'],
@@ -120,7 +122,7 @@ $recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_
 <div class="row g-4 mb-4">
     <div class="col-lg-3 col-md-6">
         <div class="card metric p-4 h-100">
-            <div class="small text-uppercase text-muted">Managers</div>
+            <div class="small text-uppercase text-muted">Staff</div>
             <h3 class="mt-2 mb-1"><?php echo number_format($totals['admins']); ?></h3>
             <small class="text-success">accounts active</small>
         </div>
@@ -136,7 +138,7 @@ $recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_
         <div class="card metric p-4 h-100">
             <div class="small text-uppercase text-muted">Transactions</div>
             <h3 class="mt-2 mb-1"><?php echo number_format($totals['transactions']); ?></h3>
-            <small class="text-success">UGX <?php echo number_format($totals['tax'], 2); ?> taxes logged</small>
+            <small class="text-success">UGX <?php echo number_format($totals['revenue'], 2); ?> revenue recorded</small>
         </div>
     </div>
     <div class="col-lg-3 col-md-6">
@@ -251,13 +253,14 @@ $recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_
                     </thead>
                     <tbody>
                         <?php if (mysqli_num_rows($recentOrders) > 0): while ($order = mysqli_fetch_assoc($recentOrders)): ?>
+                            <?php $orderTotal = ((float) ($order['price'] ?? 0)) + ((float) ($order['tax_amount'] ?? 0)); ?>
                             <tr>
                                 <td><?php echo htmlspecialchars($order['or_name']); ?></td>
                                 <td><?php echo htmlspecialchars($order['user_phone'] ?: 'Walk-in'); ?></td>
                                 <td><?php echo (int) $order['quantity']; ?></td>
                                 <td>UGX <?php echo number_format((float) $order['price'], 2); ?></td>
                                 <td>UGX <?php echo number_format((float) $order['tax_amount'], 2); ?></td>
-                                <td>UGX <?php echo number_format((float) $order['total_amount'], 2); ?></td>
+                                <td>UGX <?php echo number_format($orderTotal, 2); ?></td>
                             </tr>
                         <?php endwhile; else: ?>
                             <tr><td colspan="6" class="text-center text-muted">No transactions yet.</td></tr>

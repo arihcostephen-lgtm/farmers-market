@@ -52,6 +52,7 @@ $managerStatusLabel = $managerRole === 4 ? 'Manager' : 'Supervisor';
                     <?php if ($managerRole === 5): ?>
                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'farmers.php' ? 'active' : ''; ?>" href="farmers.php"><i class="fa-solid fa-tractor me-2"></i>Farm Visits</a>
                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'documents.php' ? 'active' : ''; ?>" href="documents.php"><i class="fa-solid fa-file-circle-check me-2"></i>Approve Documents</a>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'costs.php' ? 'active' : ''; ?>" href="costs.php"><i class="fa-solid fa-wallet me-2"></i>Extra Costs</a>
                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'reports.php' ? 'active' : ''; ?>" href="reports.php"><i class="fa-solid fa-file-lines me-2"></i>Field Reports</a>
                     <?php else: ?>
                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'admins.php' ? 'active' : ''; ?>" href="admins.php"><i class="fa-solid fa-user-shield me-2"></i>Admins & Supervisors</a>
