@@ -17,7 +17,7 @@ if ($action === 'add-user' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (mysqli_num_rows($exists) === 0) {
             $hash = sha1($password);
             $insert = mysqli_query($db, "INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status, join_date) VALUES ('$fullName', '$email', '$hash', '$phone', '$address', '$role', '$status', NOW())");
-            $notice = $insert ? 'Staff account created successfully.' : 'Failed to create staff account.';
+            $notice = $insert ? 'Staff account created successfully. Add it to payroll from the staff page.' : 'Failed to create staff account.';
         } else {
             $notice = 'An account with this email already exists.';
         }

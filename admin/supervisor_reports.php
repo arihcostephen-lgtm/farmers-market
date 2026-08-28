@@ -1,6 +1,6 @@
 <?php include "inc/header.php"; ?>
 <?php
-$reports = mysqli_query($db, "SELECT report_id, supervisor_name, title, report_body, created_at FROM supervisor_reports ORDER BY created_at DESC");
+$reports = mysqli_query($db, "SELECT r.report_id, COALESCE(u.user_name, r.supervisor_name) AS supervisor_name, r.title, r.report_body, r.created_at FROM supervisor_reports r LEFT JOIN users u ON u.user_id = r.supervisor_id AND u.role = 5 ORDER BY r.created_at DESC");
 ?>
 <div class="page-content">
     <div class="welcome-panel">

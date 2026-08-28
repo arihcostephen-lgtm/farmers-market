@@ -28,6 +28,9 @@
 <!DOCTYPE html>
 <html lang="<?php echo $currentLanguage === 'lg' ? 'lg' : 'en'; ?>">
 	<head>
+		<?php if (basename($_SERVER['PHP_SELF'] ?? '') === '404.php') { ?>
+		<base href="/farmers-market/">
+		<?php } ?>
 
 		<!-- Basic -->
 		<meta charset="utf-8">

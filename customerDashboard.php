@@ -26,6 +26,29 @@ if ($customerEmail) {
 
 $categories = $db->query("SELECT * FROM category WHERE is_parent = 1 AND status = 1 ORDER BY cat_name ASC");
 $message = '';
+$inquiryMessage = '';
+$inquiryError = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_inquiry'])) {
+    $inquiryProductId = (int) ($_POST['inquiry_product_id'] ?? 0);
+    $inquirySubjectInput = trim($_POST['inquiry_subject'] ?? '');
+    $inquiryTextInput = trim($_POST['inquiry_message'] ?? '');
+    $inquiryProductQuery = $db->query("SELECT product_id, product_name, seller_email FROM products WHERE product_id = $inquiryProductId AND status = 1 LIMIT 1");
+    $inquiryProduct = $inquiryProductQuery ? $inquiryProductQuery->fetch_assoc() : null;
+    if (!$inquiryProduct || $inquirySubjectInput === '' || $inquiryTextInput === '') {
+        $inquiryError = 'Select a product and enter both a subject and message.';
+    } else {
+        $inquirySubject = $db->real_escape_string($inquirySubjectInput);
+        $inquiryText = $db->real_escape_string($inquiryTextInput);
+        $buyerEmail = $db->real_escape_string($customerEmail);
+        $insertInquiry = "INSERT INTO product_inquiries (product_id, buyer_id, buyer_email, subject, message, status, created_at) VALUES ($inquiryProductId, $customerId, '$buyerEmail', '$inquirySubject', '$inquiryText', 0, NOW())";
+        if ($db->query($insertInquiry)) {
+            farmers_market_send_email($db, $inquiryProduct['seller_email'], 'New inquiry about ' . $inquiryProduct['product_name'], "A customer submitted a new product inquiry.\n\nProduct: " . $inquiryProduct['product_name'] . "\nSubject: " . $inquirySubjectInput . "\n\n" . $inquiryTextInput, $customerEmail);
+            $inquiryMessage = 'Your inquiry was sent and is pending a response.';
+        } else {
+            $inquiryError = 'Unable to save your inquiry: ' . $db->error;
+        }
+    }
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_comment'])) {
     $subject = $db->real_escape_string(trim($_POST['comment_subject']));
     $commentText = $db->real_escape_string(trim($_POST['comment_text']));
@@ -44,6 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_comment'])) {
 }
 
 $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->real_escape_string($customerEmail ?: $customerId) . "' ORDER BY cmt_date DESC LIMIT 5");
+$inquiryHistory = $db->query("SELECT i.*, p.product_name FROM product_inquiries i LEFT JOIN products p ON p.product_id = i.product_id WHERE i.buyer_id = '$customerId' ORDER BY i.created_at DESC");
+$inquiryLabels = ['Pending', 'Responded', 'Resolved'];
+$inquiryClasses = ['warning', 'info', 'success'];
 ?>
 
 <style>
@@ -168,7 +194,7 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                 <a class="nav-link" href="#browse"><span class="sidebar-icon"><i class="fas fa-search"></i></span><span class="sidebar-label"><?php echo t('Browse Marketplace'); ?></span></a>
                 <a class="nav-link" href="#add-comments"><span class="sidebar-icon"><i class="fas fa-comments"></i></span><span class="sidebar-label"><?php echo t('Add Comments'); ?></span></a>
                  <a class="nav-link" href="order_history.php"><span class="sidebar-icon"><i class="fas fa-history"></i></span><span class="sidebar-label"><?php echo t('Order History'); ?></span></a>
-                 <a class="nav-link" href="inquiry_history.php"><span class="sidebar-icon"><i class="fas fa-message"></i></span><span class="sidebar-label"><?php echo t('Inquiry History'); ?></span></a>
+                 <a class="nav-link" href="#inquiry-history"><span class="sidebar-icon"><i class="fas fa-message"></i></span><span class="sidebar-label"><?php echo t('Inquiry History'); ?></span></a>
             </nav>
         </aside>
 
@@ -269,7 +295,7 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                                         <?php if (filter_var($product['seller_email'], FILTER_VALIDATE_EMAIL)) { ?>
                                                             <a href="mailto:<?php echo htmlspecialchars($product['seller_email']); ?>?subject=<?php echo rawurlencode('Question about ' . $product['product_name']); ?>&body=<?php echo rawurlencode('Hello, I have a question about your product: ' . $product['product_name']); ?>" class="btn btn-sm btn-outline-success"><?php echo t('Contact Farmer'); ?></a>
                                                         <?php } ?>
-                                                        <a href="product_inquiry.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-outline-info"><?php echo t('Ask'); ?></a>
+                                                        <a href="#product-inquiry" data-inquiry-product="<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-outline-info"><?php echo t('Ask'); ?></a>
                                                         <a href="placeOrder.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-primary" <?php echo (int) $product['stock_quantity'] < 1 ? 'aria-disabled="true" style="pointer-events:none;opacity:.5"' : ''; ?>><?php echo t('Add to Cart'); ?></a>
                                                     </div>
                                                 </div>
@@ -323,7 +349,7 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                                     <?php if (filter_var($product['seller_email'], FILTER_VALIDATE_EMAIL)) { ?>
                                                         <a href="mailto:<?php echo htmlspecialchars($product['seller_email']); ?>?subject=<?php echo rawurlencode('Question about ' . $product['product_name']); ?>&body=<?php echo rawurlencode('Hello, I have a question about your product: ' . $product['product_name']); ?>" class="btn btn-sm btn-outline-success"><?php echo t('Contact Farmer'); ?></a>
                                                     <?php } ?>
-                                                    <a href="product_inquiry.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-outline-info"><?php echo t('Ask'); ?></a>
+                                                    <a href="#product-inquiry" data-inquiry-product="<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-outline-info"><?php echo t('Ask'); ?></a>
                                                     <a href="placeOrder.php?product=<?php echo (int) $product['product_id']; ?>" class="btn btn-sm btn-primary" <?php echo (int) $product['stock_quantity'] < 1 ? 'aria-disabled="true" style="pointer-events:none;opacity:.5"' : ''; ?>><?php echo t('Order'); ?></a>
                                                 </div>
                                             </div>
@@ -331,6 +357,49 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
                                     </div>
                                 </div>
                             <?php endwhile; ?>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="product-inquiry" class="mb-4">
+                <div class="card dashboard-card mb-3">
+                    <div class="card-header"><h5 class="mb-0"><?php echo t('Product Inquiry'); ?></h5></div>
+                    <div class="card-body">
+                        <?php if ($inquiryMessage): ?><div class="alert alert-success bg-success bg-opacity-10 border border-success text-white"><?php echo htmlspecialchars($inquiryMessage); ?></div><?php endif; ?>
+                        <?php if ($inquiryError): ?><div class="alert alert-danger bg-danger bg-opacity-10 border border-danger text-white"><?php echo htmlspecialchars($inquiryError); ?></div><?php endif; ?>
+                        <form method="post" id="inquiryForm">
+                            <div class="row g-3">
+                                <div class="col-md-4"><label class="form-label" for="inquiryProduct"><?php echo t('Product'); ?></label><select class="form-select" name="inquiry_product_id" id="inquiryProduct" required><option value=""><?php echo t('Select a product'); ?></option><?php $productsResult->data_seek(0); while ($inquiryProductOption = $productsResult->fetch_assoc()): ?><option value="<?php echo (int) $inquiryProductOption['product_id']; ?>" <?php echo ((int) ($_POST['inquiry_product_id'] ?? 0) === (int) $inquiryProductOption['product_id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($inquiryProductOption['product_name']); ?></option><?php endwhile; ?></select></div>
+                                <div class="col-md-8"><label class="form-label" for="inquirySubject"><?php echo t('Subject'); ?></label><input class="form-control" type="text" name="inquiry_subject" id="inquirySubject" value="<?php echo htmlspecialchars($_POST['inquiry_subject'] ?? ''); ?>" required></div>
+                                <div class="col-12"><label class="form-label" for="inquiryMessage"><?php echo t('Your inquiry'); ?></label><textarea class="form-control" name="inquiry_message" id="inquiryMessage" rows="4" required><?php echo htmlspecialchars($_POST['inquiry_message'] ?? ''); ?></textarea></div>
+                                <div class="col-12"><button type="submit" name="submit_inquiry" class="btn btn-success"><i class="fas fa-paper-plane me-2"></i><?php echo t('Send Inquiry'); ?></button></div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <section id="inquiry-history" class="mb-4">
+                <div class="card dashboard-card mb-3">
+                    <div class="card-header"><h5 class="mb-0"><?php echo t('Inquiry History'); ?></h5></div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead><tr><th><?php echo t('Product'); ?></th><th><?php echo t('Subject'); ?></th><th><?php echo t('Message'); ?></th><th><?php echo t('Status'); ?></th><th><?php echo t('Response'); ?></th><th><?php echo t('Date'); ?></th></tr></thead>
+                                <tbody>
+                                    <?php if ($inquiryHistory && $inquiryHistory->num_rows > 0): while ($inquiry = $inquiryHistory->fetch_assoc()): $inquiryStatus = (int) $inquiry['status']; ?>
+                                        <tr>
+                                            <td><?php echo htmlspecialchars($inquiry['product_name'] ?: t('Unavailable')); ?></td>
+                                            <td><?php echo htmlspecialchars($inquiry['subject']); ?></td>
+                                            <td><?php echo nl2br(htmlspecialchars($inquiry['message'])); ?></td>
+                                            <td><span class="badge text-bg-<?php echo $inquiryClasses[$inquiryStatus] ?? 'secondary'; ?>"><?php echo htmlspecialchars($inquiryLabels[$inquiryStatus] ?? t('Pending')); ?></span></td>
+                                            <td><?php echo nl2br(htmlspecialchars($inquiry['response'] ?: t('Awaiting response'))); ?></td>
+                                            <td><small><?php echo htmlspecialchars(date('M j, Y', strtotime($inquiry['created_at']))); ?></small></td>
+                                        </tr>
+                                    <?php endwhile; else: ?><tr><td colspan="6" class="text-center text-muted py-4"><?php echo t('No inquiries yet.'); ?></td></tr><?php endif; ?>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -389,6 +458,17 @@ $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->r
             card.style.display = matchesText && matchesCat ? 'block' : 'none';
         });
     }
+    document.querySelectorAll('[data-inquiry-product]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const productSelect = document.getElementById('inquiryProduct');
+            const subject = document.getElementById('inquirySubject');
+            if (productSelect && subject) {
+                productSelect.value = button.dataset.inquiryProduct;
+                subject.value = 'Question about ' + productSelect.options[productSelect.selectedIndex].text;
+                subject.focus();
+            }
+        });
+    });
 </script>
 
 <?php include "inc/footer.php"; ?>

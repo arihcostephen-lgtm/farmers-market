@@ -4,6 +4,9 @@
 $docFile = __DIR__ . '/docs_content.html';
 $docs = file_exists($docFile) ? file_get_contents($docFile) : '<p>No documentation available.</p>';
 $uploadDir = __DIR__ . '/../uploads/docs/';
+$uploadRoot = realpath($uploadDir);
+$adminNotice = '';
+$adminError = '';
 $documents = [];
 if (is_dir($uploadDir)) {
   $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($uploadDir, FilesystemIterator::SKIP_DOTS));
@@ -49,6 +52,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_image'])) {
   exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review_document'])) {
+  $relative = str_replace('\\', '/', trim($_POST['document_path'] ?? ''));
+  $decision = $_POST['decision'] ?? '';
+  $safePath = $uploadRoot ? realpath($uploadRoot . DIRECTORY_SEPARATOR . $relative) : false;
+  $basePath = $uploadRoot ? rtrim(str_replace('\\', '/', $uploadRoot), '/') : '';
+  $safePath = $safePath ? str_replace('\\', '/', $safePath) : false;
+  $isInsideRoot = $safePath && strncasecmp($safePath, $basePath . '/', strlen($basePath) + 1) === 0;
+  if (!$isInsideRoot || !is_file($safePath) || !in_array($decision, ['approved', 'rejected'], true)) {
+    $adminError = 'That document could not be reviewed.';
+  } else {
+    $documentPath = mysqli_real_escape_string($db, $relative);
+    $reviewedBy = (int) $_SESSION['user_id'];
+    $saveReview = mysqli_query($db, "INSERT INTO admin_document_reviews (document_path, status, reviewed_by, reviewed_at) VALUES ('$documentPath', '$decision', $reviewedBy, NOW()) ON DUPLICATE KEY UPDATE status='$decision', reviewed_by=$reviewedBy, reviewed_at=NOW()");
+    if ($saveReview) {
+      $adminNotice = 'Document marked ' . $decision . ' and sent to the supervisor queue.';
+    } else {
+      $adminError = 'The admin review could not be saved: ' . mysqli_error($db);
+    }
+  }
+}
+
+$adminReviews = [];
+$adminReviewQuery = mysqli_query($db, "SELECT document_path, status, reviewed_at FROM admin_document_reviews");
+if ($adminReviewQuery) {
+  while ($review = mysqli_fetch_assoc($adminReviewQuery)) {
+    $adminReviews[$review['document_path']] = $review;
+  }
+}
+
 // Pagination
 $perPage = 12;
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -64,6 +96,8 @@ $documentsPage = array_slice($documents, $start, $perPage);
       <div class="card-body">
         <h4>View Documents</h4>
         <p class="text-muted">Browse and view uploaded PDFs, images, and documents from farmers.</p>
+        <?php if ($adminNotice !== ''): ?><div class="alert alert-success"><?php echo htmlspecialchars($adminNotice); ?></div><?php endif; ?>
+        <?php if ($adminError !== ''): ?><div class="alert alert-danger"><?php echo htmlspecialchars($adminError); ?></div><?php endif; ?>
 
         <div class="mb-3">
           <div class="p-3 bg-dark text-light rounded">
@@ -79,7 +113,10 @@ $documentsPage = array_slice($documents, $start, $perPage);
                     <div class="card h-100">
                       <?php if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) { ?><a href="<?php echo htmlspecialchars($url); ?>" target="_blank" rel="noopener"><img src="<?php echo htmlspecialchars($url); ?>" class="img-fluid rounded-top" alt="<?php echo htmlspecialchars($bn); ?>"></a><?php } elseif ($ext === 'pdf') { ?><embed src="<?php echo htmlspecialchars($url); ?>" type="application/pdf" width="100%" height="180"><a href="<?php echo htmlspecialchars($url); ?>" target="_blank" rel="noopener" class="text-center d-block py-2">Open PDF</a><?php } else { ?><div class="text-center p-5"><i class="bx bx-file fs-1"></i><div><?php echo strtoupper(htmlspecialchars($ext)); ?></div></div><?php } ?>
                       <div class="card-body p-2 text-center">
+                        <?php $adminReview = $adminReviews[$relative] ?? null; ?>
+                        <?php if (!$adminReview): ?><span class="badge bg-warning text-dark d-block mb-2">Awaiting admin review</span><?php elseif ($adminReview['status'] === 'approved'): ?><span class="badge bg-success d-block mb-2">Sent to supervisor</span><?php else: ?><span class="badge bg-danger d-block mb-2">Rejected by admin</span><?php endif; ?>
                         <a href="<?php echo htmlspecialchars($url); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary me-1">View</a>
+                        <form method="post" class="d-inline"><input type="hidden" name="document_path" value="<?php echo htmlspecialchars($relative, ENT_QUOTES); ?>"><input type="hidden" name="review_document" value="1"><button type="submit" name="decision" value="approved" class="btn btn-sm btn-success">Review and send</button><button type="submit" name="decision" value="rejected" class="btn btn-sm btn-outline-danger">Reject</button></form>
                         <a href="<?php echo htmlspecialchars($url); ?>" download class="btn btn-sm btn-outline-secondary me-1">Download</a>
                         <form method="post" class="d-inline" onsubmit="return confirm('Delete this document?');">
                           <input type="hidden" name="file" value="<?php echo htmlspecialchars($relative); ?>">

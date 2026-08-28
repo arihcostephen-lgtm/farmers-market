@@ -18,10 +18,10 @@ if (isset($_GET['updated'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
-    $name = mysqli_real_escape_string($db, trim($_POST['user_name'] ?? ''));
+    $name = trim($_POST['user_name'] ?? '');
     $email = trim($_POST['user_email'] ?? '');
-    $phone = mysqli_real_escape_string($db, trim($_POST['user_phone'] ?? ''));
-    $address = mysqli_real_escape_string($db, trim($_POST['user_address'] ?? ''));
+    $phone = trim($_POST['user_phone'] ?? '');
+    $address = trim($_POST['user_address'] ?? '');
     $newPassword = $_POST['new_password'] ?? '';
     $confirmPassword = $_POST['confirm_password'] ?? '';
 
@@ -30,25 +30,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     } elseif ($newPassword !== '' && (strlen($newPassword) < 5 || $newPassword !== $confirmPassword)) {
         $error = 'Passwords must match and contain at least 5 characters.';
     } else {
-        $emailEscaped = mysqli_real_escape_string($db, $email);
-        $duplicate = mysqli_query($db, "SELECT user_id FROM users WHERE user_email='$emailEscaped' AND user_id != '$staffId' LIMIT 1");
-        if ($duplicate && mysqli_num_rows($duplicate) > 0) {
+        $duplicateStatement = mysqli_prepare($db, 'SELECT user_id FROM users WHERE user_email = ? AND user_id != ? LIMIT 1');
+        $duplicate = false;
+        if ($duplicateStatement) {
+            mysqli_stmt_bind_param($duplicateStatement, 'si', $email, $staffId);
+            mysqli_stmt_execute($duplicateStatement);
+            $duplicateResult = mysqli_stmt_get_result($duplicateStatement);
+            $duplicate = $duplicateResult && mysqli_num_rows($duplicateResult) > 0;
+            mysqli_stmt_close($duplicateStatement);
+        }
+        if ($duplicate) {
             $error = 'That email address is already in use.';
         } else {
-            $passwordSql = $newPassword !== '' ? ", user_password='" . sha1($newPassword) . "'" : '';
-            $updateSql = "UPDATE users SET user_name='$name', user_email='$emailEscaped', user_phone='$phone', user_address='$address'$passwordSql WHERE user_id='$staffId' AND role IN (4, 5) LIMIT 1";
-            $update = mysqli_query($db, $updateSql);
-            $savedProfileQuery = $update ? mysqli_query($db, "SELECT user_id FROM users WHERE user_id='$staffId' AND role IN (4, 5) LIMIT 1") : false;
-            if ($update && $savedProfileQuery && mysqli_num_rows($savedProfileQuery) === 1) {
-                $_SESSION['user_name'] = trim($_POST['user_name']);
+            if ($newPassword !== '') {
+                $updateStatement = mysqli_prepare($db, 'UPDATE users SET user_name = ?, user_email = ?, user_phone = ?, user_address = ?, user_password = ? WHERE user_id = ? AND role IN (4, 5) LIMIT 1');
+                $passwordHash = sha1($newPassword);
+                if ($updateStatement) {
+                    mysqli_stmt_bind_param($updateStatement, 'sssssi', $name, $email, $phone, $address, $passwordHash, $staffId);
+                }
+            } else {
+                $updateStatement = mysqli_prepare($db, 'UPDATE users SET user_name = ?, user_email = ?, user_phone = ?, user_address = ? WHERE user_id = ? AND role IN (4, 5) LIMIT 1');
+                if ($updateStatement) {
+                    mysqli_stmt_bind_param($updateStatement, 'ssssi', $name, $email, $phone, $address, $staffId);
+                }
+            }
+            $update = $updateStatement && mysqli_stmt_execute($updateStatement);
+            $updateError = $updateStatement ? mysqli_stmt_error($updateStatement) : mysqli_error($db);
+            if ($updateStatement) {
+                mysqli_stmt_close($updateStatement);
+            }
+            if ($update) {
+                $_SESSION['user_name'] = $name;
                 $_SESSION['user_email'] = $email;
                 $_SESSION['email'] = $email;
-                $_SESSION['user_phone'] = trim($_POST['user_phone'] ?? '');
-                $_SESSION['phone'] = trim($_POST['user_phone'] ?? '');
+                $_SESSION['user_phone'] = $phone;
+                $_SESSION['phone'] = $phone;
                 header('Location: profile.php?updated=1');
                 exit;
             } else {
-                $error = 'Unable to update your profile.';
+                $error = 'Unable to update your profile: ' . $updateError;
             }
         }
     }
@@ -58,6 +78,9 @@ include __DIR__ . '/inc/header.php';
 
 $profileQuery = mysqli_query($db, "SELECT user_name, user_email, user_phone, user_address FROM users WHERE user_id='$staffId' AND role IN (4, 5) LIMIT 1");
 $profile = $profileQuery ? mysqli_fetch_assoc($profileQuery) : null;
+if (!$profileQuery) {
+    $error = 'Your profile could not be loaded: ' . mysqli_error($db);
+}
 ?>
 <div class="page-header">
     <div class="text-uppercase small fw-semibold opacity-75">Account</div>

@@ -44,7 +44,9 @@
 							      <th scope="col">Booking Item</th>
 							      <th scope="col">Category</th>
 								  <th scope="col">Quantity</th>
-								  <th scope="col">Total Price</th>
+								      <th scope="col">Subtotal</th>
+								      <th scope="col">Tax</th>
+								      <th scope="col">Total Price</th>
 							      <th scope="col">Delivery Location</th>
 							      <th scope="col">Order Date</th>
 							      <th scope="col">Status</th>
@@ -72,13 +74,15 @@
 									  			$i = 0;
 									  			$totalPrice = 0;
 										  		while ($row = mysqli_fetch_assoc($orderQuery)) {
-										  			$totalPrice += $row["price"];
+										  		  	$totalPrice += (float) ($row['total_amount'] ?? $row['price']);
 										  			$or_id 			= $row['or_id'];
 										  			$user_id 		= $row['user_id'];
 										  			$user_phone 	= $row['user_phone'];
 										  			$or_name 		= $row['or_name'];
 										  			$or_category 	= $row['or_category'];
-										  			$price 			= $row['price'];
+													  $price 			= (float) $row['price'];
+													  $taxAmount 		= (float) ($row['tax_amount'] ?? 0);
+													  $totalAmount 	= (float) ($row['total_amount'] ?? ($price + $taxAmount));
 															  $quantity = (int) ($row['quantity'] ?? 1);
 															  $order_unit = $row['order_unit'] ?? 'kilogram';
 															  $delivery_location = $row['delivery_location'] ?? '';
@@ -117,7 +121,9 @@
 															  	?>
 															  </td>
 															      <td><?php echo number_format($quantity); ?> <?php echo htmlspecialchars($order_unit); ?></td>
-															      <td><?php echo number_format($price, 2); ?> Taka</td>
+															      <td>UGX <?php echo number_format($price, 2); ?></td>
+															      <td>UGX <?php echo number_format($taxAmount, 2); ?></td>
+															      <td>UGX <?php echo number_format($totalAmount, 2); ?></td>
 															      <td><?php echo nl2br(htmlspecialchars($delivery_location ?: 'Not provided')); ?><?php if ($delivery_update) { ?><br><small class="text-info">Update: <?php echo nl2br(htmlspecialchars($delivery_update)); ?></small><?php } ?></td>
 													      <td><?php echo $join_date; ?></td>
 													      <td>

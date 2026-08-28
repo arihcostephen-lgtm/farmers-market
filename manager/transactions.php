@@ -1,7 +1,6 @@
 <?php include __DIR__ . '/inc/header.php'; ?>
 <?php
-$transactionSummary = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS order_count, COALESCE(SUM(quantity), 0) AS total_quantity, COALESCE(SUM(price), 0) AS subtotal_total, COALESCE(SUM(tax_amount), 0) AS tax_total FROM order_list"));
-$transactionSummary['revenue_total'] = ((float) ($transactionSummary['subtotal_total'] ?? 0)) + ((float) ($transactionSummary['tax_total'] ?? 0));
+$transactionSummary = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS order_count, COALESCE(SUM(quantity), 0) AS total_quantity, COALESCE(SUM(price), 0) AS subtotal_total, COALESCE(SUM(tax_amount), 0) AS tax_total, COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN total_amount ELSE 0 END), 0) AS revenue_total, COALESCE((SELECT SUM(salary) FROM staff_payroll WHERE status = 1), 0) + COALESCE((SELECT SUM(amount) FROM extra_costs), 0) AS expense_total, COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN total_amount ELSE 0 END), 0) - COALESCE((SELECT SUM(salary) FROM staff_payroll WHERE status = 1), 0) - COALESCE((SELECT SUM(amount) FROM extra_costs), 0) AS profit_total FROM order_list"));
 $orders = mysqli_query($db, "SELECT o.*, u.user_name FROM order_list o LEFT JOIN users u ON u.user_id = o.user_id ORDER BY o.join_date DESC");
 ?>
 <div class="page-header">
@@ -30,8 +29,9 @@ $orders = mysqli_query($db, "SELECT o.*, u.user_name FROM order_list o LEFT JOIN
     </div>
     <div class="col-md-3">
         <div class="card p-4 h-100">
-            <div class="small text-uppercase text-muted">Revenue</div>
-            <h3 class="mt-2 mb-0">UGX <?php echo number_format((float) ($transactionSummary['revenue_total'] ?? 0), 2); ?></h3>
+            <div class="small text-uppercase text-muted">Net profit</div>
+            <h3 class="mt-2 mb-0">UGX <?php echo number_format((float) ($transactionSummary['profit_total'] ?? 0), 2); ?></h3>
+            <small class="text-muted">Paid sales less payroll and operating costs</small>
         </div>
     </div>
 </div>
@@ -52,7 +52,7 @@ $orders = mysqli_query($db, "SELECT o.*, u.user_name FROM order_list o LEFT JOIN
             </thead>
             <tbody>
                 <?php while ($order = mysqli_fetch_assoc($orders)): ?>
-                    <?php $orderTotal = ((float) ($order['price'] ?? 0)) + ((float) ($order['tax_amount'] ?? 0)); ?>
+                    <?php $orderTotal = (float) ($order['total_amount'] ?? 0); if ($orderTotal <= 0) { $orderTotal = (float) ($order['price'] ?? 0) + (float) ($order['tax_amount'] ?? 0); } ?>
                     <tr>
                         <td><?php echo htmlspecialchars($order['or_name']); ?></td>
                         <td><?php echo htmlspecialchars($order['user_name'] ?: $order['user_phone'] ?: 'Guest'); ?></td>

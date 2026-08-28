@@ -34,7 +34,7 @@ if (isset($_POST['adminSubmit'])) {
             if ((int) $row['role'] === 1) {
                 header("Location: dashboard.php");
             } else {
-                header("Location: ../manager/dashboard.php");
+                header("Location: ../" . ((int) $_SESSION['role'] === 5 ? 'supervisor' : 'manager') . "/dashboard.php");
             }
             exit;
         } else {
@@ -74,7 +74,7 @@ if (isset($db)) {
         mysqli_query($db, $insertManagerSql);
 
         $supervisorPassword = sha1('ben1234');
-        $insertSupervisorSql = "INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status, join_date) VALUES ('Supervisor', 'ben@gmail.com', '$supervisorPassword', '+256700000001', 'Field Office', 5, 1, NOW())";
+        $insertSupervisorSql = "INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status, join_date) VALUES ('Supervisor', 'supervisor@gmail.com', '$supervisorPassword', '+256700000001', 'Field Office', 5, 1, NOW())";
         mysqli_query($db, $insertSupervisorSql);
     }
 }

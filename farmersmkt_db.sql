@@ -28,6 +28,27 @@ CREATE TABLE IF NOT EXISTS users (
   INDEX idx_users_role_status (role, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS manager_profiles (
+  manager_id INT UNSIGNED PRIMARY KEY,
+  department VARCHAR(150) DEFAULT NULL,
+  hire_date DATE DEFAULT NULL,
+  notes TEXT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT NULL,
+  INDEX idx_manager_profiles_department (department)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS supervisor_profiles (
+  supervisor_id INT UNSIGNED PRIMARY KEY,
+  region VARCHAR(150) DEFAULT NULL,
+  specialization VARCHAR(150) DEFAULT NULL,
+  hire_date DATE DEFAULT NULL,
+  notes TEXT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT NULL,
+  INDEX idx_supervisor_profiles_region (region)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS manager_activity_log (
   log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   actor_id INT UNSIGNED NOT NULL,
@@ -39,6 +60,19 @@ CREATE TABLE IF NOT EXISTS manager_activity_log (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_manager_activity_actor (actor_id),
   INDEX idx_manager_activity_type (action_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS supervisor_activity_log (
+  log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  actor_id INT UNSIGNED NOT NULL,
+  actor_name VARCHAR(150) DEFAULT NULL,
+  action_type VARCHAR(100) NOT NULL,
+  target_type VARCHAR(100) DEFAULT NULL,
+  target_id INT UNSIGNED DEFAULT NULL,
+  notes TEXT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_supervisor_activity_actor (actor_id),
+  INDEX idx_supervisor_activity_type (action_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS supervisor_reports (
@@ -76,6 +110,16 @@ CREATE TABLE IF NOT EXISTS supervisor_document_reviews (
   INDEX idx_supervisor_document_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS admin_document_reviews (
+  review_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  document_path VARCHAR(500) NOT NULL,
+  status ENUM('approved', 'rejected') NOT NULL,
+  reviewed_by INT UNSIGNED NOT NULL,
+  reviewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_admin_document_path (document_path),
+  INDEX idx_admin_document_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS farmer_subscriptions (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   farmer_id INT UNSIGNED NOT NULL,
@@ -110,6 +154,7 @@ CREATE TABLE IF NOT EXISTS tax_rules (
   min_quantity INT UNSIGNED NOT NULL DEFAULT 0,
   max_quantity INT UNSIGNED DEFAULT NULL,
   applies_to VARCHAR(50) NOT NULL DEFAULT 'all',
+  applies_unit VARCHAR(20) NOT NULL DEFAULT 'all',
   status TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_tax_rules_status (status)
@@ -117,6 +162,7 @@ CREATE TABLE IF NOT EXISTS tax_rules (
 
 CREATE TABLE IF NOT EXISTS staff_payroll (
   staff_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED DEFAULT NULL,
   staff_name VARCHAR(150) NOT NULL,
   staff_role VARCHAR(100) NOT NULL,
   email VARCHAR(150) DEFAULT NULL,
@@ -125,7 +171,8 @@ CREATE TABLE IF NOT EXISTS staff_payroll (
   status TINYINT(1) NOT NULL DEFAULT 0,
   paid_at DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_staff_payroll_status (status)
+  INDEX idx_staff_payroll_status (status),
+  INDEX idx_staff_payroll_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS extra_costs (
@@ -135,7 +182,25 @@ CREATE TABLE IF NOT EXISTS extra_costs (
   notes TEXT DEFAULT NULL,
   created_by INT UNSIGNED DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_extra_costs_created_by (created_by)
+  INDEX idx_extra_costs_created_by (created_by),
+  INDEX idx_extra_costs_created_date (created_at, cost_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS extra_cost_requests (
+  request_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  requested_by INT UNSIGNED NOT NULL,
+  requested_by_name VARCHAR(150) NOT NULL,
+  cost_name VARCHAR(150) NOT NULL,
+  amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  reason TEXT NOT NULL,
+  status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+  approved_by INT UNSIGNED DEFAULT NULL,
+  approved_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_extra_cost_requests_status (status),
+  INDEX idx_extra_cost_requests_requested_by (requested_by),
+  INDEX idx_extra_cost_requests_approved_by (approved_by),
+  INDEX idx_extra_cost_requests_owner_date (requested_by, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS about (
@@ -270,6 +335,8 @@ CREATE TABLE IF NOT EXISTS order_list (
   or_name VARCHAR(255) NOT NULL,
   or_category INT UNSIGNED DEFAULT NULL,
   price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   quantity INT UNSIGNED NOT NULL DEFAULT 1,
   order_unit VARCHAR(20) NOT NULL DEFAULT 'kilogram',
   or_image VARCHAR(255) DEFAULT NULL,
@@ -299,6 +366,20 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
   INDEX idx_payment_order (order_id),
   INDEX idx_payment_provider_reference (provider_reference),
   INDEX idx_payment_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS payment_batches (
+  batch_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  phone VARCHAR(30) NOT NULL,
+  provider ENUM('mtn_uganda', 'airtel_uganda', 'ussd') NOT NULL,
+  reference VARCHAR(100) NOT NULL UNIQUE,
+  status ENUM('pending', 'successful', 'failed') NOT NULL DEFAULT 'pending',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT NULL,
+  INDEX idx_payment_batches_user (user_id),
+  INDEX idx_payment_batches_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS product_inquiries (

@@ -8,12 +8,16 @@ if (!function_exists('env_value')) {
 
 ob_start();
 date_default_timezone_set('Africa/Nairobi');
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) {
+	session_start();
+}
 
 require_once('initialize.php');
 require_once('connection.php');
-$db = new DBConnection;
-$conn = $db->conn;
+if (!isset($db)) {
+	$db = new DBConnection;
+}
+$conn = $db instanceof mysqli ? $db : $db->conn;
 
 function timeConv($time) {
   return date('d M, Y - h:i A', strtotime($time));

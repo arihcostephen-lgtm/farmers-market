@@ -1,12 +1,10 @@
 <?php
 session_start();
 ob_start();
-header('Location: ../admin/index.php');
-exit;
 
 include __DIR__ . '/../admin/inc/db.php';
 
-if (!empty($_SESSION['user_id']) && !empty($_SESSION['user_email']) && !empty($_SESSION['role']) && in_array((int) $_SESSION['role'], [4, 5], true)) {
+if (!empty($_SESSION['user_id']) && !empty($_SESSION['user_email']) && (int) ($_SESSION['role'] ?? 0) === 4) {
     header('Location: dashboard.php');
     exit;
 }
@@ -19,7 +17,7 @@ if (isset($_POST['managerSubmit'])) {
     $email = mysqli_real_escape_string($db, $email);
     $shaPass = sha1($password);
 
-    $query = mysqli_query($db, "SELECT * FROM users WHERE user_email = '$email' AND role IN (4, 5) AND status = 1 LIMIT 1");
+    $query = mysqli_query($db, "SELECT * FROM users WHERE user_email = '$email' AND role = 4 AND status = 1 LIMIT 1");
 
     if (!$query || mysqli_num_rows($query) === 0) {
         $login_error = 'No active manager or supervisor account was found for that email.';

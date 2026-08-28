@@ -4,8 +4,8 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 }
 ob_start();
 
-if (empty($_SESSION['user_id']) || empty($_SESSION['user_email']) || empty($_SESSION['role']) || !in_array((int) $_SESSION['role'], [4, 5], true)) {
-    header('Location: ../admin/index.php');
+if (empty($_SESSION['user_id']) || empty($_SESSION['user_email']) || (int) ($_SESSION['role'] ?? 0) !== 4) {
+    header('Location: ../login.php');
     exit;
 }
 
@@ -14,7 +14,7 @@ require_once __DIR__ . '/../../admin/inc/db.php';
 $managerTitle = 'Farmers Market Manager';
 $managerRole = (int) $_SESSION['role'];
 $managerName = !empty($_SESSION['user_name']) ? $_SESSION['user_name'] : 'Manager';
-$managerStatusLabel = $managerRole === 4 ? 'Manager' : 'Supervisor';
+$managerStatusLabel = 'Manager';
 ?>
 <!doctype html>
 <html lang="en">
@@ -49,12 +49,7 @@ $managerStatusLabel = $managerRole === 4 ? 'Manager' : 'Supervisor';
                 </div>
                 <nav class="nav flex-column p-3 gap-1">
                     <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php"><i class="fa-solid fa-gauge me-2"></i>Dashboard</a>
-                    <?php if ($managerRole === 5): ?>
-                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'farmers.php' ? 'active' : ''; ?>" href="farmers.php"><i class="fa-solid fa-tractor me-2"></i>Farm Visits</a>
-                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'documents.php' ? 'active' : ''; ?>" href="documents.php"><i class="fa-solid fa-file-circle-check me-2"></i>Approve Documents</a>
-                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'costs.php' ? 'active' : ''; ?>" href="costs.php"><i class="fa-solid fa-wallet me-2"></i>Extra Costs</a>
-                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'reports.php' ? 'active' : ''; ?>" href="reports.php"><i class="fa-solid fa-file-lines me-2"></i>Field Reports</a>
-                    <?php else: ?>
+                    <?php if ($managerRole === 4): ?>
                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'admins.php' ? 'active' : ''; ?>" href="admins.php"><i class="fa-solid fa-user-shield me-2"></i>Admins & Supervisors</a>
                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'farmers.php' ? 'active' : ''; ?>" href="farmers.php"><i class="fa-solid fa-tractor me-2"></i>Farmer Subscriptions</a>
                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'transactions.php' ? 'active' : ''; ?>" href="transactions.php"><i class="fa-solid fa-money-check me-2"></i>Transactions</a>

@@ -3,6 +3,37 @@
 
 	if ($db) {
 		mysqli_set_charset($db, "utf8mb4");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS manager_profiles (
+			manager_id INT UNSIGNED PRIMARY KEY,
+			department VARCHAR(150) DEFAULT NULL,
+			hire_date DATE DEFAULT NULL,
+			notes TEXT DEFAULT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT NULL,
+			INDEX idx_manager_profiles_department (department)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS supervisor_profiles (
+			supervisor_id INT UNSIGNED PRIMARY KEY,
+			region VARCHAR(150) DEFAULT NULL,
+			specialization VARCHAR(150) DEFAULT NULL,
+			hire_date DATE DEFAULT NULL,
+			notes TEXT DEFAULT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT NULL,
+			INDEX idx_supervisor_profiles_region (region)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS supervisor_activity_log (
+			log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			actor_id INT UNSIGNED NOT NULL,
+			actor_name VARCHAR(150) DEFAULT NULL,
+			action_type VARCHAR(100) NOT NULL,
+			target_type VARCHAR(100) DEFAULT NULL,
+			target_id INT UNSIGNED DEFAULT NULL,
+			notes TEXT DEFAULT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_supervisor_activity_actor (actor_id),
+			INDEX idx_supervisor_activity_type (action_type)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 		mysqli_query($db, "CREATE TABLE IF NOT EXISTS farmer_subscriptions (
 			id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 			farmer_id INT UNSIGNED NOT NULL,
@@ -44,12 +75,18 @@
 			min_quantity INT UNSIGNED NOT NULL DEFAULT 0,
 			max_quantity INT UNSIGNED DEFAULT NULL,
 			applies_to VARCHAR(50) NOT NULL DEFAULT 'all',
+			applies_unit VARCHAR(20) NOT NULL DEFAULT 'all',
 			status TINYINT(1) NOT NULL DEFAULT 1,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_tax_rules_status (status)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		$taxUnitColumn = mysqli_query($db, "SHOW COLUMNS FROM tax_rules LIKE 'applies_unit'");
+		if ($taxUnitColumn && mysqli_num_rows($taxUnitColumn) === 0) {
+			@mysqli_query($db, "ALTER TABLE tax_rules ADD COLUMN applies_unit VARCHAR(20) NOT NULL DEFAULT 'all' AFTER applies_to");
+		}
 		mysqli_query($db, "CREATE TABLE IF NOT EXISTS staff_payroll (
 			staff_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			user_id INT UNSIGNED DEFAULT NULL,
 			staff_name VARCHAR(150) NOT NULL,
 			staff_role VARCHAR(100) NOT NULL,
 			email VARCHAR(150) DEFAULT NULL,
@@ -60,6 +97,14 @@
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_staff_payroll_status (status)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		$staffUserColumn = mysqli_query($db, "SHOW COLUMNS FROM staff_payroll LIKE 'user_id'");
+		if ($staffUserColumn && mysqli_num_rows($staffUserColumn) === 0) {
+			@mysqli_query($db, "ALTER TABLE staff_payroll ADD COLUMN user_id INT UNSIGNED DEFAULT NULL AFTER staff_id");
+		}
+		$staffUserIndex = mysqli_query($db, "SHOW INDEX FROM staff_payroll WHERE Key_name = 'idx_staff_payroll_user'");
+		if ($staffUserIndex && mysqli_num_rows($staffUserIndex) === 0) {
+			@mysqli_query($db, "ALTER TABLE staff_payroll ADD INDEX idx_staff_payroll_user (user_id)");
+		}
 		mysqli_query($db, "CREATE TABLE IF NOT EXISTS extra_costs (
 			cost_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 			cost_name VARCHAR(150) NOT NULL,
@@ -83,6 +128,18 @@
 			INDEX idx_extra_cost_requests_status (status),
 			INDEX idx_extra_cost_requests_requested_by (requested_by)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		$requestApproverIndex = mysqli_query($db, "SHOW INDEX FROM extra_cost_requests WHERE Key_name = 'idx_extra_cost_requests_approved_by'");
+		if ($requestApproverIndex && mysqli_num_rows($requestApproverIndex) === 0) {
+			@mysqli_query($db, "ALTER TABLE extra_cost_requests ADD INDEX idx_extra_cost_requests_approved_by (approved_by)");
+		}
+		$requestOwnerDateIndex = mysqli_query($db, "SHOW INDEX FROM extra_cost_requests WHERE Key_name = 'idx_extra_cost_requests_owner_date'");
+		if ($requestOwnerDateIndex && mysqli_num_rows($requestOwnerDateIndex) === 0) {
+			@mysqli_query($db, "ALTER TABLE extra_cost_requests ADD INDEX idx_extra_cost_requests_owner_date (requested_by, created_at)");
+		}
+		$costDateIndex = mysqli_query($db, "SHOW INDEX FROM extra_costs WHERE Key_name = 'idx_extra_costs_created_date'");
+		if ($costDateIndex && mysqli_num_rows($costDateIndex) === 0) {
+			@mysqli_query($db, "ALTER TABLE extra_costs ADD INDEX idx_extra_costs_created_date (created_at, cost_id)");
+		}
 		mysqli_query($db, "CREATE TABLE IF NOT EXISTS manager_activity_log (
 			log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 			actor_id INT UNSIGNED NOT NULL,
@@ -130,6 +187,15 @@
 			reviewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			UNIQUE KEY uq_supervisor_document_path (document_path),
 			INDEX idx_supervisor_document_status (status)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS admin_document_reviews (
+			review_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			document_path VARCHAR(500) NOT NULL,
+			status ENUM('approved', 'rejected') NOT NULL,
+			reviewed_by INT UNSIGNED NOT NULL,
+			reviewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE KEY uq_admin_document_path (document_path),
+			INDEX idx_admin_document_status (status)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 		// Keep existing installations compatible with product quantity support.
 		$quantityColumns = [
@@ -223,6 +289,23 @@
 			INDEX idx_payment_provider_reference (provider_reference),
 			INDEX idx_payment_status (status)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		@mysqli_query($db, "CREATE TABLE IF NOT EXISTS payment_batches (
+			batch_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			user_id INT UNSIGNED NOT NULL,
+			amount DECIMAL(12,2) NOT NULL,
+			phone VARCHAR(30) NOT NULL,
+			provider ENUM('mtn_uganda', 'airtel_uganda', 'ussd') NOT NULL,
+			reference VARCHAR(100) NOT NULL UNIQUE,
+			status ENUM('pending', 'successful', 'failed') NOT NULL DEFAULT 'pending',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT NULL,
+			INDEX idx_payment_batches_user (user_id),
+			INDEX idx_payment_batches_status (status)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		$paymentBatchColumn = mysqli_query($db, "SHOW COLUMNS FROM payment_transactions LIKE 'batch_id'");
+		if ($paymentBatchColumn && mysqli_num_rows($paymentBatchColumn) === 0) {
+			@mysqli_query($db, "ALTER TABLE payment_transactions ADD COLUMN batch_id BIGINT UNSIGNED DEFAULT NULL AFTER payment_id");
+		}
 		$commentColumns = [
 			'response' => "ALTER TABLE comments ADD COLUMN response TEXT DEFAULT NULL AFTER comments",
 			'responded_at' => "ALTER TABLE comments ADD COLUMN responded_at DATETIME DEFAULT NULL AFTER response"

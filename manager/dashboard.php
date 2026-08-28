@@ -1,11 +1,22 @@
 <?php include __DIR__ . '/inc/header.php'; ?>
 <?php if ($managerRole === 5): ?>
 <?php
-$activeFarms = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM farmer WHERE status = 1"))['total'];
-$registeredFarmers = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM users WHERE role = 2 AND status = 1"))['total'];
-$pendingFarmers = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM users WHERE role = 2 AND status = 2"))['total'];
+$managerId = (int) ($_SESSION['user_id'] ?? 0);
+$activeFarmQuery = mysqli_query($db, "SELECT COUNT(*) AS total FROM farmer WHERE status = 1");
+$activeFarms = $activeFarmQuery ? (int) mysqli_fetch_assoc($activeFarmQuery)['total'] : 0;
+$registeredFarmersQuery = mysqli_query($db, "SELECT COUNT(DISTINCT u.user_id) AS total FROM farmer f INNER JOIN users u ON u.user_email = f.farm_email AND u.role = 2 AND u.status = 1 WHERE f.status = 1");
+$registeredFarmers = $registeredFarmersQuery ? (int) mysqli_fetch_assoc($registeredFarmersQuery)['total'] : 0;
+$pendingFarmersQuery = mysqli_query($db, "SELECT COUNT(*) AS total FROM users WHERE role = 2 AND status = 2");
+$pendingFarmers = $pendingFarmersQuery ? (int) mysqli_fetch_assoc($pendingFarmersQuery)['total'] : 0;
 $pendingDocuments = 0;
 $reviewedDocuments = [];
+$adminApprovedDocuments = [];
+$adminReviewQuery = mysqli_query($db, "SELECT document_path FROM admin_document_reviews WHERE status = 'approved'");
+if ($adminReviewQuery) {
+    while ($adminReview = mysqli_fetch_assoc($adminReviewQuery)) {
+        $adminApprovedDocuments[$adminReview['document_path']] = true;
+    }
+}
 $reviewQuery = mysqli_query($db, "SELECT document_path FROM supervisor_document_reviews");
 if ($reviewQuery) {
     while ($review = mysqli_fetch_assoc($reviewQuery)) {
@@ -18,14 +29,14 @@ if (is_dir($documentRoot)) {
     foreach ($documentIterator as $documentFile) {
         if ($documentFile->isFile()) {
             $relativeDocument = str_replace('\\', '/', substr(str_replace('\\', '/', $documentFile->getPathname()), strlen(str_replace('\\', '/', realpath($documentRoot))) + 1));
-            if (!isset($reviewedDocuments[$relativeDocument])) {
+            if (isset($adminApprovedDocuments[$relativeDocument]) && !isset($reviewedDocuments[$relativeDocument])) {
                 $pendingDocuments++;
             }
         }
     }
 }
-$farmList = mysqli_query($db, "SELECT farm_name, farm_address, farm_phone, join_date FROM farmer WHERE status = 1 ORDER BY join_date DESC LIMIT 6");
-$activityList = mysqli_query($db, "SELECT action_type, target_type, notes, created_at FROM manager_activity_log ORDER BY created_at DESC LIMIT 5");
+$farmList = mysqli_query($db, "SELECT v.visit_id, v.visit_date AS join_date, v.status, v.notes, f.farm_name, f.farm_address, f.farm_phone, COALESCE(u.user_name, f.farm_email) AS farmer_name FROM farm_visits v INNER JOIN farmer f ON f.farm_id = v.farm_id AND f.status = 1 LEFT JOIN users u ON u.user_email = f.farm_email AND u.role = 2 AND u.status = 1 WHERE v.supervisor_id = '$managerId' ORDER BY v.visit_date DESC, v.visit_id DESC LIMIT 6");
+$activityList = mysqli_query($db, "SELECT action_type, target_type, notes, created_at FROM manager_activity_log WHERE actor_id = '$managerId' ORDER BY created_at DESC LIMIT 5");
 ?>
 <style>
     .field-hero .eyebrow { color: #d8f7df; letter-spacing: .08em; font-size: .75rem; font-weight: 700; text-transform: uppercase; }
@@ -47,7 +58,7 @@ $activityList = mysqli_query($db, "SELECT action_type, target_type, notes, creat
     <div class="col-xl-3 col-md-6"><div class="card field-stat p-4 h-100"><div class="d-flex justify-content-between"><span class="small text-uppercase text-muted">Documents in queue</span><i class="fa-solid fa-folder-open stat-icon"></i></div><h3 class="mt-2 mb-1"><?php echo number_format($pendingDocuments); ?></h3><small class="text-muted">Open the review queue</small></div></div>
 </div>
 <div class="card p-4 mb-4"><div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="mb-1">Today&apos;s field desk</h5><small class="text-muted">The three actions that keep farm operations moving.</small></div><i class="fa-solid fa-clipboard-check text-success fs-4"></i></div><div class="row g-3"><div class="col-lg-4"><a class="action-tile" href="farmers.php"><i class="fa-solid fa-map-location-dot mb-3"></i><h6>Plan a farm visit</h6><p class="text-muted small mb-0">Open the farmer directory and choose the next farm to check.</p></a></div><div class="col-lg-4"><a class="action-tile" href="documents.php"><i class="fa-solid fa-file-circle-check mb-3"></i><h6>Approve documents</h6><p class="text-muted small mb-0">Review farmer uploads and record an approval decision.</p></a></div><div class="col-lg-4"><a class="action-tile" href="reports.php"><i class="fa-solid fa-chart-line mb-3"></i><h6>Organise reports</h6><p class="text-muted small mb-0">Review the latest operational numbers before your next visit.</p></a></div></div></div>
-<div class="row g-4"><div class="col-xl-7"><div class="card p-4 h-100"><div class="d-flex justify-content-between align-items-center mb-2"><div><h5 class="mb-1">Farm visit list</h5><small class="text-muted">Recently added farms to prioritise.</small></div><a href="farmers.php" class="btn btn-sm btn-outline-success">Open directory</a></div><?php if ($farmList && mysqli_num_rows($farmList) > 0): while ($farm = mysqli_fetch_assoc($farmList)): ?><div class="visit-row d-flex justify-content-between gap-3"><div><strong><?php echo htmlspecialchars($farm['farm_name']); ?></strong><div class="small text-muted"><i class="fa-solid fa-location-dot me-1"></i><?php echo htmlspecialchars($farm['farm_address'] ?: 'Address not recorded'); ?></div></div><span class="small text-muted text-nowrap"><?php echo date('M j', strtotime($farm['join_date'])); ?></span></div><?php endwhile; else: ?><p class="text-muted mb-0">No active farms are available yet.</p><?php endif; ?></div></div><div class="col-xl-5"><div class="card p-4 h-100"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Recent activity</h5><i class="fa-solid fa-clock-rotate-left text-success"></i></div><?php if ($activityList && mysqli_num_rows($activityList) > 0): while ($activity = mysqli_fetch_assoc($activityList)): ?><div class="mb-3"><div class="small fw-semibold"><?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $activity['action_type']))); ?></div><div class="small text-muted"><?php echo htmlspecialchars($activity['notes'] ?: 'Activity recorded'); ?></div><div class="small text-success mt-1"><?php echo date('M j, g:i a', strtotime($activity['created_at'])); ?></div></div><?php endwhile; else: ?><p class="text-muted mb-0">No field activity has been recorded yet.</p><?php endif; ?></div></div></div>
+<div class="row g-4"><div class="col-xl-7"><div class="card p-4 h-100"><div class="d-flex justify-content-between align-items-center mb-2"><div><h5 class="mb-1">Farm visit list</h5><small class="text-muted">Recently added farms to prioritise.</small></div><a href="farmers.php" class="btn btn-sm btn-outline-success">Open directory</a></div><?php if ($farmList && mysqli_num_rows($farmList) > 0): while ($farm = mysqli_fetch_assoc($farmList)): ?><div class="visit-row d-flex justify-content-between gap-3"><div><strong><?php echo htmlspecialchars($farm['farm_name']); ?></strong><div class="small text-muted"><?php echo htmlspecialchars($farm['farmer_name']); ?></div><div class="small text-muted"><i class="fa-solid fa-location-dot me-1"></i><?php echo htmlspecialchars($farm['farm_address'] ?: 'Address not recorded'); ?></div></div><span class="small text-muted text-nowrap"><?php echo date('M j', strtotime($farm['join_date'])); ?></span></div><?php endwhile; else: ?><p class="text-muted mb-0">No active farms are available yet.</p><?php endif; ?></div></div><div class="col-xl-5"><div class="card p-4 h-100"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Recent activity</h5><i class="fa-solid fa-clock-rotate-left text-success"></i></div><?php if ($activityList && mysqli_num_rows($activityList) > 0): while ($activity = mysqli_fetch_assoc($activityList)): ?><div class="mb-3"><div class="small fw-semibold"><?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $activity['action_type']))); ?></div><div class="small text-muted"><?php echo htmlspecialchars($activity['notes'] ?: 'Activity recorded'); ?></div><div class="small text-success mt-1"><?php echo date('M j, g:i a', strtotime($activity['created_at'])); ?></div></div><?php endwhile; else: ?><p class="text-muted mb-0">No field activity has been recorded yet.</p><?php endif; ?></div></div></div>
 <?php include __DIR__ . '/inc/footer.php'; exit; ?>
 <?php endif; ?>
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -59,22 +70,28 @@ $activityList = mysqli_query($db, "SELECT action_type, target_type, notes, creat
 </div>
 
 <?php
-$orderValueSummary = mysqli_fetch_assoc(mysqli_query($db, "SELECT COALESCE(SUM(price), 0) AS subtotal_total, COALESCE(SUM(tax_amount), 0) AS tax_total, COALESCE(SUM(price + tax_amount), 0) AS revenue_total FROM order_list"));
+$orderValueQuery = mysqli_query($db, "SELECT COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN price ELSE 0 END), 0) AS subtotal_total, COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN tax_amount ELSE 0 END), 0) AS tax_total, COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN total_amount ELSE 0 END), 0) AS revenue_total FROM order_list");
+$orderValueSummary = $orderValueQuery ? mysqli_fetch_assoc($orderValueQuery) : ['subtotal_total' => 0, 'tax_total' => 0, 'revenue_total' => 0];
+$staffTotalQuery = mysqli_query($db, "SELECT COALESCE(SUM(salary),0) AS total FROM staff_payroll WHERE status = 1");
+$costTotalQuery = mysqli_query($db, "SELECT COALESCE(SUM(amount),0) AS total FROM extra_costs");
+$subscriptionCountQuery = mysqli_query($db, "SELECT COUNT(*) AS total FROM farmer_subscriptions WHERE status = 1");
 $totals = [
     'admins' => (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM users WHERE role IN (1,4,5) AND status = 1"))['total'],
     'farmers' => (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM users WHERE role = 2"))['total'],
     'transactions' => (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM order_list"))['total'],
     'tax' => (float) ($orderValueSummary['tax_total'] ?? 0),
     'revenue' => (float) ($orderValueSummary['revenue_total'] ?? 0),
-    'staff' => (float) mysqli_fetch_assoc(mysqli_query($db, "SELECT COALESCE(SUM(salary),0) AS total FROM staff_payroll WHERE status = 1"))['total'],
-    'costs' => (float) mysqli_fetch_assoc(mysqli_query($db, "SELECT COALESCE(SUM(amount),0) AS total FROM extra_costs"))['total'],
-    'subscriptions' => (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM farmer_subscriptions WHERE status = 1"))['total'],
+    'staff' => (float) ($staffTotalQuery ? mysqli_fetch_assoc($staffTotalQuery)['total'] : 0),
+    'costs' => (float) ($costTotalQuery ? mysqli_fetch_assoc($costTotalQuery)['total'] : 0),
+    'subscriptions' => (int) ($subscriptionCountQuery ? mysqli_fetch_assoc($subscriptionCountQuery)['total'] : 0),
     'pending' => (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM users WHERE role = 2 AND status = 2"))['total'],
 ];
 
-$recentOrders = mysqli_query($db, "SELECT or_name, user_phone, price, tax_amount, total_amount, quantity, status, join_date FROM order_list ORDER BY join_date DESC LIMIT 5");
-$recentSubscriptions = mysqli_query($db, "SELECT fs.id, u.user_name, fs.subscription_name, fs.amount, fs.status, fs.created_at FROM farmer_subscriptions fs LEFT JOIN users u ON u.user_id = fs.farmer_id ORDER BY fs.created_at DESC LIMIT 5");
-$taxRules = mysqli_query($db, "SELECT rule_name, rate_percent, min_quantity, max_quantity, applies_to FROM tax_rules WHERE status = 1 ORDER BY rate_percent DESC LIMIT 5");
+$recentOrders = mysqli_query($db, "SELECT ol.or_name, ol.user_phone, ol.price, ol.tax_amount, ol.total_amount, ol.quantity, ol.order_unit, ol.status, ol.join_date, c.cat_name FROM order_list ol LEFT JOIN products p ON p.product_id = ol.or_category LEFT JOIN category c ON c.cat_id = p.category_id ORDER BY ol.join_date DESC LIMIT 5");
+$recentSubscriptions = mysqli_query($db, "SELECT fs.id, COALESCE(u.user_name, CONCAT('Farmer #', fs.farmer_id)) AS user_name, fs.subscription_name, fs.amount, fs.status, fs.created_at FROM farmer_subscriptions fs LEFT JOIN users u ON u.user_id = fs.farmer_id AND u.role = 2 ORDER BY fs.created_at DESC, fs.id DESC LIMIT 5");
+$recentPayroll = mysqli_query($db, "SELECT sp.staff_name, sp.staff_role, sp.salary, sp.status, sp.created_at, COALESCE(u.user_name, sp.staff_name) AS account_name FROM staff_payroll sp LEFT JOIN users u ON u.user_id = sp.user_id AND u.role IN (1, 4, 5) ORDER BY sp.created_at DESC, sp.staff_id DESC LIMIT 5");
+$recentCosts = mysqli_query($db, "SELECT ec.cost_name, ec.amount, ec.notes, ec.created_at, COALESCE(u.user_name, CONCAT('Account ', ec.created_by)) AS recorded_by FROM extra_costs ec LEFT JOIN users u ON u.user_id = ec.created_by AND u.role IN (1, 4, 5) ORDER BY ec.created_at DESC, ec.cost_id DESC LIMIT 5");
+$taxRules = mysqli_query($db, "SELECT tr.rule_name, tr.rate_percent, tr.min_quantity, tr.max_quantity, tr.applies_to, tr.applies_unit, c.cat_name FROM tax_rules tr LEFT JOIN category c ON tr.applies_to = CAST(c.cat_id AS CHAR) WHERE tr.status = 1 ORDER BY tr.rate_percent DESC LIMIT 5");
 
 $trendLabels = [];
 $trendTotals = [];
@@ -85,7 +102,7 @@ for ($daysAgo = 29; $daysAgo >= 0; $daysAgo--) {
     $trendTotals[$dateKey] = 0;
     $trendTaxes[$dateKey] = 0;
 }
-$trendQuery = mysqli_query($db, "SELECT DATE(join_date) AS order_day, COALESCE(SUM(total_amount), 0) AS sales_total, COALESCE(SUM(tax_amount), 0) AS tax_total FROM order_list WHERE join_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) GROUP BY DATE(join_date) ORDER BY order_day");
+$trendQuery = mysqli_query($db, "SELECT DATE(join_date) AS order_day, COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN total_amount ELSE 0 END), 0) AS sales_total, COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN tax_amount ELSE 0 END), 0) AS tax_total FROM order_list WHERE join_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) GROUP BY DATE(join_date) ORDER BY order_day");
 if ($trendQuery) {
     while ($trend = mysqli_fetch_assoc($trendQuery)) {
         if (isset($trendTotals[$trend['order_day']])) {
@@ -109,14 +126,14 @@ if ($statusQuery) {
 
 $costChartQuery = mysqli_query($db, "SELECT COALESCE((SELECT SUM(salary) FROM staff_payroll WHERE status = 1), 0) AS payroll_total, COALESCE((SELECT SUM(amount) FROM extra_costs), 0) AS extra_costs_total");
 $costChart = $costChartQuery ? mysqli_fetch_assoc($costChartQuery) : ['payroll_total' => 0, 'extra_costs_total' => 0];
-$approvedSubscriptionQuery = mysqli_query($db, "SELECT COUNT(*) AS active_count, COALESCE(SUM(fs.amount), 0) AS active_amount FROM farmer_subscriptions fs INNER JOIN users u ON u.user_id = fs.farmer_id WHERE fs.status = 1 AND u.role = 2");
+$approvedSubscriptionQuery = mysqli_query($db, "SELECT COUNT(*) AS active_count, COALESCE(SUM(fs.amount), 0) AS active_amount FROM farmer_subscriptions fs INNER JOIN users u ON u.user_id = fs.farmer_id AND u.role = 2 AND u.status = 1 WHERE fs.status = 1");
 $approvedSubscriptionTotals = $approvedSubscriptionQuery ? mysqli_fetch_assoc($approvedSubscriptionQuery) : ['active_count' => 0, 'active_amount' => 0];
 $inquirySummaryQuery = mysqli_query($db, "SELECT COUNT(*) AS total_inquiries, COUNT(DISTINCT i.buyer_id) AS unique_customers, COUNT(DISTINCT p.seller_email) AS contacted_farmers FROM product_inquiries i INNER JOIN products p ON p.product_id = i.product_id");
 $inquirySummary = $inquirySummaryQuery ? mysqli_fetch_assoc($inquirySummaryQuery) : ['total_inquiries' => 0, 'unique_customers' => 0, 'contacted_farmers' => 0];
 $activeFarmerCountQuery = mysqli_query($db, "SELECT COUNT(*) AS total FROM users WHERE role = 2 AND status = 1");
 $activeFarmerCount = $activeFarmerCountQuery ? (int) mysqli_fetch_assoc($activeFarmerCountQuery)['total'] : 0;
 $inquiryRate = $activeFarmerCount > 0 ? ((int) $inquirySummary['contacted_farmers'] / $activeFarmerCount) * 100 : 0;
-$recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_name, p.seller_email, buyer.user_name AS customer_name, buyer.user_email AS customer_email, farmer.user_name AS farmer_name FROM product_inquiries i INNER JOIN products p ON p.product_id = i.product_id LEFT JOIN users buyer ON buyer.user_id = i.buyer_id LEFT JOIN users farmer ON farmer.user_email COLLATE utf8mb4_unicode_ci = p.seller_email COLLATE utf8mb4_unicode_ci AND farmer.role = 2 ORDER BY i.created_at DESC LIMIT 10");
+$recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_name, p.seller_email, buyer.user_name AS customer_name, buyer.user_email AS customer_email, farmer.user_name AS farmer_name FROM product_inquiries i INNER JOIN products p ON p.product_id = i.product_id LEFT JOIN users buyer ON buyer.user_id = i.buyer_id AND buyer.role = 3 LEFT JOIN users farmer ON farmer.user_email COLLATE utf8mb4_unicode_ci = p.seller_email COLLATE utf8mb4_unicode_ci AND farmer.role = 2 AND farmer.status = 1 ORDER BY i.created_at DESC LIMIT 10");
 ?>
 
 <div class="row g-4 mb-4">
@@ -253,11 +270,11 @@ $recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_
                     </thead>
                     <tbody>
                         <?php if (mysqli_num_rows($recentOrders) > 0): while ($order = mysqli_fetch_assoc($recentOrders)): ?>
-                            <?php $orderTotal = ((float) ($order['price'] ?? 0)) + ((float) ($order['tax_amount'] ?? 0)); ?>
+                            <?php $orderTotal = (float) ($order['total_amount'] ?? 0); if ($orderTotal <= 0) { $orderTotal = (float) ($order['price'] ?? 0) + (float) ($order['tax_amount'] ?? 0); } ?>
                             <tr>
                                 <td><?php echo htmlspecialchars($order['or_name']); ?></td>
                                 <td><?php echo htmlspecialchars($order['user_phone'] ?: 'Walk-in'); ?></td>
-                                <td><?php echo (int) $order['quantity']; ?></td>
+                                <td><?php echo (int) $order['quantity']; ?> <?php echo htmlspecialchars($order['order_unit'] ?: 'unit'); ?><br><small class="text-muted"><?php echo htmlspecialchars($order['cat_name'] ?: 'Uncategorised'); ?></small></td>
                                 <td>UGX <?php echo number_format((float) $order['price'], 2); ?></td>
                                 <td>UGX <?php echo number_format((float) $order['tax_amount'], 2); ?></td>
                                 <td>UGX <?php echo number_format($orderTotal, 2); ?></td>
@@ -280,7 +297,7 @@ $recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_
                             <strong><?php echo htmlspecialchars($rule['rule_name']); ?></strong>
                             <span class="badge bg-success-subtle text-success"><?php echo number_format((float) $rule['rate_percent'], 2); ?>%</span>
                         </div>
-                        <small class="text-muted">Qty <?php echo (int) $rule['min_quantity']; ?> to <?php echo $rule['max_quantity'] ? (int) $rule['max_quantity'] : 'unlimited'; ?> · <?php echo htmlspecialchars($rule['applies_to']); ?></small>
+                        <small class="text-muted">Qty <?php echo (int) $rule['min_quantity']; ?> to <?php echo $rule['max_quantity'] !== null ? (int) $rule['max_quantity'] : 'unlimited'; ?> · <?php echo htmlspecialchars($rule['cat_name'] ?: ($rule['applies_to'] === 'all' ? 'All categories' : $rule['applies_to'])); ?> · <?php echo htmlspecialchars(ucfirst($rule['applies_unit'] ?? 'all')); ?></small>
                     </div>
                 <?php endwhile; else: ?>
                     <div class="text-muted">No tax rules configured.</div>
@@ -341,6 +358,55 @@ $recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_
                 <li class="list-group-item d-flex justify-content-between px-0"><span>Subscription amount</span><strong>UGX <?php echo number_format((float) $approvedSubscriptionTotals['active_amount'], 2); ?></strong></li>
                 <li class="list-group-item d-flex justify-content-between px-0"><span>Pending farmer approvals</span><strong><?php echo number_format($totals['pending']); ?></strong></li>
             </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-1">
+    <div class="col-xl-6">
+        <div class="card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div><h5 class="mb-1">Staff payroll ledger</h5><small class="text-muted">Recently saved staff payment records.</small></div>
+                <a href="staff.php" class="btn btn-sm btn-outline-success">Manage payroll</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover data-table mb-0">
+                    <thead><tr><th>Staff</th><th>Role</th><th>Salary</th><th>Status</th></tr></thead>
+                    <tbody>
+                        <?php if ($recentPayroll && mysqli_num_rows($recentPayroll) > 0): while ($payroll = mysqli_fetch_assoc($recentPayroll)): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($payroll['account_name']); ?></td>
+                                <td><?php echo htmlspecialchars($payroll['staff_role']); ?></td>
+                                <td>UGX <?php echo number_format((float) $payroll['salary'], 2); ?></td>
+                                <td><?php echo (int) $payroll['status'] === 1 ? '<span class="badge bg-success">Paid</span>' : '<span class="badge bg-warning text-dark">Pending</span>'; ?></td>
+                            </tr>
+                        <?php endwhile; else: ?><tr><td colspan="4" class="text-center text-muted py-4">No payroll records saved yet.</td></tr><?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6">
+        <div class="card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div><h5 class="mb-1">Extra costs ledger</h5><small class="text-muted">Recently recorded operational costs.</small></div>
+                <a href="costs.php" class="btn btn-sm btn-outline-success">Manage costs</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover data-table mb-0">
+                    <thead><tr><th>Cost</th><th>Amount</th><th>Recorded by</th><th>Date</th></tr></thead>
+                    <tbody>
+                        <?php if ($recentCosts && mysqli_num_rows($recentCosts) > 0): while ($cost = mysqli_fetch_assoc($recentCosts)): ?>
+                            <tr>
+                                <td><strong><?php echo htmlspecialchars($cost['cost_name']); ?></strong><br><small class="text-muted"><?php echo htmlspecialchars($cost['notes'] ?: 'No notes'); ?></small></td>
+                                <td>UGX <?php echo number_format((float) $cost['amount'], 2); ?></td>
+                                <td><?php echo htmlspecialchars($cost['recorded_by']); ?></td>
+                                <td><small><?php echo htmlspecialchars(date('M j, Y', strtotime($cost['created_at']))); ?></small></td>
+                            </tr>
+                        <?php endwhile; else: ?><tr><td colspan="4" class="text-center text-muted py-4">No extra costs recorded yet.</td></tr><?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

@@ -129,8 +129,10 @@
 												header("Location: admin/dashboard.php");
 											} elseif ($_SESSION['role'] === 2) {
 												header("Location: farmerDashboard.php?do=Home");
-											} elseif ($_SESSION['role'] === 4 || $_SESSION['role'] === 5) {
+											} elseif ($_SESSION['role'] === 4) {
 												header("Location: manager/dashboard.php");
+											} elseif ($_SESSION['role'] === 5) {
+												header("Location: supervisor/dashboard.php");
 											} else {
 												header("Location: customerDashboard.php");
 											}

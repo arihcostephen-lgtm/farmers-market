@@ -31,4 +31,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $order) {
     }
   }
 }
-?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Uganda Mobile Money Payment</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="bg-light"><main class="container py-5"><div class="card mx-auto shadow-sm" style="max-width:540px"><div class="card-body"><h2>Pay for order #<?php echo $orderId; ?></h2><?php if (!$order) { ?><div class="alert alert-danger">Order not found.</div><?php } else { ?><p class="lead">UGX <?php echo number_format((float) ($order['total_amount'] ?: $order['price']), 2); ?></p><?php if ($message) { ?><div class="alert alert-success"><?php echo $message; ?></div><?php } ?><?php if ($error) { ?><div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div><?php } ?><form method="post"><input type="hidden" name="order_id" value="<?php echo $orderId; ?>"><label class="form-label" for="phone">Ugandan mobile number</label><input class="form-control mb-3" id="phone" name="phone" value="<?php echo htmlspecialchars($_POST['phone'] ?? $order['user_phone']); ?>" placeholder="07XXXXXXXX" required><label class="form-label" for="provider">Payment method</label><select class="form-select mb-3" id="provider" name="provider" required><option value="mtn_uganda">MTN MoMo Uganda</option><option value="airtel_uganda">Airtel Money Uganda</option><option value="ussd">Manual USSD fallback</option></select><button class="btn btn-success w-100" type="submit">Continue Payment</button></form><?php } ?><a class="btn btn-link mt-3" href="order_history.php">Back to orders</a></div></div></main></body></html>
+?>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Secure payment | Farmers Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root { --ink: #10231c; --muted: #60776b; --green: #087f5b; --green-dark: #07553f; --mint: #e8f7ee; --line: #d5e6da; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; color: var(--ink); background: linear-gradient(135deg, #f3faf5 0%, #e3f4e9 48%, #f9fcf8 100%); font-family: Georgia, 'Times New Roman', serif; }
+    .payment-shell { min-height: 100vh; display: grid; place-items: center; padding: 32px 16px; }
+    .payment-card { width: min(100%, 960px); overflow: hidden; background: #fff; border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 24px 70px rgba(7, 85, 63, .14); }
+    .payment-intro { color: #eafff2; background: linear-gradient(145deg, #063c2d, #087f5b); padding: clamp(28px, 5vw, 56px); position: relative; }
+    .payment-intro::after { content: ''; position: absolute; width: 190px; height: 190px; right: -65px; bottom: -80px; border: 24px solid rgba(255,255,255,.1); border-radius: 50%; }
+    .eyebrow { color: #b8f2ca; font: 700 .74rem/1.2 Arial, sans-serif; letter-spacing: .14em; text-transform: uppercase; }
+    .payment-intro h1 { max-width: 360px; margin: 14px 0 12px; font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.05; font-weight: 500; }
+    .payment-intro p { max-width: 340px; margin: 0; color: #d7f7e2; font: 1rem/1.6 Arial, sans-serif; }
+    .amount-panel { margin-top: 42px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.2); }
+    .amount-label { color: #b8f2ca; font: 700 .72rem Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+    .amount { margin-top: 7px; font: 700 clamp(1.8rem, 4vw, 2.7rem)/1.1 Arial, sans-serif; }
+    .payment-form { padding: clamp(28px, 5vw, 56px); }
+    .payment-form h2 { margin-bottom: 7px; font-size: 1.55rem; font-weight: 600; }
+    .form-intro { margin-bottom: 26px; color: var(--muted); font: .95rem/1.5 Arial, sans-serif; }
+    .form-label { margin-bottom: 8px; color: var(--ink); font: 700 .85rem Arial, sans-serif; }
+    .form-control { min-height: 48px; border-color: var(--line); border-radius: 8px; font: 1rem Arial, sans-serif; }
+    .form-control:focus, .form-select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(8,127,91,.14); }
+    .provider-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .provider-option { position: relative; }
+    .provider-option input { position: absolute; opacity: 0; }
+    .provider-option label { display: flex; min-height: 86px; cursor: pointer; flex-direction: column; justify-content: center; gap: 5px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: #fbfefc; font: 700 .82rem/1.25 Arial, sans-serif; transition: .18s ease; }
+    .provider-option small { color: var(--muted); font: .72rem Arial, sans-serif; }
+    .provider-option input:checked + label { border-color: var(--green); background: var(--mint); box-shadow: inset 0 0 0 1px var(--green); }
+    .provider-option input:focus-visible + label { outline: 3px solid rgba(8,127,91,.2); outline-offset: 2px; }
+    .phone-help { color: var(--muted); font: .78rem Arial, sans-serif; }
+    .payment-alert { border: 0; border-radius: 9px; font: .9rem/1.45 Arial, sans-serif; }
+    .btn-pay { min-height: 50px; border: 0; border-radius: 8px; background: var(--green); color: #fff; font: 700 .95rem Arial, sans-serif; transition: background .18s ease, transform .18s ease; }
+    .btn-pay:hover { background: var(--green-dark); color: #fff; transform: translateY(-1px); }
+    .btn-pay:disabled { opacity: .75; transform: none; }
+    .back-link { color: var(--green-dark); font: 700 .85rem Arial, sans-serif; text-decoration: none; }
+    .back-link:hover { color: var(--green); text-decoration: underline; }
+    @media (max-width: 640px) { .payment-shell { padding: 0; } .payment-card { min-height: 100vh; border: 0; border-radius: 0; } .provider-grid { grid-template-columns: 1fr; } .provider-option label { min-height: 58px; } .amount-panel { margin-top: 28px; } }
+  </style>
+</head>
+<body>
+  <main class="payment-shell">
+    <div class="payment-card row g-0">
+      <section class="payment-intro col-lg-5">
+        <div class="eyebrow">Farmers Market checkout</div>
+        <h1>Complete your payment securely.</h1>
+        <p>Choose a Ugandan mobile money option and confirm the payment from your phone.</p>
+        <?php if ($order): ?><div class="amount-panel"><div class="amount-label">Order #<?php echo $orderId; ?></div><div class="amount">UGX <?php echo number_format((float) ($order['total_amount'] ?: $order['price']), 2); ?></div></div><?php endif; ?>
+      </section>
+      <section class="payment-form col-lg-7">
+        <?php if (!$order): ?>
+          <div class="alert alert-danger payment-alert">Order not found or you do not have permission to access it.</div>
+        <?php else: ?>
+          <h2>Payment details</h2>
+          <p class="form-intro">Your payment request will be sent to the number below.</p>
+          <?php if ($message): ?><div class="alert alert-success payment-alert"><?php echo htmlspecialchars(strip_tags($message)); ?></div><?php endif; ?>
+          <?php if ($error): ?><div class="alert alert-danger payment-alert"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
+          <form method="post" id="paymentForm" novalidate>
+            <input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
+            <div class="mb-4">
+              <label class="form-label" for="phone">Ugandan mobile number</label>
+              <input class="form-control" id="phone" name="phone" inputmode="tel" autocomplete="tel" value="<?php echo htmlspecialchars($_POST['phone'] ?? $order['user_phone']); ?>" placeholder="07XXXXXXXX" pattern="(?:0|\+?256)7[0-9]{8}" required>
+              <div class="phone-help mt-2">Use a number beginning with 07 or +256 7.</div>
+            </div>
+            <div class="mb-4">
+              <label class="form-label d-block">Payment method</label>
+              <div class="provider-grid">
+                <div class="provider-option"><input type="radio" id="mtn" name="provider" value="mtn_uganda" <?php echo ($_POST['provider'] ?? '') === 'mtn_uganda' || empty($_POST['provider']) ? 'checked' : ''; ?> required><label for="mtn">MTN MoMo<small>Mobile prompt</small></label></div>
+                <div class="provider-option"><input type="radio" id="airtel" name="provider" value="airtel_uganda" <?php echo ($_POST['provider'] ?? '') === 'airtel_uganda' ? 'checked' : ''; ?>><label for="airtel">Airtel Money<small>Mobile prompt</small></label></div>
+                <div class="provider-option"><input type="radio" id="ussd" name="provider" value="ussd" <?php echo ($_POST['provider'] ?? '') === 'ussd' ? 'checked' : ''; ?>><label for="ussd">USSD fallback<small>Dial a code</small></label></div>
+              </div>
+            </div>
+            <button class="btn btn-pay w-100" id="payButton" type="submit"><span id="payButtonText">Continue payment</span></button>
+          </form>
+        <?php endif; ?>
+        <a class="back-link d-inline-block mt-4" href="order_history.php">&#8592; Back to orders</a>
+      </section>
+    </div>
+  </main>
+  <script>
+    const paymentForm = document.getElementById('paymentForm');
+    const phone = document.getElementById('phone');
+    const payButton = document.getElementById('payButton');
+    const payButtonText = document.getElementById('payButtonText');
+    if (paymentForm) {
+      paymentForm.addEventListener('submit', function (event) {
+        if (!phone.value.trim() || !/^((0|\+?256)7\d{8})$/.test(phone.value.replace(/\s+/g, ''))) {
+          event.preventDefault();
+          phone.classList.add('is-invalid');
+          phone.focus();
+          return;
+        }
+        phone.classList.remove('is-invalid');
+        payButton.disabled = true;
+        payButtonText.textContent = 'Sending payment request...';
+      });
+      phone.addEventListener('input', function () { phone.classList.remove('is-invalid'); });
+    }
+  </script>
+</body>
+</html>
