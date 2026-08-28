@@ -5,13 +5,22 @@ $notice = '';
 $isSupervisor = $managerRole === 5;
 
 if ($isSupervisor && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit_report'])) {
-    $title = mysqli_real_escape_string($db, trim($_POST['title'] ?? ''));
-    $reportBody = mysqli_real_escape_string($db, trim($_POST['report_body'] ?? ''));
+    $title = trim($_POST['title'] ?? '');
+    $reportBody = trim($_POST['report_body'] ?? '');
     $supervisorId = (int) ($_SESSION['user_id'] ?? 0);
-    $supervisorName = mysqli_real_escape_string($db, $managerName);
+    $supervisorName = $managerName;
     if ($title !== '' && $reportBody !== '') {
-        $insertReport = mysqli_query($db, "INSERT INTO supervisor_reports (supervisor_id, supervisor_name, title, report_body) VALUES ('$supervisorId', '$supervisorName', '$title', '$reportBody')");
-        $notice = $insertReport ? 'Report submitted to the manager.' : 'Unable to submit the report.';
+        $reportStatement = mysqli_prepare($db, 'INSERT INTO supervisor_reports (supervisor_id, supervisor_name, title, report_body) VALUES (?, ?, ?, ?)');
+        if ($reportStatement) {
+            mysqli_stmt_bind_param($reportStatement, 'isss', $supervisorId, $supervisorName, $title, $reportBody);
+            $insertReport = mysqli_stmt_execute($reportStatement);
+            $reportError = mysqli_stmt_error($reportStatement);
+            mysqli_stmt_close($reportStatement);
+        } else {
+            $insertReport = false;
+            $reportError = mysqli_error($db);
+        }
+        $notice = $insertReport ? 'Report submitted to the manager.' : 'Unable to submit the report: ' . $reportError;
     } else {
         $notice = 'Enter a title and report details before submitting.';
     }

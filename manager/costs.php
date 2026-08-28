@@ -60,23 +60,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['approve_request'])) {
     if ($request && mysqli_num_rows($request) > 0) {
         $requestData = mysqli_fetch_assoc($request);
         mysqli_begin_transaction($db);
-        $update = mysqli_query($db, "UPDATE extra_cost_requests SET status = 'approved', approved_by = '$managerId', approved_at = NOW() WHERE request_id = '$requestId' AND status = 'pending'");
+        $updateStatement = mysqli_prepare($db, "UPDATE extra_cost_requests SET status = 'approved', approved_by = ?, approved_at = NOW() WHERE request_id = ? AND status = 'pending'");
+        if ($updateStatement) {
+            mysqli_stmt_bind_param($updateStatement, 'ii', $managerId, $requestId);
+            $update = mysqli_stmt_execute($updateStatement);
+            $updateError = mysqli_stmt_error($updateStatement);
+            mysqli_stmt_close($updateStatement);
+        } else {
+            $update = false;
+            $updateError = mysqli_error($db);
+        }
 
         if ($update && mysqli_affected_rows($db) === 1 && (float) $requestData['amount'] > 0) {
-            $approvedCost = mysqli_query($db, "INSERT INTO extra_costs (cost_name, amount, notes, created_by, created_at) VALUES ('" . mysqli_real_escape_string($db, $requestData['cost_name']) . "', '" . (float) $requestData['amount'] . "', '" . mysqli_real_escape_string($db, $requestData['reason']) . "', '$managerId', NOW())");
+            $approvedCostStatement = mysqli_prepare($db, 'INSERT INTO extra_costs (cost_name, amount, notes, created_by, created_at) VALUES (?, ?, ?, ?, NOW())');
+            if ($approvedCostStatement) {
+                $approvedCostName = $requestData['cost_name'];
+                $approvedCostAmount = (float) $requestData['amount'];
+                $approvedCostNotes = $requestData['reason'];
+                mysqli_stmt_bind_param($approvedCostStatement, 'sdsi', $approvedCostName, $approvedCostAmount, $approvedCostNotes, $managerId);
+                $approvedCost = mysqli_stmt_execute($approvedCostStatement);
+                $approvedCostError = mysqli_stmt_error($approvedCostStatement);
+                mysqli_stmt_close($approvedCostStatement);
+            } else {
+                $approvedCost = false;
+                $approvedCostError = mysqli_error($db);
+            }
             if ($approvedCost) {
                 mysqli_commit($db);
                 $notice = 'Fund request approved and added to extra costs.';
             } else {
                 mysqli_rollback($db);
-                $notice = 'Unable to add the approved cost: ' . mysqli_error($db);
+                $notice = 'Unable to add the approved cost: ' . $approvedCostError;
             }
         } elseif ($update && mysqli_affected_rows($db) === 1) {
             mysqli_commit($db);
             $notice = 'Fund request approved.';
         } else {
             mysqli_rollback($db);
-            $notice = 'This request was already processed or could not be updated.';
+            $notice = 'This request was already processed or could not be updated: ' . $updateError;
         }
     }
 }
@@ -84,8 +105,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['approve_request'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reject_request'])) {
     $requestId = (int) ($_POST['request_id'] ?? 0);
     $managerId = (int) ($_SESSION['user_id'] ?? 0);
-    $update = mysqli_query($db, "UPDATE extra_cost_requests SET status = 'rejected', approved_by = '$managerId', approved_at = NOW() WHERE request_id = '$requestId' AND status = 'pending'");
-    $notice = $update && mysqli_affected_rows($db) === 1 ? 'Fund request rejected.' : 'Unable to reject this request or it was already processed.';
+    $updateStatement = mysqli_prepare($db, "UPDATE extra_cost_requests SET status = 'rejected', approved_by = ?, approved_at = NOW() WHERE request_id = ? AND status = 'pending'");
+    if ($updateStatement) {
+        mysqli_stmt_bind_param($updateStatement, 'ii', $managerId, $requestId);
+        $update = mysqli_stmt_execute($updateStatement);
+        $updateRows = mysqli_stmt_affected_rows($updateStatement);
+        $updateError = mysqli_stmt_error($updateStatement);
+        mysqli_stmt_close($updateStatement);
+    } else {
+        $update = false;
+        $updateRows = 0;
+        $updateError = mysqli_error($db);
+    }
+    $notice = $update && $updateRows === 1 ? 'Fund request rejected.' : 'Unable to reject this request or it was already processed: ' . $updateError;
 }
 
 $costs = mysqli_query($db, "SELECT ec.cost_id, ec.cost_name, ec.amount, ec.notes, ec.created_by, ec.created_at, COALESCE(u.user_name, CONCAT('Account ', ec.created_by)) AS recorded_by_name FROM extra_costs ec LEFT JOIN users u ON u.user_id = ec.created_by AND u.role IN (1, 4, 5) ORDER BY ec.created_at DESC, ec.cost_id DESC");

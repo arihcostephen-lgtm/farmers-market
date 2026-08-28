@@ -40,10 +40,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review_document'])) {
         if ($saveReview) {
             $actorName = mysqli_real_escape_string($db, $managerName);
             $action = $decision === 'approved' ? 'document_approved' : 'document_rejected';
-            mysqli_query($db, "INSERT INTO supervisor_activity_log (actor_id, actor_name, action_type, target_type, notes) VALUES ($reviewedBy, '$actorName', '$action', 'document', '$documentPath')");
-            $_SESSION['document_notice'] = 'Document ' . $decision . ' successfully.';
-            header('Location: documents.php');
-            exit;
+            $activitySaved = mysqli_query($db, "INSERT INTO supervisor_activity_log (actor_id, actor_name, action_type, target_type, target_id, notes) VALUES ($reviewedBy, '$actorName', '$action', 'document', NULL, '$documentPath')");
+            if ($activitySaved) {
+                $_SESSION['document_notice'] = 'Document ' . $decision . ' successfully.';
+                header('Location: documents.php');
+                exit;
+            }
+            $error = 'The document review was saved, but its activity log failed: ' . mysqli_error($db);
         } else {
             $error = 'The review decision could not be saved: ' . mysqli_error($db);
         }

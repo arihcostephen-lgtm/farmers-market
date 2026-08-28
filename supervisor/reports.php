@@ -5,17 +5,28 @@ $notice = '';
 $isSupervisor = $managerRole === 5;
 
 if ($isSupervisor && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit_report'])) {
-    $title = mysqli_real_escape_string($db, trim($_POST['title'] ?? ''));
-    $reportBody = mysqli_real_escape_string($db, trim($_POST['report_body'] ?? ''));
+    $title = trim($_POST['title'] ?? '');
+    $reportBody = trim($_POST['report_body'] ?? '');
     $supervisorId = (int) ($_SESSION['user_id'] ?? 0);
-    $supervisorName = mysqli_real_escape_string($db, $managerName);
+    $supervisorName = $managerName;
     if ($title !== '' && $reportBody !== '') {
-        $insertReport = mysqli_query($db, "INSERT INTO supervisor_reports (supervisor_id, supervisor_name, title, report_body) VALUES ('$supervisorId', '$supervisorName', '$title', '$reportBody')");
-        if ($insertReport) {
-            $attachmentNotice = save_report_attachments($db, mysqli_insert_id($db), $supervisorId, $_FILES['attachments'] ?? [], __DIR__ . '/../uploads/docs');
+        $reportStatement = mysqli_prepare($db, 'INSERT INTO supervisor_reports (supervisor_id, supervisor_name, title, report_body) VALUES (?, ?, ?, ?)');
+        if ($reportStatement) {
+            mysqli_stmt_bind_param($reportStatement, 'isss', $supervisorId, $supervisorName, $title, $reportBody);
+            $insertReport = mysqli_stmt_execute($reportStatement);
+            $reportError = mysqli_stmt_error($reportStatement);
+            $reportId = mysqli_stmt_insert_id($reportStatement);
+            mysqli_stmt_close($reportStatement);
+        } else {
+            $insertReport = false;
+            $reportError = mysqli_error($db);
+            $reportId = 0;
+        }
+        if ($insertReport && $reportId > 0) {
+            $attachmentNotice = save_report_attachments($db, $reportId, $supervisorId, $_FILES['attachments'] ?? [], __DIR__ . '/../uploads/docs');
             $notice = $attachmentNotice === '' ? 'Report submitted to the manager.' : 'Report submitted, but ' . strtolower($attachmentNotice);
         } else {
-            $notice = 'Unable to submit the report: ' . mysqli_error($db);
+            $notice = 'Unable to submit the report: ' . $reportError;
         }
     } else {
         $notice = 'Enter a title and report details before submitting.';

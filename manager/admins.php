@@ -4,22 +4,43 @@ $action = $_GET['action'] ?? '';
 $notice = '';
 
 if ($action === 'add-user' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $fullName = mysqli_real_escape_string($db, trim($_POST['full_name'] ?? ''));
-    $email = mysqli_real_escape_string($db, strtolower(trim($_POST['email'] ?? '')));
-    $phone = mysqli_real_escape_string($db, trim($_POST['phone'] ?? ''));
-    $address = mysqli_real_escape_string($db, trim($_POST['address'] ?? ''));
+    $fullName = trim($_POST['full_name'] ?? '');
+    $email = strtolower(trim($_POST['email'] ?? ''));
+    $phone = trim($_POST['phone'] ?? '');
+    $address = trim($_POST['address'] ?? '');
     $password = $_POST['password'] ?? '';
     $role = (int) ($_POST['role'] ?? 5);
     $status = 1;
 
     if ($fullName !== '' && $email !== '' && $password !== '' && in_array($role, [1, 4, 5], true)) {
-        $exists = mysqli_query($db, "SELECT user_id FROM users WHERE user_email = '$email' LIMIT 1");
-        if (mysqli_num_rows($exists) === 0) {
-            $hash = sha1($password);
-            $insert = mysqli_query($db, "INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status, join_date) VALUES ('$fullName', '$email', '$hash', '$phone', '$address', '$role', '$status', NOW())");
-            $notice = $insert ? 'Staff account created successfully. Add it to payroll from the staff page.' : 'Failed to create staff account.';
+        $existsStatement = mysqli_prepare($db, 'SELECT user_id FROM users WHERE user_email = ? LIMIT 1');
+        if (!$existsStatement) {
+            $notice = 'Unable to check the email address: ' . mysqli_error($db);
         } else {
-            $notice = 'An account with this email already exists.';
+            mysqli_stmt_bind_param($existsStatement, 's', $email);
+            $exists = mysqli_stmt_execute($existsStatement);
+            $existsResult = $exists ? mysqli_stmt_get_result($existsStatement) : false;
+            $emailExists = $existsResult && mysqli_num_rows($existsResult) > 0;
+            $existsError = mysqli_stmt_error($existsStatement);
+            mysqli_stmt_close($existsStatement);
+            if (!$exists) {
+                $notice = 'Unable to check the email address: ' . $existsError;
+            } elseif (!$emailExists) {
+                $hash = sha1($password);
+                $insertStatement = mysqli_prepare($db, 'INSERT INTO users (user_name, user_email, user_password, user_phone, user_address, role, status, join_date) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())');
+                if ($insertStatement) {
+                    mysqli_stmt_bind_param($insertStatement, 'sssssii', $fullName, $email, $hash, $phone, $address, $role, $status);
+                    $insert = mysqli_stmt_execute($insertStatement);
+                    $insertError = mysqli_stmt_error($insertStatement);
+                    mysqli_stmt_close($insertStatement);
+                } else {
+                    $insert = false;
+                    $insertError = mysqli_error($db);
+                }
+                $notice = $insert ? 'Staff account created successfully. Add it to payroll from the staff page.' : 'Failed to create staff account: ' . $insertError;
+            } else {
+                $notice = 'An account with this email already exists.';
+            }
         }
     } else {
         $notice = 'Please complete all required fields.';
@@ -31,7 +52,9 @@ if (isset($_GET['toggle_status']) && !empty($_GET['id'])) {
     $current = mysqli_fetch_assoc(mysqli_query($db, "SELECT status FROM users WHERE user_id = $targetId AND role IN (1,4,5) LIMIT 1"));
     if ($current) {
         $newStatus = (int) $current['status'] === 1 ? 0 : 1;
-        mysqli_query($db, "UPDATE users SET status = $newStatus WHERE user_id = $targetId");
+        if (!mysqli_query($db, "UPDATE users SET status = $newStatus WHERE user_id = $targetId")) {
+            $notice = 'Unable to update staff status: ' . mysqli_error($db);
+        }
         header('Location: admins.php');
         exit;
     }

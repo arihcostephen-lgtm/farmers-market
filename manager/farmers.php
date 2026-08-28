@@ -152,33 +152,67 @@ if (isset($_POST['save_plan'])) {
     if ($planName === '' || $amount < 0) {
         $error = 'Enter a valid plan name and amount.';
     } elseif ($planId > 0) {
-        mysqli_query($db, "UPDATE subscription_plans SET plan_name='$planName', description='$description', amount='$amount', duration_days=$durationDays, status=$status, updated_at=NOW() WHERE plan_id=$planId");
-        $notice = 'Subscription plan updated.';
+        $planStatement = mysqli_prepare($db, 'UPDATE subscription_plans SET plan_name = ?, description = ?, amount = ?, duration_days = ?, status = ?, updated_at = NOW() WHERE plan_id = ?');
+        if ($planStatement) {
+            mysqli_stmt_bind_param($planStatement, 'ssdiii', $planName, $description, $amount, $durationDays, $status, $planId);
+            $savedPlan = mysqli_stmt_execute($planStatement);
+            $planError = mysqli_stmt_error($planStatement);
+            mysqli_stmt_close($planStatement);
+        } else {
+            $savedPlan = false;
+            $planError = mysqli_error($db);
+        }
+        $notice = $savedPlan ? 'Subscription plan updated.' : 'Unable to update subscription plan: ' . $planError;
     } else {
-        mysqli_query($db, "INSERT INTO subscription_plans (plan_name, description, amount, duration_days, status, created_by, created_at) VALUES ('$planName', '$description', '$amount', $durationDays, $status, $managerId, NOW())");
-        $notice = 'Subscription plan created.';
+        $planStatement = mysqli_prepare($db, 'INSERT INTO subscription_plans (plan_name, description, amount, duration_days, status, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())');
+        if ($planStatement) {
+            mysqli_stmt_bind_param($planStatement, 'ssdiii', $planName, $description, $amount, $durationDays, $status, $managerId);
+            $savedPlan = mysqli_stmt_execute($planStatement);
+            $planError = mysqli_stmt_error($planStatement);
+            mysqli_stmt_close($planStatement);
+        } else {
+            $savedPlan = false;
+            $planError = mysqli_error($db);
+        }
+        $notice = $savedPlan ? 'Subscription plan created.' : 'Unable to create subscription plan: ' . $planError;
     }
 }
 if (isset($_GET['deactivate_plan']) && !empty($_GET['plan_id'])) {
     $planId = (int) $_GET['plan_id'];
-    mysqli_query($db, "UPDATE subscription_plans SET status=0, updated_at=NOW() WHERE plan_id=$planId");
-    $notice = 'Subscription plan deactivated.';
+    $planStatement = mysqli_prepare($db, 'UPDATE subscription_plans SET status = 0, updated_at = NOW() WHERE plan_id = ?');
+    if ($planStatement) {
+        mysqli_stmt_bind_param($planStatement, 'i', $planId);
+        $deactivated = mysqli_stmt_execute($planStatement);
+        $planError = mysqli_stmt_error($planStatement);
+        mysqli_stmt_close($planStatement);
+    } else {
+        $deactivated = false;
+        $planError = mysqli_error($db);
+    }
+    $notice = $deactivated ? 'Subscription plan deactivated.' : 'Unable to deactivate subscription plan: ' . $planError;
 }
 if (isset($_GET['approve']) && !empty($_GET['id'])) {
     $farmerId = (int) $_GET['id'];
     $pendingSubscription = mysqli_query($db, "SELECT id FROM farmer_subscriptions WHERE farmer_id=$farmerId AND status=0 LIMIT 1");
     if ($pendingSubscription && mysqli_num_rows($pendingSubscription) > 0) {
+        mysqli_begin_transaction($db);
         $update = mysqli_query($db, "UPDATE users SET status = 1 WHERE role = 2 AND user_id = $farmerId");
-        mysqli_query($db, "UPDATE farmer_subscriptions SET status=1, approved_by=$managerId, approved_at=NOW() WHERE farmer_id=$farmerId");
-        $notice = $update ? 'Farmer approved and subscription activated.' : 'Farmer could not be activated.';
+        $subscriptionUpdate = $update && mysqli_query($db, "UPDATE farmer_subscriptions SET status=1, approved_by=$managerId, approved_at=NOW() WHERE farmer_id=$farmerId");
+        if ($subscriptionUpdate) {
+            mysqli_commit($db);
+            $notice = 'Farmer approved and subscription activated.';
+        } else {
+            mysqli_rollback($db);
+            $error = 'Farmer approval could not be saved: ' . mysqli_error($db);
+        }
     } else {
         $error = 'This farmer has not submitted a subscription payment request yet.';
     }
 }
 if (isset($_GET['reject']) && !empty($_GET['id'])) {
     $farmerId = (int) $_GET['id'];
-    mysqli_query($db, "UPDATE users SET status = 0 WHERE role = 2 AND user_id = $farmerId");
-    $notice = 'Farmer application rejected.';
+    $rejected = mysqli_query($db, "UPDATE users SET status = 0 WHERE role = 2 AND user_id = $farmerId");
+    $notice = $rejected ? 'Farmer application rejected.' : 'Unable to reject farmer application: ' . mysqli_error($db);
 }
 
 $farmers = mysqli_query($db, "SELECT u.user_id, u.user_name, u.user_email, u.user_phone, u.status, fs.subscription_name, fs.amount, fs.status AS subscription_status FROM users u LEFT JOIN farmer_subscriptions fs ON fs.farmer_id = u.user_id WHERE u.role = 2 ORDER BY u.user_name ASC");

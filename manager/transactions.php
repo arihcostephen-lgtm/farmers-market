@@ -1,7 +1,7 @@
 <?php include __DIR__ . '/inc/header.php'; ?>
 <?php
 $transactionSummary = mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS order_count, COALESCE(SUM(quantity), 0) AS total_quantity, COALESCE(SUM(price), 0) AS subtotal_total, COALESCE(SUM(tax_amount), 0) AS tax_total, COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN total_amount ELSE 0 END), 0) AS revenue_total, COALESCE((SELECT SUM(salary) FROM staff_payroll WHERE status = 1), 0) + COALESCE((SELECT SUM(amount) FROM extra_costs), 0) AS expense_total, COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN total_amount ELSE 0 END), 0) - COALESCE((SELECT SUM(salary) FROM staff_payroll WHERE status = 1), 0) - COALESCE((SELECT SUM(amount) FROM extra_costs), 0) AS profit_total FROM order_list"));
-$orders = mysqli_query($db, "SELECT o.*, u.user_name FROM order_list o LEFT JOIN users u ON u.user_id = o.user_id ORDER BY o.join_date DESC");
+$orders = mysqli_query($db, "SELECT o.*, COALESCE(u.user_name, o.user_id, 'Walk-in') AS user_name FROM order_list o LEFT JOIN users u ON u.user_id = CAST(o.user_id AS UNSIGNED) OR u.user_email = o.user_id ORDER BY o.join_date DESC");
 ?>
 <div class="page-header">
     <div class="text-uppercase small fw-semibold opacity-75">System operations</div>

@@ -37,6 +37,7 @@ if ($managerRole === 5) {
                 $savedVisitId = 0;
                 $visitError = 'The selected farm is not active or could not be found.';
             } else {
+                mysqli_begin_transaction($db);
                 $visitStatement = mysqli_prepare($db, 'INSERT INTO farm_visits (farm_id, supervisor_id, visit_date, status, notes) VALUES (?, ?, ?, ?, ?)');
                 if ($visitStatement) {
                     mysqli_stmt_bind_param($visitStatement, 'iisss', $farmId, $managerId, $formVisitDate, $formVisitStatus, $formVisitNotes);
@@ -49,21 +50,65 @@ if ($managerRole === 5) {
                     $savedVisitId = 0;
                     $visitError = mysqli_error($db);
                 }
-            }
-            if ($visit && $savedVisitId > 0) {
-                $farmerQuery = mysqli_query($db, "SELECT f.farm_name, u.user_id, u.user_email FROM farmer f INNER JOIN users u ON u.user_email = f.farm_email AND u.role = 2 AND u.status = 1 WHERE f.farm_id = '$farmId' LIMIT 1");
-                $farmerRecipient = $farmerQuery ? mysqli_fetch_assoc($farmerQuery) : null;
-                if ($farmerRecipient) {
-                    $notificationTitle = mysqli_real_escape_string($db, 'Farm visit planned');
-                    $notificationMessage = mysqli_real_escape_string($db, 'A supervisor has planned a farm visit to ' . $farmerRecipient['farm_name'] . ' on ' . date('F j, Y', strtotime($formVisitDate)) . '. Notes: ' . ($formVisitNotes !== '' ? $formVisitNotes : 'No additional notes.'));
-                    mysqli_query($db, "INSERT INTO farmer_notifications (farmer_id, farm_id, visit_id, notification_type, title, message) VALUES ('" . (int) $farmerRecipient['user_id'] . "', '$farmId', '$savedVisitId', 'farm_visit', '$notificationTitle', '$notificationMessage')");
-                    if (!empty($farmerRecipient['user_email'])) {
-                        farmers_market_send_email($db, $farmerRecipient['user_email'], 'Farm visit planned for ' . $farmerRecipient['farm_name'], $notificationMessage);
+
+                if ($visit && $savedVisitId > 0) {
+                    $farmerQuery = mysqli_query($db, "SELECT f.farm_name, u.user_id, u.user_email FROM farmer f INNER JOIN users u ON u.user_email = f.farm_email AND u.role = 2 AND u.status = 1 WHERE f.farm_id = '$farmId' LIMIT 1");
+                    if (!$farmerQuery) {
+                        $visit = false;
+                        $visitError = mysqli_error($db);
+                    }
+                    $farmerRecipient = $farmerQuery ? mysqli_fetch_assoc($farmerQuery) : null;
+                    if ($visit && $farmerRecipient) {
+                        $notificationTitle = 'Farm visit planned';
+                        $notificationMessage = 'A supervisor has planned a farm visit to ' . $farmerRecipient['farm_name'] . ' on ' . date('F j, Y', strtotime($formVisitDate)) . '. Notes: ' . ($formVisitNotes !== '' ? $formVisitNotes : 'No additional notes.');
+                        $notificationStatement = mysqli_prepare($db, 'INSERT INTO farmer_notifications (farmer_id, farm_id, visit_id, notification_type, title, message) VALUES (?, ?, ?, ?, ?, ?)');
+                        if ($notificationStatement) {
+                            $notificationFarmerId = (int) $farmerRecipient['user_id'];
+                            $notificationType = 'farm_visit';
+                            mysqli_stmt_bind_param($notificationStatement, 'iiisss', $notificationFarmerId, $farmId, $savedVisitId, $notificationType, $notificationTitle, $notificationMessage);
+                            $notificationSaved = mysqli_stmt_execute($notificationStatement);
+                            $notificationError = mysqli_stmt_error($notificationStatement);
+                            mysqli_stmt_close($notificationStatement);
+                        } else {
+                            $notificationSaved = false;
+                            $notificationError = mysqli_error($db);
+                        }
+                        if (!$notificationSaved) {
+                            $visit = false;
+                            $visitError = $notificationError;
+                        }
                     }
                 }
-                $activityName = mysqli_real_escape_string($db, $_SESSION['user_name'] ?? 'Supervisor');
-                $activityNotes = mysqli_real_escape_string($db, 'Farm visit #' . $savedVisitId . ' scheduled for ' . $formVisitDate);
-                mysqli_query($db, "INSERT INTO supervisor_activity_log (actor_id, actor_name, action_type, target_type, target_id, notes) VALUES ('$managerId', '$activityName', 'visit_scheduled', 'farm_visit', '$savedVisitId', '$activityNotes')");
+                if ($visit && $savedVisitId > 0) {
+                    $activityName = $_SESSION['user_name'] ?? 'Supervisor';
+                    $activityNotes = 'Farm visit #' . $savedVisitId . ' scheduled for ' . $formVisitDate;
+                    $activityStatement = mysqli_prepare($db, 'INSERT INTO supervisor_activity_log (actor_id, actor_name, action_type, target_type, target_id, notes) VALUES (?, ?, ?, ?, ?, ?)');
+                    if ($activityStatement) {
+                        $activityType = 'visit_scheduled';
+                        $targetType = 'farm_visit';
+                        mysqli_stmt_bind_param($activityStatement, 'isssis', $managerId, $activityName, $activityType, $targetType, $savedVisitId, $activityNotes);
+                        $activitySaved = mysqli_stmt_execute($activityStatement);
+                        $activityError = mysqli_stmt_error($activityStatement);
+                        mysqli_stmt_close($activityStatement);
+                    } else {
+                        $activitySaved = false;
+                        $activityError = mysqli_error($db);
+                    }
+                    if (!$activitySaved) {
+                        $visit = false;
+                        $visitError = $activityError;
+                    }
+                }
+                if ($visit) {
+                    mysqli_commit($db);
+                } else {
+                    mysqli_rollback($db);
+                }
+            }
+            if ($visit && $savedVisitId > 0) {
+                if ($farmerRecipient && !empty($farmerRecipient['user_email'])) {
+                    farmers_market_send_email($db, $farmerRecipient['user_email'], 'Farm visit planned for ' . $farmerRecipient['farm_name'], $notificationMessage);
+                }
                 $notice = 'Farm visit saved successfully.';
                 $formFarmId = 0;
                 $formVisitDate = '';
@@ -169,17 +214,29 @@ if (isset($_POST['save_plan'])) {
     if ($planName === '' || $amount < 0) {
         $error = 'Enter a valid plan name and amount.';
     } elseif ($planId > 0) {
-        mysqli_query($db, "UPDATE subscription_plans SET plan_name='$planName', description='$description', amount='$amount', duration_days=$durationDays, status=$status, updated_at=NOW() WHERE plan_id=$planId");
-        $notice = 'Subscription plan updated.';
+        $planStatement = mysqli_prepare($db, 'UPDATE subscription_plans SET plan_name = ?, description = ?, amount = ?, duration_days = ?, status = ?, updated_at = NOW() WHERE plan_id = ?');
+        if ($planStatement) { mysqli_stmt_bind_param($planStatement, 'ssdiii', $planName, $description, $amount, $durationDays, $status, $planId); }
+        $savedPlan = $planStatement && mysqli_stmt_execute($planStatement);
+        $planError = $planStatement ? mysqli_stmt_error($planStatement) : mysqli_error($db);
+        if ($planStatement) { mysqli_stmt_close($planStatement); }
+        $notice = $savedPlan ? 'Subscription plan updated.' : 'Unable to update subscription plan: ' . $planError;
     } else {
-        mysqli_query($db, "INSERT INTO subscription_plans (plan_name, description, amount, duration_days, status, created_by, created_at) VALUES ('$planName', '$description', '$amount', $durationDays, $status, $managerId, NOW())");
-        $notice = 'Subscription plan created.';
+        $planStatement = mysqli_prepare($db, 'INSERT INTO subscription_plans (plan_name, description, amount, duration_days, status, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())');
+        if ($planStatement) { mysqli_stmt_bind_param($planStatement, 'ssdiii', $planName, $description, $amount, $durationDays, $status, $managerId); }
+        $savedPlan = $planStatement && mysqli_stmt_execute($planStatement);
+        $planError = $planStatement ? mysqli_stmt_error($planStatement) : mysqli_error($db);
+        if ($planStatement) { mysqli_stmt_close($planStatement); }
+        $notice = $savedPlan ? 'Subscription plan created.' : 'Unable to create subscription plan: ' . $planError;
     }
 }
 if (isset($_GET['deactivate_plan']) && !empty($_GET['plan_id'])) {
     $planId = (int) $_GET['plan_id'];
-    mysqli_query($db, "UPDATE subscription_plans SET status=0, updated_at=NOW() WHERE plan_id=$planId");
-    $notice = 'Subscription plan deactivated.';
+    $planStatement = mysqli_prepare($db, 'UPDATE subscription_plans SET status = 0, updated_at = NOW() WHERE plan_id = ?');
+    if ($planStatement) { mysqli_stmt_bind_param($planStatement, 'i', $planId); }
+    $deactivated = $planStatement && mysqli_stmt_execute($planStatement);
+    $planError = $planStatement ? mysqli_stmt_error($planStatement) : mysqli_error($db);
+    if ($planStatement) { mysqli_stmt_close($planStatement); }
+    $notice = $deactivated ? 'Subscription plan deactivated.' : 'Unable to deactivate subscription plan: ' . $planError;
 }
 if (isset($_GET['approve']) && !empty($_GET['id'])) {
     $farmerId = (int) $_GET['id'];

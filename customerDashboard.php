@@ -338,6 +338,7 @@ $inquiryClasses = ['warning', 'info', 'success'];
                 <a class="nav-link" href="#add-comments"><span class="sidebar-icon"><i class="fas fa-comments"></i></span><span class="sidebar-label"><?php echo t('Add Comments'); ?></span></a>
                  <a class="nav-link" href="#order-list"><span class="sidebar-icon"><i class="fas fa-history"></i></span><span class="sidebar-label"><?php echo t('Order History'); ?></span></a>
                  <a class="nav-link" href="#inquiry-history"><span class="sidebar-icon"><i class="fas fa-message"></i></span><span class="sidebar-label"><?php echo t('Inquiry History'); ?></span></a>
+                 <a class="nav-link" href="logout.php"><span class="sidebar-icon"><i class="fas fa-right-from-bracket"></i></span><span class="sidebar-label"><?php echo t('Log Out'); ?></span></a>
             </nav>
         </aside>
 
