@@ -181,11 +181,28 @@ if ($managerRole === 5) {
                 <h5 class="mb-1"><i class="fa-solid fa-calendar-plus text-success me-2"></i>Schedule a visit</h5>
                 <p class="text-muted mb-3">Choose a farmer and record the visit plan.</p>
                 <form method="post" action="farmers.php">
-                    <div class="mb-3"><label class="form-label" for="farmId">Farm</label><select class="form-select" name="farm_id" id="farmId" required><option value="">Select a farm</option><?php if ($farmDirectory): while ($farm = mysqli_fetch_assoc($farmDirectory)): ?><option value="<?php echo (int) $farm['farm_id']; ?>" <?php echo $formFarmId === (int) $farm['farm_id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($farm['farm_name']); ?><?php echo $farm['farm_phone'] ? ' - ' . htmlspecialchars($farm['farm_phone']) : ''; ?></option><?php endwhile; endif; ?></select></div>
-                    <div class="mb-3"><label class="form-label" for="visitDate">Visit date</label><input class="form-control" type="date" name="visit_date" id="visitDate" min="<?php echo date('Y-m-d'); ?>" value="<?php echo htmlspecialchars($formVisitDate); ?>" required></div>
-                    <div class="mb-3"><label class="form-label" for="visitStatus">Status</label><select class="form-select" name="visit_status" id="visitStatus"><option value="Scheduled" <?php echo $formVisitStatus === 'Scheduled' ? 'selected' : ''; ?>>Scheduled</option><option value="Completed" <?php echo $formVisitStatus === 'Completed' ? 'selected' : ''; ?>>Completed</option><option value="Cancelled" <?php echo $formVisitStatus === 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option></select></div>
-                    <div class="mb-3"><label class="form-label" for="visitNotes">Notes</label><textarea class="form-control" name="visit_notes" id="visitNotes" rows="4" placeholder="Add objectives, findings, or follow-up actions"><?php echo htmlspecialchars($formVisitNotes); ?></textarea></div>
-                    <button type="submit" name="save_visit" class="btn btn-success"><i class="fa-solid fa-calendar-check me-2"></i>Save Visit</button>
+                    <input type="hidden" name="save_visit" value="1">
+                    <div class="mb-3"><label class="form-label" for="farmId">Farm</label><select class="form-select" name="farm_id" id="farmId" required><option value="">Select a farm</option>
+                        <?php if ($farmDirectory): while ($farm = mysqli_fetch_assoc($farmDirectory)): ?>
+                            <option value="<?php echo (int) $farm['farm_id']; ?>"
+                        <?php echo $formFarmId === (int) $farm['farm_id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($farm['farm_name']); ?>
+                        <?php echo $farm['farm_phone'] ? ' - ' . htmlspecialchars($farm['farm_phone']) : ''; ?>
+                    </option><?php endwhile; endif; ?>
+                    </select></div>
+                    <div class="mb-3"><label class="form-label" for="visitDate">Visit date</label>
+                    <input class="form-control" type="date" name="visit_date" id="visitDate" min="
+                    <?php echo date('Y-m-d'); ?>" value="
+                    <?php echo htmlspecialchars($formVisitDate); ?>" required>
+                </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="visitStatus">Status</label><select class="form-select" name="visit_status" id="visitStatus"><option value="Scheduled" 
+                    <?php echo $formVisitStatus === 'Scheduled' ? 'selected' : ''; ?>>Scheduled</option><option value="Completed" 
+                    <?php echo $formVisitStatus === 'Completed' ? 'selected' : ''; ?>>Completed</option><option value="Cancelled" 
+                    <?php echo $formVisitStatus === 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option></select></div>
+                    <div class="mb-3"><label class="form-label" for="visitNotes">Notes</label>
+                    <textarea class="form-control" name="visit_notes" id="visitNotes" rows="4" placeholder="Add objectives, findings, or follow-up actions">
+                        <?php echo htmlspecialchars($formVisitNotes); ?></textarea></div>
+                    <button type="submit" class="btn btn-success"><i class="fa-solid fa-calendar-check me-2"></i>Save Visit</button>
                 </form>
             </div>
         </div>
@@ -199,7 +216,51 @@ if ($managerRole === 5) {
     </div>
     <div class="card p-4">
         <div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="mb-1"><i class="fa-solid fa-clock-rotate-left text-success me-2"></i>My planned visits and history</h5><small class="text-muted"><?php echo (int) $visitStats['scheduled_visits']; ?> scheduled Ã‚Â· <?php echo (int) $visitStats['completed_visits']; ?> completed Ã‚Â· <?php echo (int) $visitStats['cancelled_visits']; ?> cancelled</small></div><span class="badge bg-success"><?php echo (int) $visitStats['total_visits']; ?> total</span></div>
-        <div class="table-responsive"><table class="table table-hover data-table"><thead><tr><th>Farm</th><th>Date</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead><tbody><?php if ($visitHistory && mysqli_num_rows($visitHistory) > 0): while ($visit = mysqli_fetch_assoc($visitHistory)): ?><tr><td><strong><?php echo htmlspecialchars($visit['farm_name']); ?></strong><small class="d-block text-muted"><?php echo htmlspecialchars($visit['farm_address'] ?: 'Address not recorded'); ?></small></td><td><?php echo date('M j, Y', strtotime($visit['visit_date'])); ?></td><td><span class="badge bg-<?php echo $visit['status'] === 'Completed' ? 'success' : ($visit['status'] === 'Cancelled' ? 'danger' : 'warning'); ?>"><?php echo htmlspecialchars($visit['status']); ?></span></td><td><?php echo nl2br(htmlspecialchars($visit['notes'] ?: 'No notes recorded')); ?></td><td><div class="d-flex gap-2"><button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editVisit<?php echo (int) $visit['visit_id']; ?>" title="Update visit"><i class="fa-solid fa-pen-to-square"></i></button><form method="post" action="farmers.php" onsubmit="return confirm('Remove this visit?');"><input type="hidden" name="visit_id" value="<?php echo (int) $visit['visit_id']; ?>"><button type="submit" name="delete_visit" class="btn btn-sm btn-outline-danger" title="Remove visit"><i class="fa-solid fa-trash"></i></button></form></div><div class="modal fade" id="editVisit<?php echo (int) $visit['visit_id']; ?>" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Update farm visit</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><form method="post" action="farmers.php"><div class="modal-body"><input type="hidden" name="visit_id" value="<?php echo (int) $visit['visit_id']; ?>"><div class="mb-3"><label class="form-label">Status</label><select class="form-select" name="visit_status" required><option value="Scheduled" <?php echo $visit['status'] === 'Scheduled' ? 'selected' : ''; ?>>Scheduled</option><option value="Completed" <?php echo $visit['status'] === 'Completed' ? 'selected' : ''; ?>>Completed</option><option value="Cancelled" <?php echo $visit['status'] === 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option></select></div><div><label class="form-label">Notes and follow-up</label><textarea class="form-control" name="visit_notes" rows="4"><?php echo htmlspecialchars($visit['notes'] ?? ''); ?></textarea></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button type="submit" name="update_visit" class="btn btn-success btn-sm">Save update</button></div></form></div></div></div></td></tr><?php endwhile; else: ?><tr><td colspan="5" class="text-center text-muted py-4">No visits scheduled yet.</td></tr><?php endif; ?></tbody></table></div>
+        <div class="table-responsive"><table class="table table-hover data-table"><thead><tr><th>Farm</th><th>Date</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead><tbody><?php if ($visitHistory && mysqli_num_rows($visitHistory) > 0): while ($visit = mysqli_fetch_assoc($visitHistory)): ?><tr><td><strong><?php echo htmlspecialchars($visit['farm_name']); ?></strong><small class="d-block text-muted"><?php echo htmlspecialchars($visit['farm_address'] ?: 'Address not recorded'); ?></small></td><td><?php echo date('M j, Y', strtotime($visit['visit_date'])); ?></td><td><span class="badge bg-<?php echo $visit['status'] === 'Completed' ? 'success' : ($visit['status'] === 'Cancelled' ? 'danger' : 'warning'); ?>"><?php echo htmlspecialchars($visit['status']); ?></span></td><td><?php echo nl2br(htmlspecialchars($visit['notes'] ?: 'No notes recorded')); ?></td><td><div class="d-flex gap-2"><button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editVisit<?php echo (int) $visit['visit_id']; ?>" title="Update visit"><i class="fa-solid fa-pen-to-square"></i></button>
+            <form method="post" action="farmers.php" onsubmit="return confirm('Remove this visit?');">
+                <input type="hidden" name="visit_id" value="
+                <?php echo (int) $visit['visit_id']; ?>">
+                <button type="submit" name="delete_visit" class="btn btn-sm btn-outline-danger" title="Remove visit">
+                <i class="fa-solid fa-trash"></i></button>
+            </form>
+        </div>
+        <div class="modal fade" id="editVisit<?php echo (int) $visit['visit_id']; ?>" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Update farm visit</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal">
+        </button>
+    </div>
+        <form method="post" action="farmers.php">
+            <input type="hidden" name="update_visit" value="1">
+            <div class="modal-body">
+            <input type="hidden" name="visit_id" value="
+            <?php echo (int) $visit['visit_id']; ?>">
+            <div class="mb-3">
+                <label class="form-label">Status</label>
+                <select class="form-select" name="visit_status" required>
+                    <option value="Scheduled" 
+                    <?php echo $visit['status'] === 'Scheduled' ? 'selected' : ''; ?>>Scheduled</option>
+                    <option value="Completed" 
+                    <?php echo $visit['status'] === 'Completed' ? 'selected' : ''; ?>>Completed</option>
+                    <option value="Cancelled" <?php echo $visit['status'] === 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option></select>
+                </div>
+                <div>
+                    <label class="form-label">Notes and follow-up</label>
+                <textarea class="form-control" name="visit_notes" rows="4">
+                    <?php echo htmlspecialchars($visit['notes'] ?? ''); ?>
+                </textarea></div></div><div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success btn-sm">Save update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</td>
+</tr>
+<?php endwhile; else: ?><tr><td colspan="5" class="text-center text-muted py-4">No visits scheduled yet.</td></tr>
+    <?php endif; ?>
+</tbody>
+</table>
+</div>
     </div>
     <?php include __DIR__ . '/inc/footer.php'; exit;
 }
@@ -276,15 +337,20 @@ if (isset($_GET['edit_plan']) && !empty($_GET['plan_id'])) {
         <div class="card p-4">
             <h5 class="mb-3"><?php echo $editPlan ? 'Edit subscription plan' : 'Create subscription plan'; ?></h5>
             <form method="post" action="farmers.php">
+                <input type="hidden" name="save_plan" value="1">
                 <input type="hidden" name="plan_id" value="<?php echo (int) ($editPlan['plan_id'] ?? 0); ?>">
                 <div class="mb-3"><label class="form-label">Plan name</label><input class="form-control" name="plan_name" required value="<?php echo htmlspecialchars($editPlan['plan_name'] ?? ''); ?>"></div>
                 <div class="mb-3"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="3"><?php echo htmlspecialchars($editPlan['description'] ?? ''); ?></textarea></div>
                 <div class="row g-3">
-                    <div class="col-7"><label class="form-label">Amount (UGX)</label><input class="form-control" type="number" min="0" step="0.01" name="amount" required value="<?php echo htmlspecialchars($editPlan['amount'] ?? '50000'); ?>"></div>
-                    <div class="col-5"><label class="form-label">Days</label><input class="form-control" type="number" min="1" name="duration_days" required value="<?php echo htmlspecialchars($editPlan['duration_days'] ?? '30'); ?>"></div>
+                    <div class="col-7"><label class="form-label">Amount (UGX)</label>
+                    <input class="form-control" type="number" min="0" step="0.01" name="amount" required value="<?php echo htmlspecialchars($editPlan['amount'] ?? '50000'); ?>"></div>
+                    <div class="col-5">
+                        <label class="form-label">Days</label>
+                        <input class="form-control" type="number" min="1" name="duration_days" required value="<?php echo htmlspecialchars($editPlan['duration_days'] ?? '30'); ?>"></div>
                 </div>
                 <div class="form-check my-3"><input class="form-check-input" type="checkbox" name="status" id="planStatus" <?php echo !$editPlan || (int) $editPlan['status'] === 1 ? 'checked' : ''; ?>><label class="form-check-label" for="planStatus">Available to farmers</label></div>
-                <button class="btn btn-success" name="save_plan" type="submit"><?php echo $editPlan ? 'Update plan' : 'Create plan'; ?></button>
+                <button class="btn btn-success" type="submit">
+                <?php echo $editPlan ? 'Update plan' : 'Create plan'; ?></button>
                 <?php if ($editPlan): ?><a href="farmers.php" class="btn btn-outline-secondary">Cancel</a><?php endif; ?>
             </form>
         </div>

@@ -137,13 +137,22 @@ $availableStaff = mysqli_query($db, "SELECT u.user_id, u.user_name, u.user_email
     <h5 class="mb-1">Add staff to payroll</h5>
     <p class="text-muted mb-3">Choose an active staff account. Account details fill automatically.</p>
     <form method="post" action="staff.php">
+        <input type="hidden" name="salary" value="1">
+        <input type="hidden" name="add_staff" value="1">
         <div class="row g-3">
             <div class="col-md-3">
                 <label class="form-label" for="staffUser">Staff account</label>
                 <select class="form-select" name="user_id" id="staffUser" required>
                     <option value="">Select staff account</option>
                     <?php if ($availableStaff): while ($user = mysqli_fetch_assoc($availableStaff)): ?>
-                        <option value="<?php echo (int) $user['user_id']; ?>" data-name="<?php echo htmlspecialchars($user['user_name'], ENT_QUOTES); ?>" data-role="<?php echo htmlspecialchars([1 => 'Admin', 4 => 'Manager', 5 => 'Supervisor'][$user['role']] ?? 'Staff', ENT_QUOTES); ?>" data-email="<?php echo htmlspecialchars($user['user_email'], ENT_QUOTES); ?>" data-phone="<?php echo htmlspecialchars($user['user_phone'] ?? '', ENT_QUOTES); ?>"><?php echo htmlspecialchars($user['user_name']); ?><?php echo $user['payroll_id'] ? ' (Already on payroll)' : ''; ?></option>
+                        <option value="
+                        <?php echo (int) $user['user_id']; ?>" data-name="
+                        <?php echo htmlspecialchars($user['user_name'], ENT_QUOTES); ?>" data-role="
+                        <?php echo htmlspecialchars([1 => 'Admin', 4 => 'Manager', 5 => 'Supervisor'][$user['role']] ?? 'Staff', ENT_QUOTES); ?>" data-email="<?php echo htmlspecialchars($user['user_email'], ENT_QUOTES); ?>" data-phone="
+                        <?php echo htmlspecialchars($user['user_phone'] ?? '', ENT_QUOTES); ?>">
+                            <?php echo htmlspecialchars($user['user_name']); ?>
+                            <?php echo $user['payroll_id'] ? ' (Already on payroll)' : ''; ?>
+                        </option>
                     <?php endwhile; endif; ?>
                 </select>
             </div>
@@ -151,8 +160,9 @@ $availableStaff = mysqli_query($db, "SELECT u.user_id, u.user_name, u.user_email
             <div class="col-md-2"><label class="form-label" for="staffRole">Role</label><input class="form-control" name="staff_role" id="staffRole" readonly placeholder="Auto-filled"></div>
             <div class="col-md-2"><label class="form-label" for="staffEmail">Email</label><input class="form-control" name="email" id="staffEmail" type="email" readonly placeholder="Auto-filled"></div>
             <div class="col-md-1"><label class="form-label" for="staffPhone">Phone</label><input class="form-control" name="phone" id="staffPhone" readonly placeholder="Auto-filled"></div>
-            <div class="col-md-1"><label class="form-label" for="staffSalary">Salary</label><input class="form-control" name="salary" id="staffSalary" type="number" step="0.01" min="0" placeholder="0"></div>
-            <div class="col-md-1 d-flex align-items-end"><button type="submit" name="add_staff" class="btn btn-success w-100">Add</button></div>
+            <div class="col-md-1"><label class="form-label" for="staffSalary">Salary</label>
+            <input class="form-control"  id="staffSalary" type="number" step="0.01" min="0" placeholder="0"></div>
+            <div class="col-md-1 d-flex align-items-end"><button type="submit" class="btn btn-success w-100">Add</button></div>
         </div>
     </form>
 </div>
@@ -191,22 +201,55 @@ $availableStaff = mysqli_query($db, "SELECT u.user_id, u.user_name, u.user_email
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-sm btn-outline-primary edit-staff-button" data-edit-target="editStaff<?php echo (int) $member['staff_id']; ?>" title="Edit staff"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
                                 <form method="post" action="staff.php" onsubmit="return confirm('Delete this staff record?');">
+                                    <input type="hidden" name="delete_staff" value="1">
                                     <input type="hidden" name="staff_id" value="<?php echo (int) $member['staff_id']; ?>">
-                                    <button type="submit" name="delete_staff" class="btn btn-sm btn-outline-danger" title="Delete staff"><i class="fa-solid fa-trash-can"></i></button>
+                                    <button type="submit"  class="btn btn-sm btn-outline-danger" title="Delete staff"><i class="fa-solid fa-trash-can"></i>
+                                </button>
                                 </form>
                             </div>
                             <div class="edit-staff-panel border rounded p-3 mt-3 d-none" id="editStaff<?php echo (int) $member['staff_id']; ?>">
                                 <h6 class="mb-3">Edit Staff Details</h6>
                                 <form method="post" action="staff.php">
+                                    <input type="hidden" name="update_staff" value="1">
                                     <input type="hidden" name="staff_id" value="<?php echo (int) $member['staff_id']; ?>">
                                     <div class="row g-3">
-                                        <div class="col-md-6"><label class="form-label">Name</label><input class="form-control" name="staff_name" value="<?php echo htmlspecialchars($member['account_name']); ?>" required></div>
-                                        <div class="col-md-6"><label class="form-label">Role</label><select class="form-select" name="staff_role" required><option value="Admin" <?php echo $member['account_role'] === 'Admin' ? 'selected' : ''; ?>>Admin</option><option value="Manager" <?php echo $member['account_role'] === 'Manager' ? 'selected' : ''; ?>>Manager</option><option value="Supervisor" <?php echo $member['account_role'] === 'Supervisor' ? 'selected' : ''; ?>>Supervisor</option></select></div>
-                                        <div class="col-md-6"><label class="form-label">Email</label><input class="form-control" name="email" type="email" value="<?php echo htmlspecialchars($member['account_email']); ?>"></div>
-                                        <div class="col-md-6"><label class="form-label">Phone</label><input class="form-control" name="phone" value="<?php echo htmlspecialchars($member['account_phone']); ?>"></div>
-                                        <div class="col-md-6"><label class="form-label">Salary</label><input class="form-control" name="salary" type="number" step="0.01" min="0" value="<?php echo htmlspecialchars($member['salary']); ?>" required></div>
-                                        <div class="col-md-6"><label class="form-label">Payment status</label><select class="form-select" name="status"><option value="0" <?php echo (int) $member['payroll_status'] === 0 ? 'selected' : ''; ?>>Pending</option><option value="1" <?php echo (int) $member['payroll_status'] === 1 ? 'selected' : ''; ?>>Paid</option></select></div>
-                                        <div class="col-12"><button type="submit" name="update_staff" class="btn btn-success btn-sm"><i class="fa-solid fa-check me-1"></i>Save Changes</button> <button type="button" class="btn btn-secondary btn-sm cancel-edit">Cancel</button></div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Name</label>
+                                            <input class="form-control" name="staff_name" value="
+                                        <?php echo htmlspecialchars($member['account_name']); ?>" required>
+                                    </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Role</label>
+                                        <select class="form-select" name="staff_role" required>
+                                            <option value="Admin" 
+                                            <?php echo $member['account_role'] === 'Admin' ? 'selected' : ''; ?>>Admin</option><option value="Manager" 
+                                            <?php echo $member['account_role'] === 'Manager' ? 'selected' : ''; ?>>Manager</option>
+                                            <option value="Supervisor" 
+                                            <?php echo $member['account_role'] === 'Supervisor' ? 'selected' : ''; ?>>Supervisor</option></select></div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Email</label>
+                                            <input class="form-control" name="email" type="email" value="
+                                            <?php echo htmlspecialchars($member['account_email']); ?>">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Phone</label>
+                                            <input class="form-control" name="phone" value="<?php echo htmlspecialchars($member['account_phone']); ?>">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Salary</label>
+                                            <input class="form-control" name="salary" type="number" step="0.01" min="0" value="<?php echo htmlspecialchars($member['salary']); ?>" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Payment status</label>
+                                            <select class="form-select" name="status">
+                                                <option value="0" <?php echo (int) $member['payroll_status'] === 0 ? 'selected' : ''; ?>>Pending</option>
+                                                <option value="1" <?php echo (int) $member['payroll_status'] === 1 ? 'selected' : ''; ?>>Paid</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-12">
+                                            <button type="submit" class="btn btn-success btn-sm"><i class="fa-solid fa-check me-1"></i>Save Changes</button> 
+                                            <button type="button" class="btn btn-secondary btn-sm cancel-edit">Cancel</button>
+                                        </div>
                                     </div>
                                 </form>
                             </div>

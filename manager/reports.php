@@ -60,10 +60,13 @@ if (!$supervisorReports) {
         <h5 class="mb-1"><i class="fa-solid fa-pen-to-square text-success me-2"></i>Write field report</h5>
         <p class="text-muted mb-3">Submit operational findings for manager review.</p>
         <form method="post" action="reports.php">
+            <input type="hidden" name="submit_report" value="1">
+            <input type="hidden" name="report_body" value="1">
+            <input type="hidden" name="title" value="1">    
             <div class="row g-3">
-                <div class="col-12"><label class="form-label" for="reportTitle">Report title</label><input class="form-control" id="reportTitle" name="title" maxlength="200" required placeholder="Example: Kyambogo farm visit summary"></div>
-                <div class="col-12"><label class="form-label" for="reportBody">Report details</label><textarea class="form-control" id="reportBody" name="report_body" rows="7" required placeholder="Record findings, actions, risks, or recommendations."></textarea></div>
-                <div class="col-12"><button type="submit" name="submit_report" class="btn btn-success"><i class="fa-solid fa-paper-plane me-2"></i>Submit Report</button></div>
+                <div class="col-12"><label class="form-label" for="reportTitle">Report title</label><input class="form-control" id="reportTitle" maxlength="200" required placeholder="Example: Kyambogo farm visit summary"></div>
+                <div class="col-12"><label class="form-label" for="reportBody">Report details</label><textarea class="form-control" id="reportBody" rows="7" required placeholder="Record findings, actions, risks, or recommendations."></textarea></div>
+                <div class="col-12"><button type="submit" class="btn btn-success"><i class="fa-solid fa-paper-plane me-2"></i>Submit Report</button></div>
             </div>
         </form>
     </div>
@@ -88,7 +91,34 @@ if (!$supervisorReports) {
                 <thead><tr><th>Report</th><th>Supervisor</th><th>Details</th><th>Submitted</th><th>Action</th></tr></thead>
                 <tbody>
                     <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): while ($report = mysqli_fetch_assoc($supervisorReports)): ?>
-                        <?php $attachments = report_attachment_rows($db, $report['report_id']); $reportModalId = 'viewReport' . (int) $report['report_id']; ?><tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo htmlspecialchars($report['supervisor_name']); ?></td><td class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?><?php if ($attachments): ?><div class="mt-2"><?php foreach ($attachments as $attachment): ?><a class="d-block small text-success" href="../uploads/docs/<?php echo htmlspecialchars($attachment['attachment_path']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip me-1"></i><?php echo htmlspecialchars($attachment['attachment_name']); ?></a><?php endforeach; ?></div><?php endif; ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td><td><button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#<?php echo $reportModalId; ?>"><i class="fa-solid fa-eye me-1"></i>View report</button><div class="modal fade" id="<?php echo $reportModalId; ?>" tabindex="-1" aria-labelledby="<?php echo $reportModalId; ?>Label" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="<?php echo $reportModalId; ?>Label"><?php echo htmlspecialchars($report['title']); ?></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><p class="text-muted mb-3"><strong>Supervisor:</strong> <?php echo htmlspecialchars($report['supervisor_name']); ?><br><strong>Submitted:</strong> <?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></p><div class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?></div><?php if ($attachments): ?><hr><h6>Attachments</h6><?php foreach ($attachments as $attachment): ?><a class="d-block small text-success" href="../uploads/docs/<?php echo htmlspecialchars($attachment['attachment_path']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip me-1"></i><?php echo htmlspecialchars($attachment['attachment_name']); ?></a><?php endforeach; ?><?php endif; ?></div></div></div></div></div></td></tr>
+                        <?php $attachments = report_attachment_rows($db, $report['report_id']); $reportModalId = 'viewReport' . (int) $report['report_id']; ?>
+                        <tr>
+                            <td><strong>
+                                <?php echo htmlspecialchars($report['title']); ?></strong>
+                    </td><td>
+                        <?php echo htmlspecialchars($report['supervisor_name']); ?></td><td class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?>
+                        <?php if ($attachments): ?><div class="mt-2">
+                            <?php foreach ($attachments as $attachment): ?>
+                                <a class="d-block small text-success" href="../uploads/docs/
+                                <?php echo htmlspecialchars($attachment['attachment_path']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip me-1"></i>
+                                <?php echo htmlspecialchars($attachment['attachment_name']); ?></a>
+                            <?php endforeach; ?></div><?php endif; ?>
+                        </td><td><small>
+                            <?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td>
+                            <td>
+                            <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#
+                        <?php echo $reportModalId; ?>">
+                            <i class="fa-solid fa-eye me-1"></i>View report</button>
+                            <div class="modal fade" id="
+                            <?php echo $reportModalId; ?>" tabindex="-1" aria-labelledby="<?php echo $reportModalId; ?>Label" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="
+                            <?php echo $reportModalId; ?>Label">
+                                <?php echo htmlspecialchars($report['title']); ?></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                                </button></div><div class="modal-body"><p class="text-muted mb-3"><strong>Supervisor:</strong> 
+                                <?php echo htmlspecialchars($report['supervisor_name']); ?><br><strong>Submitted:</strong> 
+                                <?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></p><div class="report-details">
+                                    <?php echo nl2br(htmlspecialchars($report['report_body'])); ?></div><?php if ($attachments): ?><hr><h6>Attachments</h6>
+                                <?php foreach ($attachments as $attachment): ?><a class="d-block small text-success" href="../uploads/docs/
+                                <?php echo htmlspecialchars($attachment['attachment_path']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip me-1"></i><?php echo htmlspecialchars($attachment['attachment_name']); ?></a><?php endforeach; ?><?php endif; ?></div></div></div></div></div></td></tr>
                     <?php endwhile; else: ?><tr><td colspan="5" class="text-center text-muted py-4">No supervisor reports submitted yet.</td></tr><?php endif; ?>
                 </tbody>
             </table>

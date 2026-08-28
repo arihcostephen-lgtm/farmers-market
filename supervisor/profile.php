@@ -93,6 +93,7 @@ if (!$profileQuery) {
     <p class="text-muted mb-4">Update only your own manager or supervisor account.</p>
     <?php if ($profile): ?>
         <form method="post" action="profile.php">
+            <input type="hidden" name="update_profile" value="1">
             <div class="row g-3">
                 <div class="col-md-6"><label class="form-label" for="userName">Full name</label><input class="form-control" id="userName" name="user_name" value="<?php echo htmlspecialchars($profile['user_name']); ?>" required></div>
                 <div class="col-md-6"><label class="form-label" for="userEmail">Email</label><input class="form-control" id="userEmail" name="user_email" type="email" value="<?php echo htmlspecialchars($profile['user_email']); ?>" required></div>
@@ -100,7 +101,7 @@ if (!$profileQuery) {
                 <div class="col-md-6"><label class="form-label" for="userAddress">Address</label><input class="form-control" id="userAddress" name="user_address" value="<?php echo htmlspecialchars($profile['user_address'] ?? ''); ?>"></div>
                 <div class="col-md-6"><label class="form-label" for="newPassword">New password</label><input class="form-control" id="newPassword" name="new_password" type="password" minlength="5" placeholder="Leave blank to keep current password"></div>
                 <div class="col-md-6"><label class="form-label" for="confirmPassword">Confirm password</label><input class="form-control" id="confirmPassword" name="confirm_password" type="password" minlength="5"></div>
-                <div class="col-12"><button type="submit" name="update_profile" class="btn btn-success"><i class="fa-solid fa-floppy-disk me-2"></i>Save Profile</button></div>
+                <div class="col-12"><button type="submit" class="btn btn-success"><i class="fa-solid fa-floppy-disk me-2"></i>Save Profile</button></div>
             </div>
         </form>
     <?php else: ?><p class="text-muted mb-0">Your profile could not be loaded.</p><?php endif; ?>

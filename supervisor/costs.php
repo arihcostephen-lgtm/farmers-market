@@ -119,11 +119,13 @@ if (!$costRequests) {
     <div class="card p-4 mb-4">
         <h5 class="mb-3">Request funds for an activity</h5>
         <form method="post" action="costs.php">
+            <input type="hidden" name="submit_fund_request" value="1">
             <div class="row g-3">
                 <div class="col-md-4"><input class="form-control" name="cost_name" placeholder="Activity or cost name" required></div>
                 <div class="col-md-3"><input class="form-control" name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required></div>
                 <div class="col-md-5"><textarea class="form-control" name="reason" rows="3" placeholder="State the reason for the request" required></textarea></div>
-                <div class="col-12"><button type="submit" name="submit_fund_request" class="btn btn-success">Submit request</button></div>
+                <div class="col-12">
+                <button type="submit" class="btn btn-success">Submit request</button></div>
             </div>
         </form>
     </div>
@@ -131,11 +133,13 @@ if (!$costRequests) {
     <div class="card p-4 mb-4">
         <h5 class="mb-3">Add direct extra cost</h5>
         <form method="post" action="costs.php">
+            <input type="hidden" name="add_cost" value="1">
             <div class="row g-3">
                 <div class="col-md-4"><input class="form-control" name="cost_name" placeholder="Cost name" required></div>
                 <div class="col-md-3"><input class="form-control" name="amount" type="number" step="0.01" min="0" placeholder="Amount" required></div>
                 <div class="col-md-5"><input class="form-control" name="notes" placeholder="Notes"></div>
-                <div class="col-12"><button type="submit" name="add_cost" class="btn btn-success">Save cost</button></div>
+                <div class="col-12">
+                <button type="submit" class="btn btn-success">Save cost</button></div>
             </div>
         </form>
     </div>
@@ -171,12 +175,14 @@ if (!$costRequests) {
                                 <?php if ($request['status'] === 'pending'): ?>
                                     <div class="d-flex gap-2">
                                         <form method="post" action="costs.php" class="d-inline-block">
-                                            <input type="hidden" name="request_id" value="<?php echo (int) $request['request_id']; ?>">
-                                            <button type="submit" name="approve_request" class="btn btn-sm btn-success">Approve</button>
+                                            <input type="hidden" name="approve_request" value="1">
+                                            <input type="hidden" name="request_id" value="
+                                            <?php echo (int) $request['request_id']; ?>">
+                                            <button type="submit" class="btn btn-sm btn-success">Approve</button>
                                         </form>
                                         <form method="post" action="costs.php" class="d-inline-block">
                                             <input type="hidden" name="request_id" value="<?php echo (int) $request['request_id']; ?>">
-                                            <button type="submit" name="reject_request" class="btn btn-sm btn-outline-danger">Reject</button>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Reject</button>
                                         </form>
                                     </div>
                                 <?php else: ?>

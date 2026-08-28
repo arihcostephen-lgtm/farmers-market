@@ -66,11 +66,21 @@ if (!$supervisorReports) {
         <h5 class="mb-1"><i class="fa-solid fa-pen-to-square text-success me-2"></i>Write field report</h5>
         <p class="text-muted mb-3">Submit operational findings for manager review.</p>
         <form method="post" action="reports.php" enctype="multipart/form-data">
+            <input type="hidden" name="submit_report" value="1">
             <div class="row g-3">
-                <div class="col-12"><label class="form-label" for="reportTitle">Report title</label><input class="form-control" id="reportTitle" name="title" maxlength="200" required placeholder="Example: Kyambogo farm visit summary"></div>
-                <div class="col-12"><label class="form-label" for="reportBody">Report details</label><textarea class="form-control" id="reportBody" name="report_body" rows="7" required placeholder="Record findings, actions, risks, or recommendations."></textarea></div>
-                <div class="col-12"><label class="form-label" for="reportAttachments">Documents and images</label><input class="form-control" id="reportAttachments" name="attachments[]" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp" multiple><small class="form-text text-muted">Attach up to 5 PDF, Word, JPG, PNG, GIF, or WEBP files. Maximum 10 MB each.</small></div>
-                <div class="col-12"><button type="submit" name="submit_report" class="btn btn-success"><i class="fa-solid fa-paper-plane me-2"></i>Submit Report</button></div>
+                <div class="col-12"><label class="form-label" for="reportTitle">Report title</label>
+                <input class="form-control" id="reportTitle" name="title" maxlength="200" required placeholder="Example: Kyambogo farm visit summary">
+            </div>
+                <div class="col-12">
+                    <label class="form-label" for="reportBody">Report details</label><textarea class="form-control" id="reportBody" name="report_body" rows="7" required placeholder="Record findings, actions, risks, or recommendations."></textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="reportAttachments">Documents and images</label>
+                    <input class="form-control" id="reportAttachments" name="attachments[]" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp" multiple>
+                    <small class="form-text text-muted">Attach up to 5 PDF, Word, JPG, PNG, GIF, or WEBP files. Maximum 10 MB each.</small></div>
+                <div class="col-12">
+                <button type="submit" class="btn btn-success"><i class="fa-solid fa-paper-plane me-2"></i>Submit Report</button>
+            </div>
             </div>
         </form>
     </div>
