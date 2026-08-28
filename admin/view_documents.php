@@ -12,7 +12,7 @@ if (is_dir($uploadDir)) {
   $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($uploadDir, FilesystemIterator::SKIP_DOTS));
   foreach ($iterator as $file) {
     if ($file->isFile()) {
-      $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($uploadDir)));
+      $relative = $uploadRoot ? str_replace('\\', '/', substr(str_replace('\\', '/', $file->getPathname()), strlen(str_replace('\\', '/', $uploadRoot)) + 1)) : '';
       $documents[] = ['path' => $file->getPathname(), 'relative' => $relative, 'modified' => $file->getMTime()];
     }
   }

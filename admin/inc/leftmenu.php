@@ -83,6 +83,13 @@
 				</a>
 			</li>
 			<li>
+				<a href="product_reviews.php" class="">
+					<div class="parent-icon text-success"><i class='bx bx-star'></i>
+					</div>
+					<div class="menu-title text-success">Product Reviews</div>
+				</a>
+			</li>
+			<li>
 				<a href="supervisor_reports.php" class="">
 					<div class="parent-icon text-success"><i class='bx bx-file-blank'></i>
 					</div>

@@ -34,6 +34,25 @@
 			INDEX idx_supervisor_activity_actor (actor_id),
 			INDEX idx_supervisor_activity_type (action_type)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		mysqli_query($db, "INSERT IGNORE INTO manager_profiles (manager_id)
+			SELECT user_id FROM users WHERE role = 4");
+		mysqli_query($db, "INSERT IGNORE INTO supervisor_profiles (supervisor_id)
+			SELECT user_id FROM users WHERE role = 5");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS farmer_notifications (
+			notification_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			farmer_id INT UNSIGNED NOT NULL,
+			farm_id INT UNSIGNED DEFAULT NULL,
+			visit_id INT UNSIGNED DEFAULT NULL,
+			notification_type VARCHAR(50) NOT NULL DEFAULT 'general',
+			title VARCHAR(200) NOT NULL,
+			message TEXT NOT NULL,
+			is_read TINYINT(1) NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			read_at DATETIME DEFAULT NULL,
+			INDEX idx_farmer_notifications_farmer (farmer_id, is_read),
+			INDEX idx_farmer_notifications_visit (visit_id),
+			INDEX idx_farmer_notifications_created (created_at)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 		mysqli_query($db, "CREATE TABLE IF NOT EXISTS farmer_subscriptions (
 			id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 			farmer_id INT UNSIGNED NOT NULL,
@@ -161,6 +180,29 @@
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_supervisor_reports_created (created_at),
 			INDEX idx_supervisor_reports_supervisor (supervisor_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS product_reviews (
+			review_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			product_id INT UNSIGNED NOT NULL,
+			buyer_id INT UNSIGNED NOT NULL,
+			order_id INT UNSIGNED NOT NULL,
+			rating TINYINT UNSIGNED NOT NULL,
+			review_text TEXT NOT NULL,
+			status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE KEY uq_product_review_order (order_id),
+			INDEX idx_product_reviews_product_status (product_id, status),
+			INDEX idx_product_reviews_buyer (buyer_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS supervisor_report_attachments (
+			attachment_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			report_id INT UNSIGNED NOT NULL,
+			attachment_name VARCHAR(255) NOT NULL,
+			attachment_path VARCHAR(500) NOT NULL,
+			attachment_type VARCHAR(100) NOT NULL,
+			attachment_size INT UNSIGNED NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_report_attachments_report (report_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 		mysqli_query($db, "CREATE TABLE IF NOT EXISTS farm_visits (
 			visit_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -301,6 +343,12 @@
 			updated_at DATETIME DEFAULT NULL,
 			INDEX idx_payment_batches_user (user_id),
 			INDEX idx_payment_batches_status (status)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		@mysqli_query($db, "CREATE TABLE IF NOT EXISTS payment_batch_orders (
+			batch_id BIGINT UNSIGNED NOT NULL,
+			order_id INT UNSIGNED NOT NULL,
+			PRIMARY KEY (batch_id, order_id),
+			INDEX idx_payment_batch_orders_order (order_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 		$paymentBatchColumn = mysqli_query($db, "SHOW COLUMNS FROM payment_transactions LIKE 'batch_id'");
 		if ($paymentBatchColumn && mysqli_num_rows($paymentBatchColumn) === 0) {

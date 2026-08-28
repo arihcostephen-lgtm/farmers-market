@@ -3,31 +3,68 @@ session_start();
 require_once __DIR__ . '/admin/inc/db.php';
 require_once __DIR__ . '/inc/mobile_money.php';
 if (empty($_SESSION['user_id'])) { header('Location: login.php'); exit; }
+$cartMode = isset($_GET['cart']) || isset($_POST['cart']);
 $orderId = (int) ($_GET['order_id'] ?? $_POST['order_id'] ?? 0);
 $userId = (int) $_SESSION['user_id'];
-$orderQuery = mysqli_prepare($db, "SELECT or_id, total_amount, price, user_phone, payment_status FROM order_list WHERE or_id=? AND user_id=? LIMIT 1");
-mysqli_stmt_bind_param($orderQuery, 'ii', $orderId, $userId);
-mysqli_stmt_execute($orderQuery);
-$order = mysqli_stmt_get_result($orderQuery)->fetch_assoc();
+$userEmail = mysqli_real_escape_string($db, (string) ($_SESSION['user_email'] ?? $_SESSION['email'] ?? ''));
+$cartOrders = [];
+if ($cartMode) {
+  $cartQuery = mysqli_query($db, "SELECT or_id, total_amount, price, tax_amount, user_phone, payment_status FROM order_list WHERE (user_id='$userId' OR user_id='$userEmail') AND payment_status <> 'paid' AND status <> 3 ORDER BY or_id ASC");
+  if ($cartQuery) while ($cartOrder = mysqli_fetch_assoc($cartQuery)) $cartOrders[] = $cartOrder;
+  $cartTotal = 0;
+  foreach ($cartOrders as $cartOrder) {
+    $cartOrderTotal = (float) ($cartOrder['total_amount'] ?? 0);
+    $cartTotal += $cartOrderTotal > 0 ? $cartOrderTotal : (float) $cartOrder['price'] + (float) ($cartOrder['tax_amount'] ?? 0);
+  }
+  $order = $cartOrders ? ['total_amount' => $cartTotal, 'price' => $cartTotal, 'user_phone' => $_SESSION['user_phone'] ?? '', 'payment_status' => 'unpaid'] : null;
+} else {
+  $orderQuery = mysqli_prepare($db, "SELECT or_id, total_amount, price, tax_amount, user_phone, payment_status FROM order_list WHERE or_id=? AND (user_id=? OR user_id=?) LIMIT 1");
+  mysqli_stmt_bind_param($orderQuery, 'iis', $orderId, $userId, $userEmail);
+  mysqli_stmt_execute($orderQuery);
+  $order = mysqli_stmt_get_result($orderQuery)->fetch_assoc();
+}
 $message = '';
 $error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $order) {
+$orderAmount = $order ? (float) ($order['total_amount'] ?? 0) : 0;
+if ($order && $orderAmount <= 0) $orderAmount = (float) ($order['price'] ?? 0) + (float) ($order['tax_amount'] ?? 0);
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $order) {
   $provider = $_POST['provider'] ?? '';
   $phone = uganda_phone($_POST['phone'] ?? $order['user_phone']);
-  $amount = (float) ($order['total_amount'] ?: $order['price']);
+  $amount = $orderAmount;
   if (($order['payment_status'] ?? 'unpaid') === 'paid') $error = 'This order has already been paid.';
   elseif (!in_array($provider, ['mtn_uganda', 'airtel_uganda', 'ussd'], true) || $phone === '') $error = 'Select a payment method and enter a valid Ugandan phone number.';
   else {
-    $reference = 'FM-' . $orderId . '-' . bin2hex(random_bytes(6));
+    $reference = 'FM-' . ($cartMode ? 'CART' : $orderId) . '-' . bin2hex(random_bytes(6));
     $status = 'pending';
-    $insert = mysqli_prepare($db, "INSERT INTO payment_transactions (order_id,user_id,provider,amount,phone,reference,status) VALUES (?,?,?,?,?,?,?)");
-    mysqli_stmt_bind_param($insert, 'iisdsss', $orderId, $userId, $provider, $amount, $phone, $reference, $status);
-    if (!mysqli_stmt_execute($insert)) $error = 'Unable to create the payment request.';
-    elseif ($provider === 'ussd') $message = 'USSD request recorded. Dial ' . payment_config('USSD_SHORT_CODE', '*165#') . ' and complete payment using reference ' . $reference . '.';
+    if ($cartMode) {
+      $db->begin_transaction();
+      $batchInsert = mysqli_prepare($db, "INSERT INTO payment_batches (user_id, amount, phone, provider, reference, status) VALUES (?, ?, ?, ?, ?, ?)");
+      mysqli_stmt_bind_param($batchInsert, 'idssss', $userId, $amount, $phone, $provider, $reference, $status);
+      $batchSaved = mysqli_stmt_execute($batchInsert);
+      $batchId = $db->insert_id;
+      if ($batchSaved) {
+        $mapInsert = mysqli_prepare($db, "INSERT INTO payment_batch_orders (batch_id, order_id) VALUES (?, ?)");
+        foreach ($cartOrders as $cartOrder) {
+          $cartOrderId = (int) $cartOrder['or_id'];
+          mysqli_stmt_bind_param($mapInsert, 'ii', $batchId, $cartOrderId);
+          $batchSaved = $batchSaved && mysqli_stmt_execute($mapInsert);
+        }
+      }
+      $insert = $batchSaved ? mysqli_prepare($db, "INSERT INTO payment_transactions (batch_id, order_id, user_id, provider, amount, phone, reference, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)") : false;
+      if ($insert) {
+        $firstOrderId = (int) $cartOrders[0]['or_id'];
+        mysqli_stmt_bind_param($insert, 'iiisdsss', $batchId, $firstOrderId, $userId, $provider, $amount, $phone, $reference, $status);
+      }
+    } else {
+      $insert = mysqli_prepare($db, "INSERT INTO payment_transactions (order_id,user_id,provider,amount,phone,reference,status) VALUES (?,?,?,?,?,?,?)");
+      mysqli_stmt_bind_param($insert, 'iisdsss', $orderId, $userId, $provider, $amount, $phone, $reference, $status);
+    }
+    if (!$insert || !mysqli_stmt_execute($insert)) { if ($cartMode) $db->rollback(); $error = 'Unable to create the payment request.'; }
+    elseif ($provider === 'ussd') { if ($cartMode) { $db->commit(); mysqli_query($db, "UPDATE order_list o INNER JOIN payment_batch_orders bo ON bo.order_id=o.or_id SET o.payment_status='pending', o.updated_at=NOW() WHERE bo.batch_id=$batchId"); } $message = 'USSD request recorded. Dial ' . payment_config('USSD_SHORT_CODE', '*165#') . ' and complete payment using reference ' . $reference . '.'; }
     else {
       $result = $provider === 'mtn_uganda' ? start_mtn_payment($amount, $phone, $reference) : start_airtel_payment($amount, $phone, $reference);
-      if (($result['status'] < 200 || $result['status'] >= 300) && $result['status'] !== 202) $error = 'The provider could not start the payment. Please try again or use USSD.';
-      else { mysqli_query($db, "UPDATE order_list SET payment_status='pending', updated_at=NOW() WHERE or_id=$orderId"); $message = 'Payment prompt sent to ' . htmlspecialchars($phone) . '. Approve it on your phone; this page will update after confirmation.'; }
+      if (($result['status'] < 200 || $result['status'] >= 300) && $result['status'] !== 202) { if ($cartMode) $db->rollback(); $error = 'The provider could not start the payment. Please try again or use USSD.'; }
+      else { if ($cartMode) { $db->commit(); mysqli_query($db, "UPDATE order_list o INNER JOIN payment_batch_orders bo ON bo.order_id=o.or_id SET o.payment_status='pending', o.updated_at=NOW() WHERE bo.batch_id=$batchId"); } else mysqli_query($db, "UPDATE order_list SET payment_status='pending', updated_at=NOW() WHERE or_id=$orderId"); $message = 'Payment prompt sent to ' . htmlspecialchars($phone) . '. Approve it on your phone; this page will update after confirmation.'; }
     }
   }
 }
@@ -83,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $order) {
         <div class="eyebrow">Farmers Market checkout</div>
         <h1>Complete your payment securely.</h1>
         <p>Choose a Ugandan mobile money option and confirm the payment from your phone.</p>
-        <?php if ($order): ?><div class="amount-panel"><div class="amount-label">Order #<?php echo $orderId; ?></div><div class="amount">UGX <?php echo number_format((float) ($order['total_amount'] ?: $order['price']), 2); ?></div></div><?php endif; ?>
+        <?php if ($order): ?><div class="amount-panel"><div class="amount-label"><?php echo $cartMode ? count($cartOrders) . ' cart item(s)' : 'Order #' . $orderId; ?></div><div class="amount">UGX <?php echo number_format($orderAmount, 2); ?></div></div><?php endif; ?>
       </section>
       <section class="payment-form col-lg-7">
         <?php if (!$order): ?>
@@ -111,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $order) {
             <button class="btn btn-pay w-100" id="payButton" type="submit"><span id="payButtonText">Continue payment</span></button>
           </form>
         <?php endif; ?>
-        <a class="back-link d-inline-block mt-4" href="order_history.php">&#8592; Back to orders</a>
+        <a class="back-link d-inline-block mt-4" href="customerDashboard.php#view-cart">&#8592; Back to cart</a>
       </section>
     </div>
   </main>

@@ -1,5 +1,6 @@
 <?php include __DIR__ . '/inc/header.php'; ?>
 <?php
+require_once __DIR__ . '/../admin/inc/email.php';
 $notice = '';
 $error = '';
 $managerId = (int) $_SESSION['user_id'];
@@ -15,8 +16,11 @@ if ($managerRole === 5) {
         $formVisitDate = trim($_POST['visit_date'] ?? '');
         $formVisitStatus = in_array($_POST['visit_status'] ?? '', ['Scheduled', 'Completed', 'Cancelled'], true) ? $_POST['visit_status'] : 'Scheduled';
         $formVisitNotes = trim($_POST['visit_notes'] ?? '');
-        $validDate = DateTime::createFromFormat('Y-m-d', $_POST['visit_date'] ?? '');
-        if ($farmId < 1 || !$validDate || $validDate->format('Y-m-d') !== $formVisitDate || $formVisitDate < date('Y-m-d')) {
+        $validDate = DateTime::createFromFormat('Y-m-d', $formVisitDate);
+        $dateErrors = $validDate ? DateTime::getLastErrors() : false;
+        $hasDateErrors = is_array($dateErrors) && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0);
+        $dateIsInPast = $formVisitDate < date('Y-m-d');
+        if ($farmId < 1 || !$validDate || $hasDateErrors || $validDate->format('Y-m-d') !== $formVisitDate || ($formVisitStatus === 'Scheduled' && $dateIsInPast)) {
             $error = 'Select a valid farm and visit date.';
         } else {
             $farmCheck = mysqli_prepare($db, 'SELECT farm_id FROM farmer WHERE farm_id = ? AND status = 1 LIMIT 1');
@@ -30,23 +34,36 @@ if ($managerRole === 5) {
             }
             if (!$farmIsActive) {
                 $visit = false;
-                $visitRows = 0;
+                $savedVisitId = 0;
                 $visitError = 'The selected farm is not active or could not be found.';
             } else {
                 $visitStatement = mysqli_prepare($db, 'INSERT INTO farm_visits (farm_id, supervisor_id, visit_date, status, notes) VALUES (?, ?, ?, ?, ?)');
                 if ($visitStatement) {
                     mysqli_stmt_bind_param($visitStatement, 'iisss', $farmId, $managerId, $formVisitDate, $formVisitStatus, $formVisitNotes);
                     $visit = mysqli_stmt_execute($visitStatement);
+                    $savedVisitId = mysqli_stmt_insert_id($visitStatement);
                     $visitError = mysqli_stmt_error($visitStatement);
-                    $visitRows = mysqli_stmt_affected_rows($visitStatement);
                     mysqli_stmt_close($visitStatement);
                 } else {
                     $visit = false;
-                    $visitRows = 0;
+                    $savedVisitId = 0;
                     $visitError = mysqli_error($db);
                 }
             }
-            if ($visit && $visitRows > 0) {
+            if ($visit && $savedVisitId > 0) {
+                $farmerQuery = mysqli_query($db, "SELECT f.farm_name, u.user_id, u.user_email FROM farmer f INNER JOIN users u ON u.user_email = f.farm_email AND u.role = 2 AND u.status = 1 WHERE f.farm_id = '$farmId' LIMIT 1");
+                $farmerRecipient = $farmerQuery ? mysqli_fetch_assoc($farmerQuery) : null;
+                if ($farmerRecipient) {
+                    $notificationTitle = mysqli_real_escape_string($db, 'Farm visit planned');
+                    $notificationMessage = mysqli_real_escape_string($db, 'A supervisor has planned a farm visit to ' . $farmerRecipient['farm_name'] . ' on ' . date('F j, Y', strtotime($formVisitDate)) . '. Notes: ' . ($formVisitNotes !== '' ? $formVisitNotes : 'No additional notes.'));
+                    mysqli_query($db, "INSERT INTO farmer_notifications (farmer_id, farm_id, visit_id, notification_type, title, message) VALUES ('" . (int) $farmerRecipient['user_id'] . "', '$farmId', '$savedVisitId', 'farm_visit', '$notificationTitle', '$notificationMessage')");
+                    if (!empty($farmerRecipient['user_email'])) {
+                        farmers_market_send_email($db, $farmerRecipient['user_email'], 'Farm visit planned for ' . $farmerRecipient['farm_name'], $notificationMessage);
+                    }
+                }
+                $activityName = mysqli_real_escape_string($db, $_SESSION['user_name'] ?? 'Supervisor');
+                $activityNotes = mysqli_real_escape_string($db, 'Farm visit #' . $savedVisitId . ' scheduled for ' . $formVisitDate);
+                mysqli_query($db, "INSERT INTO supervisor_activity_log (actor_id, actor_name, action_type, target_type, target_id, notes) VALUES ('$managerId', '$activityName', 'visit_scheduled', 'farm_visit', '$savedVisitId', '$activityNotes')");
                 $notice = 'Farm visit saved successfully.';
                 $formFarmId = 0;
                 $formVisitDate = '';
@@ -100,7 +117,7 @@ if ($managerRole === 5) {
         }
     }
     $farmDirectory = mysqli_query($db, "SELECT f.farm_id, f.farm_name, f.farm_email, f.farm_phone, f.farm_address, f.farm_document, u.user_name AS owner_name FROM farmer f LEFT JOIN users u ON u.user_email=f.farm_email AND u.role=2 AND u.status=1 WHERE f.status=1 ORDER BY f.farm_name ASC");
-    $visitHistory = mysqli_query($db, "SELECT v.visit_id, v.farm_id, v.supervisor_id, v.visit_date, v.status, v.notes, v.created_at, v.updated_at, CONCAT(COALESCE(f.farm_name, CONCAT('Farm #', v.farm_id)), ' - ', COALESCE(u.user_name, f.farm_email, 'Farmer not linked')) AS farm_name, f.farm_phone, f.farm_address FROM farm_visits v LEFT JOIN farmer f ON f.farm_id=v.farm_id LEFT JOIN users u ON u.user_email=f.farm_email AND u.role=2 AND u.status=1 WHERE v.supervisor_id='$managerId' ORDER BY (v.status = 'Scheduled') DESC, (v.visit_date >= CURDATE()) DESC, v.visit_date ASC, v.visit_id DESC");
+    $visitHistory = mysqli_query($db, "SELECT v.visit_id, v.farm_id, v.supervisor_id, v.visit_date, v.status, v.notes, v.created_at, v.updated_at, CONCAT(COALESCE(f.farm_name, CONCAT('Farm #', v.farm_id)), ' - ', COALESCE(farmer_user.user_name, f.farm_email, 'Farmer not linked')) AS farm_name, f.farm_phone, f.farm_address, supervisor_user.user_name AS supervisor_name FROM farm_visits v LEFT JOIN farmer f ON f.farm_id=v.farm_id LEFT JOIN users farmer_user ON farmer_user.user_email=f.farm_email AND farmer_user.role=2 AND farmer_user.status=1 INNER JOIN users supervisor_user ON supervisor_user.user_id=v.supervisor_id AND supervisor_user.role=5 WHERE v.supervisor_id='$managerId' ORDER BY (v.status = 'Scheduled') DESC, (v.visit_date >= CURDATE()) DESC, v.visit_date ASC, v.visit_id DESC");
     if (!$farmDirectory || !$visitHistory) {
         $error = 'Farm visits could not be loaded: ' . mysqli_error($db);
     }

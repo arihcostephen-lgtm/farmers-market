@@ -1,9 +1,10 @@
 <?php include __DIR__ . '/inc/header.php'; ?>
 <?php
+require_once __DIR__ . '/../inc/report_attachments.php';
 $notice = '';
 $isSupervisor = $managerRole === 5;
 
-if ($isSupervisor && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_report'])) {
+if ($isSupervisor && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit_report'])) {
     $title = mysqli_real_escape_string($db, trim($_POST['title'] ?? ''));
     $reportBody = mysqli_real_escape_string($db, trim($_POST['report_body'] ?? ''));
     $supervisorId = (int) ($_SESSION['user_id'] ?? 0);
@@ -60,7 +61,7 @@ $supervisorReports = mysqli_query($db, $reportQuerySql);
                 <thead><tr><th>Report</th><th>Details</th><th>Submitted</th></tr></thead>
                 <tbody>
                     <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): while ($report = mysqli_fetch_assoc($supervisorReports)): ?>
-                        <tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo nl2br(htmlspecialchars($report['report_body'])); ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr>
+                        <?php $attachments = report_attachment_rows($db, $report['report_id']); ?><tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo nl2br(htmlspecialchars($report['report_body'])); ?><?php if ($attachments): ?><div class="mt-2"><?php foreach ($attachments as $attachment): ?><a class="d-block small text-success" href="../uploads/docs/<?php echo htmlspecialchars($attachment['attachment_path']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip me-1"></i><?php echo htmlspecialchars($attachment['attachment_name']); ?></a><?php endforeach; ?></div><?php endif; ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr>
                     <?php endwhile; else: ?><tr><td colspan="3" class="text-center text-muted py-4">You have not submitted any reports yet.</td></tr><?php endif; ?>
                 </tbody>
             </table>
@@ -74,7 +75,7 @@ $supervisorReports = mysqli_query($db, $reportQuerySql);
                 <thead><tr><th>Report</th><th>Supervisor</th><th>Details</th><th>Submitted</th></tr></thead>
                 <tbody>
                     <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): while ($report = mysqli_fetch_assoc($supervisorReports)): ?>
-                        <tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo htmlspecialchars($report['supervisor_name']); ?></td><td class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr>
+                        <?php $attachments = report_attachment_rows($db, $report['report_id']); ?><tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo htmlspecialchars($report['supervisor_name']); ?></td><td class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?><?php if ($attachments): ?><div class="mt-2"><?php foreach ($attachments as $attachment): ?><a class="d-block small text-success" href="../uploads/docs/<?php echo htmlspecialchars($attachment['attachment_path']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip me-1"></i><?php echo htmlspecialchars($attachment['attachment_name']); ?></a><?php endforeach; ?></div><?php endif; ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr>
                     <?php endwhile; else: ?><tr><td colspan="4" class="text-center text-muted py-4">No supervisor reports submitted yet.</td></tr><?php endif; ?>
                 </tbody>
             </table>

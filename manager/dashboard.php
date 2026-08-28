@@ -58,7 +58,7 @@ $activityList = mysqli_query($db, "SELECT action_type, target_type, notes, creat
     <div class="col-xl-3 col-md-6"><div class="card field-stat p-4 h-100"><div class="d-flex justify-content-between"><span class="small text-uppercase text-muted">Documents in queue</span><i class="fa-solid fa-folder-open stat-icon"></i></div><h3 class="mt-2 mb-1"><?php echo number_format($pendingDocuments); ?></h3><small class="text-muted">Open the review queue</small></div></div>
 </div>
 <div class="card p-4 mb-4"><div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="mb-1">Today&apos;s field desk</h5><small class="text-muted">The three actions that keep farm operations moving.</small></div><i class="fa-solid fa-clipboard-check text-success fs-4"></i></div><div class="row g-3"><div class="col-lg-4"><a class="action-tile" href="farmers.php"><i class="fa-solid fa-map-location-dot mb-3"></i><h6>Plan a farm visit</h6><p class="text-muted small mb-0">Open the farmer directory and choose the next farm to check.</p></a></div><div class="col-lg-4"><a class="action-tile" href="documents.php"><i class="fa-solid fa-file-circle-check mb-3"></i><h6>Approve documents</h6><p class="text-muted small mb-0">Review farmer uploads and record an approval decision.</p></a></div><div class="col-lg-4"><a class="action-tile" href="reports.php"><i class="fa-solid fa-chart-line mb-3"></i><h6>Organise reports</h6><p class="text-muted small mb-0">Review the latest operational numbers before your next visit.</p></a></div></div></div>
-<div class="row g-4"><div class="col-xl-7"><div class="card p-4 h-100"><div class="d-flex justify-content-between align-items-center mb-2"><div><h5 class="mb-1">Farm visit list</h5><small class="text-muted">Recently added farms to prioritise.</small></div><a href="farmers.php" class="btn btn-sm btn-outline-success">Open directory</a></div><?php if ($farmList && mysqli_num_rows($farmList) > 0): while ($farm = mysqli_fetch_assoc($farmList)): ?><div class="visit-row d-flex justify-content-between gap-3"><div><strong><?php echo htmlspecialchars($farm['farm_name']); ?></strong><div class="small text-muted"><?php echo htmlspecialchars($farm['farmer_name']); ?></div><div class="small text-muted"><i class="fa-solid fa-location-dot me-1"></i><?php echo htmlspecialchars($farm['farm_address'] ?: 'Address not recorded'); ?></div></div><span class="small text-muted text-nowrap"><?php echo date('M j', strtotime($farm['join_date'])); ?></span></div><?php endwhile; else: ?><p class="text-muted mb-0">No active farms are available yet.</p><?php endif; ?></div></div><div class="col-xl-5"><div class="card p-4 h-100"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Recent activity</h5><i class="fa-solid fa-clock-rotate-left text-success"></i></div><?php if ($activityList && mysqli_num_rows($activityList) > 0): while ($activity = mysqli_fetch_assoc($activityList)): ?><div class="mb-3"><div class="small fw-semibold"><?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $activity['action_type']))); ?></div><div class="small text-muted"><?php echo htmlspecialchars($activity['notes'] ?: 'Activity recorded'); ?></div><div class="small text-success mt-1"><?php echo date('M j, g:i a', strtotime($activity['created_at'])); ?></div></div><?php endwhile; else: ?><p class="text-muted mb-0">No field activity has been recorded yet.</p><?php endif; ?></div></div></div>
+<div class="row g-4"><div class="col-xl-7"><div class="card p-4 h-100"><div class="d-flex justify-content-between align-items-center mb-2"><div><h5 class="mb-1">Farm visit list</h5><small class="text-muted">Recently added farms to prioritise.</small></div><a href="farmers.php" class="btn btn-sm btn-outline-success">Open directory</a></div><div class="table-responsive"><table class="table table-hover data-table mb-0"><thead><tr><th>Farm</th><th>Farmer</th><th>Location</th><th>Date</th></tr></thead><tbody><?php if ($farmList && mysqli_num_rows($farmList) > 0): while ($farm = mysqli_fetch_assoc($farmList)): ?><tr><td><strong><?php echo htmlspecialchars($farm['farm_name']); ?></strong></td><td><?php echo htmlspecialchars($farm['farmer_name']); ?></td><td><?php echo htmlspecialchars($farm['farm_address'] ?: 'Address not recorded'); ?></td><td class="text-nowrap"><?php echo date('M j', strtotime($farm['join_date'])); ?></td></tr><?php endwhile; else: ?><tr><td colspan="4" class="text-center text-muted py-4">No active farms are available yet.</td></tr><?php endif; ?></tbody></table></div></div></div><div class="col-xl-5"><div class="card p-4 h-100"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Recent activity</h5><i class="fa-solid fa-clock-rotate-left text-success"></i></div><div class="table-responsive"><table class="table table-hover data-table mb-0"><thead><tr><th>Action</th><th>Details</th><th>Date</th></tr></thead><tbody><?php if ($activityList && mysqli_num_rows($activityList) > 0): while ($activity = mysqli_fetch_assoc($activityList)): ?><tr><td class="fw-semibold"><?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $activity['action_type']))); ?></td><td><?php echo htmlspecialchars($activity['notes'] ?: 'Activity recorded'); ?></td><td class="text-nowrap"><?php echo date('M j, g:i a', strtotime($activity['created_at'])); ?></td></tr><?php endwhile; else: ?><tr><td colspan="3" class="text-center text-muted py-4">No field activity has been recorded yet.</td></tr><?php endif; ?></tbody></table></div></div></div></div>
 <?php include __DIR__ . '/inc/footer.php'; exit; ?>
 <?php endif; ?>
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -91,6 +91,9 @@ $recentOrders = mysqli_query($db, "SELECT ol.or_name, ol.user_phone, ol.price, o
 $recentSubscriptions = mysqli_query($db, "SELECT fs.id, COALESCE(u.user_name, CONCAT('Farmer #', fs.farmer_id)) AS user_name, fs.subscription_name, fs.amount, fs.status, fs.created_at FROM farmer_subscriptions fs LEFT JOIN users u ON u.user_id = fs.farmer_id AND u.role = 2 ORDER BY fs.created_at DESC, fs.id DESC LIMIT 5");
 $recentPayroll = mysqli_query($db, "SELECT sp.staff_name, sp.staff_role, sp.salary, sp.status, sp.created_at, COALESCE(u.user_name, sp.staff_name) AS account_name FROM staff_payroll sp LEFT JOIN users u ON u.user_id = sp.user_id AND u.role IN (1, 4, 5) ORDER BY sp.created_at DESC, sp.staff_id DESC LIMIT 5");
 $recentCosts = mysqli_query($db, "SELECT ec.cost_name, ec.amount, ec.notes, ec.created_at, COALESCE(u.user_name, CONCAT('Account ', ec.created_by)) AS recorded_by FROM extra_costs ec LEFT JOIN users u ON u.user_id = ec.created_by AND u.role IN (1, 4, 5) ORDER BY ec.created_at DESC, ec.cost_id DESC LIMIT 5");
+$supervisorReports = mysqli_query($db, "SELECT r.report_id, r.title, r.report_body, r.created_at, u.user_name AS supervisor_name, COALESCE(sp.region, 'Region not set') AS region FROM supervisor_reports r INNER JOIN users u ON u.user_id = r.supervisor_id AND u.role = 5 LEFT JOIN supervisor_profiles sp ON sp.supervisor_id = u.user_id ORDER BY r.created_at DESC, r.report_id DESC LIMIT 5");
+$supervisorVisits = mysqli_query($db, "SELECT v.visit_id, v.visit_date, v.status, f.farm_name, u.user_name AS supervisor_name FROM farm_visits v INNER JOIN farmer f ON f.farm_id = v.farm_id LEFT JOIN users u ON u.user_id = v.supervisor_id AND u.role = 5 ORDER BY v.visit_date DESC, v.visit_id DESC LIMIT 5");
+$pendingSupervisorRequests = mysqli_query($db, "SELECT r.request_id, r.cost_name, r.amount, r.created_at, COALESCE(u.user_name, r.requested_by_name) AS supervisor_name, COALESCE(sp.region, 'Region not set') AS region FROM extra_cost_requests r LEFT JOIN users u ON u.user_id = r.requested_by AND u.role = 5 LEFT JOIN supervisor_profiles sp ON sp.supervisor_id = r.requested_by WHERE r.status = 'pending' ORDER BY r.created_at DESC, r.request_id DESC LIMIT 5");
 $taxRules = mysqli_query($db, "SELECT tr.rule_name, tr.rate_percent, tr.min_quantity, tr.max_quantity, tr.applies_to, tr.applies_unit, c.cat_name FROM tax_rules tr LEFT JOIN category c ON tr.applies_to = CAST(c.cat_id AS CHAR) WHERE tr.status = 1 ORDER BY tr.rate_percent DESC LIMIT 5");
 
 $trendLabels = [];
@@ -235,6 +238,26 @@ $recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_
 </div>
 
 <div class="row g-4 mt-1">
+    <div class="col-xl-7">
+        <div class="card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="mb-1">Supervisor reports</h5><small class="text-muted">Latest field reports joined to supervisor accounts and regions.</small></div><a href="reports.php" class="btn btn-sm btn-outline-success">Review reports</a></div>
+            <div class="table-responsive"><table class="table table-hover data-table mb-0"><thead><tr><th>Supervisor</th><th>Report</th><th>Region</th><th>Submitted</th></tr></thead><tbody>
+                <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): while ($report = mysqli_fetch_assoc($supervisorReports)): ?><tr><td><?php echo htmlspecialchars($report['supervisor_name']); ?></td><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo htmlspecialchars($report['region']); ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr><?php endwhile; else: ?><tr><td colspan="4" class="text-center text-muted py-4">No supervisor reports submitted yet.</td></tr><?php endif; ?>
+            </tbody></table></div>
+        </div>
+    </div>
+    <div class="col-xl-5">
+        <div class="card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="mb-1">Supervisor activity</h5><small class="text-muted">Recent visits and pending fund requests.</small></div><a href="costs.php" class="btn btn-sm btn-outline-success">Open costs</a></div>
+            <div class="table-responsive"><table class="table table-hover data-table mb-0"><thead><tr><th>Activity</th><th>Owner</th><th>Status</th></tr></thead><tbody>
+                <?php if ($supervisorVisits && mysqli_num_rows($supervisorVisits) > 0): while ($visit = mysqli_fetch_assoc($supervisorVisits)): ?><tr><td><?php echo htmlspecialchars($visit['farm_name']); ?><small class="d-block text-muted"><?php echo date('M j, Y', strtotime($visit['visit_date'])); ?></small></td><td><?php echo htmlspecialchars($visit['supervisor_name'] ?: 'Supervisor'); ?></td><td><?php echo htmlspecialchars($visit['status']); ?></td></tr><?php endwhile; endif; ?>
+                <?php if ($pendingSupervisorRequests && mysqli_num_rows($pendingSupervisorRequests) > 0): while ($request = mysqli_fetch_assoc($pendingSupervisorRequests)): ?><tr><td><?php echo htmlspecialchars($request['cost_name']); ?><small class="d-block text-muted">UGX <?php echo number_format((float) $request['amount'], 2); ?></small></td><td><?php echo htmlspecialchars($request['supervisor_name']); ?></td><td><span class="badge bg-warning text-dark">Pending</span></td></tr><?php endwhile; elseif (!$supervisorVisits || mysqli_num_rows($supervisorVisits) === 0): ?><tr><td colspan="3" class="text-center text-muted py-4">No supervisor activity yet.</td></tr><?php endif; ?>
+            </tbody></table></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-1">
     <div class="col-xl-5">
         <div class="card p-4 h-100">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -269,7 +292,7 @@ $recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (mysqli_num_rows($recentOrders) > 0): while ($order = mysqli_fetch_assoc($recentOrders)): ?>
+                        <?php if ($recentOrders && mysqli_num_rows($recentOrders) > 0): while ($order = mysqli_fetch_assoc($recentOrders)): ?>
                             <?php $orderTotal = (float) ($order['total_amount'] ?? 0); if ($orderTotal <= 0) { $orderTotal = (float) ($order['price'] ?? 0) + (float) ($order['tax_amount'] ?? 0); } ?>
                             <tr>
                                 <td><?php echo htmlspecialchars($order['or_name']); ?></td>
@@ -291,7 +314,7 @@ $recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_
         <div class="card p-4 h-100">
             <h5 class="mb-3">Live tax rules</h5>
             <div class="list-group list-group-flush">
-                <?php if (mysqli_num_rows($taxRules) > 0): while ($rule = mysqli_fetch_assoc($taxRules)): ?>
+                <?php if ($taxRules && mysqli_num_rows($taxRules) > 0): while ($rule = mysqli_fetch_assoc($taxRules)): ?>
                     <div class="list-group-item px-0">
                         <div class="d-flex justify-content-between">
                             <strong><?php echo htmlspecialchars($rule['rule_name']); ?></strong>
@@ -325,7 +348,7 @@ $recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, p.product_
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (mysqli_num_rows($recentSubscriptions) > 0): while ($subscription = mysqli_fetch_assoc($recentSubscriptions)): ?>
+                        <?php if ($recentSubscriptions && mysqli_num_rows($recentSubscriptions) > 0): while ($subscription = mysqli_fetch_assoc($recentSubscriptions)): ?>
                             <tr>
                                 <td><?php echo htmlspecialchars($subscription['user_name'] ?: 'Farmer'); ?></td>
                                 <td><?php echo htmlspecialchars($subscription['subscription_name']); ?></td>

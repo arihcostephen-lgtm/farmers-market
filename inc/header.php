@@ -84,6 +84,9 @@
 		<link rel="stylesheet" href="assets/css/custom.css">
 
 		<link rel="stylesheet" href="assets/css/customize.css">
+		<?php if (basename($_SERVER['PHP_SELF'] ?? '') === 'customerDashboard.php') { ?>
+		<link rel="stylesheet" href="assets/css/customer-dashboard.css">
+		<?php } ?>
 		<?php if (in_array(basename($_SERVER['PHP_SELF'] ?? ''), ['index.php', 'login.php', 'register.php'], true)) { ?>
 		<link rel="stylesheet" href="assets/css/public-modern.css">
 		<?php } ?>

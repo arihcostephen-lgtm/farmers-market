@@ -4,8 +4,9 @@ ob_start();
 
 include __DIR__ . '/../admin/inc/db.php';
 
-if (!empty($_SESSION['user_id']) && !empty($_SESSION['user_email']) && (int) ($_SESSION['role'] ?? 0) === 5) {
-    header('Location: dashboard.php');
+if (!empty($_SESSION['user_id']) && !empty($_SESSION['user_email']) && in_array((int) ($_SESSION['role'] ?? 0), [1, 4, 5], true)) {
+    $existingRole = (int) $_SESSION['role'];
+    header('Location: ' . ($existingRole === 1 ? '../admin/dashboard.php' : ($existingRole === 4 ? '../manager/dashboard.php' : 'dashboard.php')));
     exit;
 }
 
@@ -17,10 +18,10 @@ if (isset($_POST['managerSubmit'])) {
     $email = mysqli_real_escape_string($db, $email);
     $shaPass = sha1($password);
 
-    $query = mysqli_query($db, "SELECT * FROM users WHERE user_email = '$email' AND role = 5 AND status = 1 LIMIT 1");
+    $query = mysqli_query($db, "SELECT * FROM users WHERE user_email = '$email' AND role IN (1, 4, 5) AND status = 1 LIMIT 1");
 
     if (!$query || mysqli_num_rows($query) === 0) {
-        $login_error = 'No active manager or supervisor account was found for that email.';
+        $login_error = 'No active admin, manager, or supervisor account was found for that email.';
     } else {
         $row = mysqli_fetch_assoc($query);
         if ($row['user_password'] === $shaPass) {
@@ -28,7 +29,8 @@ if (isset($_POST['managerSubmit'])) {
             $_SESSION['user_name'] = $row['user_name'];
             $_SESSION['user_email'] = $row['user_email'];
             $_SESSION['role'] = (int) $row['role'];
-            header('Location: dashboard.php');
+            $accountRole = (int) $row['role'];
+            header('Location: ' . ($accountRole === 1 ? '../admin/dashboard.php' : ($accountRole === 4 ? '../manager/dashboard.php' : 'dashboard.php')));
             exit;
         } else {
             $login_error = 'Invalid manager credentials.';
@@ -84,7 +86,7 @@ if (isset($_POST['managerSubmit'])) {
 <body>
     <div class="login-card">
         <div class="login-panel panel-left d-flex flex-column justify-content-center">
-            <span class="badge bg-light text-success rounded-pill mb-3 align-self-start px-3 py-2 fw-semibold">Manager Access</span>
+            <span class="badge bg-light text-success rounded-pill mb-3 align-self-start px-3 py-2 fw-semibold">Staff Access</span>
             <h1 class="fw-bold mb-3">Farmers Market</h1>
             <p class="mb-4">Monitor sales, manage farmer subscriptions, handle payroll, and review system-wide operations from one secure manager dashboard.</p>
             <ul class="list-unstyled mb-0">
@@ -95,8 +97,8 @@ if (isset($_POST['managerSubmit'])) {
             </ul>
         </div>
         <div class="login-panel panel-right">
-            <h3 class="mb-2 fw-bold">Manager / Supervisor Sign in</h3>
-            <p class="text-muted mb-4">Use your manager or supervisor account to access the operations dashboard.</p>
+            <h3 class="mb-2 fw-bold">Staff Sign in</h3>
+            <p class="text-muted mb-4">Use your admin, manager, or supervisor account to access the correct dashboard.</p>
 
             <?php if (!empty($login_error)): ?>
                 <div class="alert alert-warning" role="alert"><?php echo htmlspecialchars($login_error); ?></div>
@@ -112,9 +114,7 @@ if (isset($_POST['managerSubmit'])) {
                     <input type="password" name="password" id="password" class="form-control form-control-lg" placeholder="Enter password" required>
                 </div>
                 <button type="submit" name="managerSubmit" class="btn btn-success btn-lg w-100">Sign in</button>
-                <div class="mt-3 text-center text-muted small">
-                    Manager login: ben@gmail.com / ben1234
-                </div>
+                <div class="mt-3 text-center"><a href="../index.php" class="text-success text-decoration-none">Back to marketplace</a></div>
             </form>
         </div>
     </div>

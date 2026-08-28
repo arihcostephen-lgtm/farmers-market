@@ -1,5 +1,6 @@
 <?php include "inc/header.php"; ?>
 <?php
+require_once __DIR__ . '/../inc/report_attachments.php';
 $reports = mysqli_query($db, "SELECT r.report_id, COALESCE(u.user_name, r.supervisor_name) AS supervisor_name, r.title, r.report_body, r.created_at FROM supervisor_reports r LEFT JOIN users u ON u.user_id = r.supervisor_id AND u.role = 5 ORDER BY r.created_at DESC");
 ?>
 <div class="page-content">
@@ -19,7 +20,7 @@ $reports = mysqli_query($db, "SELECT r.report_id, COALESCE(u.user_name, r.superv
                         <tr>
                             <td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td>
                             <td><?php echo htmlspecialchars($report['supervisor_name']); ?></td>
-                            <td><?php echo nl2br(htmlspecialchars($report['report_body'])); ?></td>
+                            <td><?php echo nl2br(htmlspecialchars($report['report_body'])); ?><?php $attachments = report_attachment_rows($db, $report['report_id']); if ($attachments): ?><div class="mt-2"><?php foreach ($attachments as $attachment): ?><a class="d-block small text-success" href="../uploads/docs/<?php echo htmlspecialchars($attachment['attachment_path']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip me-1"></i><?php echo htmlspecialchars($attachment['attachment_name']); ?></a><?php endforeach; ?></div><?php endif; ?></td>
                             <td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td>
                         </tr>
                     <?php endwhile; else: ?>

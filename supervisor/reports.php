@@ -1,16 +1,22 @@
 <?php include __DIR__ . '/inc/header.php'; ?>
 <?php
+require_once __DIR__ . '/../inc/report_attachments.php';
 $notice = '';
 $isSupervisor = $managerRole === 5;
 
-if ($isSupervisor && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_report'])) {
+if ($isSupervisor && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit_report'])) {
     $title = mysqli_real_escape_string($db, trim($_POST['title'] ?? ''));
     $reportBody = mysqli_real_escape_string($db, trim($_POST['report_body'] ?? ''));
     $supervisorId = (int) ($_SESSION['user_id'] ?? 0);
     $supervisorName = mysqli_real_escape_string($db, $managerName);
     if ($title !== '' && $reportBody !== '') {
         $insertReport = mysqli_query($db, "INSERT INTO supervisor_reports (supervisor_id, supervisor_name, title, report_body) VALUES ('$supervisorId', '$supervisorName', '$title', '$reportBody')");
-        $notice = $insertReport ? 'Report submitted to the manager.' : 'Unable to submit the report.';
+        if ($insertReport) {
+            $attachmentNotice = save_report_attachments($db, mysqli_insert_id($db), $supervisorId, $_FILES['attachments'] ?? [], __DIR__ . '/../uploads/docs');
+            $notice = $attachmentNotice === '' ? 'Report submitted to the manager.' : 'Report submitted, but ' . strtolower($attachmentNotice);
+        } else {
+            $notice = 'Unable to submit the report: ' . mysqli_error($db);
+        }
     } else {
         $notice = 'Enter a title and report details before submitting.';
     }
@@ -31,6 +37,9 @@ $reportQuerySql = $isSupervisor
     ? "SELECT r.report_id, COALESCE(u.user_name, r.supervisor_name) AS supervisor_name, r.title, r.report_body, r.created_at FROM supervisor_reports r LEFT JOIN users u ON u.user_id = r.supervisor_id AND u.role = 5 WHERE r.supervisor_id='$reportViewerId' ORDER BY r.created_at DESC"
     : "SELECT r.report_id, COALESCE(u.user_name, r.supervisor_name) AS supervisor_name, r.title, r.report_body, r.created_at FROM supervisor_reports r LEFT JOIN users u ON u.user_id = r.supervisor_id AND u.role = 5 ORDER BY r.created_at DESC";
 $supervisorReports = mysqli_query($db, $reportQuerySql);
+if (!$supervisorReports) {
+    $notice = 'Reports could not be loaded: ' . mysqli_error($db);
+}
 ?>
 <div class="page-header">
     <div class="text-uppercase small fw-semibold opacity-75">Reports</div>
@@ -45,10 +54,11 @@ $supervisorReports = mysqli_query($db, $reportQuerySql);
     <div class="card p-4 mb-4">
         <h5 class="mb-1"><i class="fa-solid fa-pen-to-square text-success me-2"></i>Write field report</h5>
         <p class="text-muted mb-3">Submit operational findings for manager review.</p>
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
             <div class="row g-3">
                 <div class="col-12"><label class="form-label" for="reportTitle">Report title</label><input class="form-control" id="reportTitle" name="title" maxlength="200" required placeholder="Example: Kyambogo farm visit summary"></div>
                 <div class="col-12"><label class="form-label" for="reportBody">Report details</label><textarea class="form-control" id="reportBody" name="report_body" rows="7" required placeholder="Record findings, actions, risks, or recommendations."></textarea></div>
+                <div class="col-12"><label class="form-label" for="reportAttachments">Documents and images</label><input class="form-control" id="reportAttachments" name="attachments[]" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp" multiple><small class="form-text text-muted">Attach up to 5 PDF, Word, JPG, PNG, GIF, or WEBP files. Maximum 10 MB each.</small></div>
                 <div class="col-12"><button type="submit" name="submit_report" class="btn btn-success"><i class="fa-solid fa-paper-plane me-2"></i>Submit Report</button></div>
             </div>
         </form>
@@ -60,7 +70,7 @@ $supervisorReports = mysqli_query($db, $reportQuerySql);
                 <thead><tr><th>Report</th><th>Details</th><th>Submitted</th></tr></thead>
                 <tbody>
                     <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): while ($report = mysqli_fetch_assoc($supervisorReports)): ?>
-                        <tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo nl2br(htmlspecialchars($report['report_body'])); ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr>
+                        <?php $attachments = report_attachment_rows($db, $report['report_id']); ?><tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo nl2br(htmlspecialchars($report['report_body'])); ?><?php if ($attachments): ?><div class="mt-2"><?php foreach ($attachments as $attachment): ?><a class="d-block small text-success" href="../uploads/docs/<?php echo htmlspecialchars($attachment['attachment_path']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip me-1"></i><?php echo htmlspecialchars($attachment['attachment_name']); ?></a><?php endforeach; ?></div><?php endif; ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr>
                     <?php endwhile; else: ?><tr><td colspan="3" class="text-center text-muted py-4">You have not submitted any reports yet.</td></tr><?php endif; ?>
                 </tbody>
             </table>
@@ -74,7 +84,7 @@ $supervisorReports = mysqli_query($db, $reportQuerySql);
                 <thead><tr><th>Report</th><th>Supervisor</th><th>Details</th><th>Submitted</th></tr></thead>
                 <tbody>
                     <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): while ($report = mysqli_fetch_assoc($supervisorReports)): ?>
-                        <tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo htmlspecialchars($report['supervisor_name']); ?></td><td class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr>
+                        <?php $attachments = report_attachment_rows($db, $report['report_id']); ?><tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo htmlspecialchars($report['supervisor_name']); ?></td><td class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?><?php if ($attachments): ?><div class="mt-2"><?php foreach ($attachments as $attachment): ?><a class="d-block small text-success" href="../uploads/docs/<?php echo htmlspecialchars($attachment['attachment_path']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip me-1"></i><?php echo htmlspecialchars($attachment['attachment_name']); ?></a><?php endforeach; ?></div><?php endif; ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr>
                     <?php endwhile; else: ?><tr><td colspan="4" class="text-center text-muted py-4">No supervisor reports submitted yet.</td></tr><?php endif; ?>
                 </tbody>
             </table>

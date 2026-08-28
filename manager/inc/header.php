@@ -5,7 +5,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 ob_start();
 
 if (empty($_SESSION['user_id']) || empty($_SESSION['user_email']) || (int) ($_SESSION['role'] ?? 0) !== 4) {
-    header('Location: ../login.php');
+    header('Location: login.php');
     exit;
 }
 

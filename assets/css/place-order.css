@@ -1,0 +1,57 @@
+:root {
+    --checkout-ink: #07130e;
+    --checkout-panel: #102b1d;
+    --checkout-panel-raised: #173b28;
+    --checkout-green: #18b978;
+    --checkout-mint: #b4f8c8;
+    --checkout-text: #f1fff6;
+    --checkout-muted: #b9d8c5;
+}
+
+body.checkout-page {
+    min-height: 100vh;
+    margin: 0;
+    color: var(--checkout-text);
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+    background: radial-gradient(circle at 12% 8%, rgba(24,185,120,.18), transparent 32rem), linear-gradient(135deg, #06130d, #0b2418 55%, #071b13);
+}
+.checkout-page::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: .3;
+    background-image: linear-gradient(rgba(180,248,200,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(180,248,200,.035) 1px, transparent 1px);
+    background-size: 34px 34px;
+}
+.checkout-shell { position: relative; z-index: 1; max-width: 1120px; }
+.checkout-header { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 1.5rem; }
+.checkout-kicker { color: var(--checkout-mint); font-size: .75rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.checkout-title { color: #fff; font-family: 'Space Grotesk', 'Manrope', sans-serif; font-size: clamp(2rem, 4vw, 3.5rem); letter-spacing: -.04em; }
+.checkout-subtitle { color: var(--checkout-muted); max-width: 620px; }
+.checkout-panel { background: rgba(16,43,29,.94); border: 1px solid rgba(180,248,200,.16); border-radius: 12px; box-shadow: 0 24px 60px rgba(0,0,0,.28); }
+.product-summary { position: sticky; top: 1.5rem; background: linear-gradient(145deg, #173b28, #0d261a); }
+.product-summary .summary-icon { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 10px; color: var(--checkout-mint); background: rgba(24,185,120,.16); font-size: 1.35rem; }
+.product-summary h2, .checkout-panel h3 { color: #fff; font-family: 'Space Grotesk', 'Manrope', sans-serif; letter-spacing: -.02em; }
+.summary-line { display: flex; justify-content: space-between; gap: 1rem; padding: .85rem 0; border-bottom: 1px solid rgba(180,248,200,.12); color: var(--checkout-muted); }
+.summary-line strong { color: #fff; text-align: right; }
+.checkout-page .form-label { color: #f1fff6; font-weight: 700; }
+.checkout-page .form-control, .checkout-page .form-select { color: #f1fff6; background: rgba(4,17,10,.5); border: 1px solid rgba(180,248,200,.22); border-radius: 7px; }
+.checkout-page .form-control:focus, .checkout-page .form-select:focus { color: #fff; background: rgba(4,17,10,.7); border-color: var(--checkout-green); box-shadow: 0 0 0 .2rem rgba(24,185,120,.16); }
+.checkout-page .form-control::placeholder { color: #9fc4ad; }
+.checkout-page .form-text, .checkout-page .text-muted { color: var(--checkout-muted) !important; }
+.quantity-control { display: flex; max-width: 220px; }
+.quantity-control .btn { width: 44px; color: #fff; background: var(--checkout-panel-raised); border-color: rgba(180,248,200,.22); }
+.quantity-control input { text-align: center; border-radius: 0; }
+.total-panel { margin-top: 1.25rem; padding: 1rem 1.1rem; border-radius: 9px; background: #071b12; border: 1px solid rgba(24,185,120,.25); }
+.total-row { display: flex; justify-content: space-between; color: var(--checkout-muted); padding: .3rem 0; }
+.total-row.total-final { margin-top: .5rem; padding-top: .8rem; border-top: 1px solid rgba(180,248,200,.16); color: #fff; font-size: 1.2rem; font-weight: 800; }
+.checkout-page .btn-success { background: var(--checkout-green); border-color: var(--checkout-green); color: #04150c; font-weight: 800; }
+.checkout-page .btn-success:hover { background: #42d493; border-color: #42d493; }
+.checkout-page .btn-outline-light { font-weight: 700; }
+.stock-badge { color: #c6ffda; background: rgba(24,185,120,.18); border: 1px solid rgba(180,248,200,.2); }
+.checkout-alert { color: #ffe9b0; background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.35); }
+.checkout-reveal { animation: checkoutReveal .55s ease both; }
+@keyframes checkoutReveal { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 767px) { .checkout-header { align-items: start; flex-direction: column; } .product-summary { position: static; } }
+@media (prefers-reduced-motion: reduce) { .checkout-reveal { animation: none; } }

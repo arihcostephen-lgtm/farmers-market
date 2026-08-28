@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_fund_request']
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['approve_request'])) {
+if (!$isSupervisor && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['approve_request'])) {
     $requestId = (int) ($_POST['request_id'] ?? 0);
     $decision = isset($_POST['approve_request']) ? 'approved' : 'rejected';
     $managerId = (int) ($_SESSION['user_id'] ?? 0);

@@ -55,7 +55,8 @@ $adminApprovedDocuments = [];
 $adminReviewQuery = mysqli_query($db, "SELECT document_path, status, reviewed_at FROM admin_document_reviews WHERE status = 'approved'");
 if ($adminReviewQuery) {
     while ($adminReview = mysqli_fetch_assoc($adminReviewQuery)) {
-        $adminApprovedDocuments[$adminReview['document_path']] = $adminReview;
+        $normalizedPath = ltrim(str_replace('\\', '/', trim($adminReview['document_path'])), '/');
+        $adminApprovedDocuments[$normalizedPath] = $adminReview;
     }
 }
 if ($uploadRoot && is_dir($uploadRoot)) {
@@ -63,6 +64,7 @@ if ($uploadRoot && is_dir($uploadRoot)) {
     foreach ($iterator as $file) {
         if ($file->isFile()) {
             $relative = str_replace('\\', '/', substr(str_replace('\\', '/', $file->getPathname()), strlen($basePath) + 1));
+            $relative = ltrim($relative, '/');
             if (isset($adminApprovedDocuments[$relative])) {
                 $documents[] = ['path' => $relative, 'name' => $file->getFilename(), 'modified' => $file->getMTime(), 'size' => $file->getSize()];
             }

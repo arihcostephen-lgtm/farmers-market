@@ -13,6 +13,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Farmer Dashboard | Local Farm Market</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 
     <script src="https://kit.fontawesome.com/0c66e46c25.js" crossorigin="anonymous"></script>
 
@@ -111,6 +114,66 @@
 
                     $farmerAccessEmail = $_SESSION['email'] ?? $_SESSION['user_email'] ?? '';
                     $farmerAccessEmailEscaped = mysqli_real_escape_string($db, $farmerAccessEmail);
+                    $bulkUploadSuccess = 0;
+                    $bulkUploadErrors = [];
+                    if ($do === 'BulkUpload' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['products_csv'])) {
+                      if ($_FILES['products_csv']['error'] !== UPLOAD_ERR_OK) {
+                        $bulkUploadErrors[] = 'Please choose a valid CSV file.';
+                      } elseif (strtolower(pathinfo($_FILES['products_csv']['name'], PATHINFO_EXTENSION)) !== 'csv') {
+                        $bulkUploadErrors[] = 'Only CSV files are supported.';
+                      } else {
+                        $uploadHandle = fopen($_FILES['products_csv']['tmp_name'], 'r');
+                        $headers = $uploadHandle ? fgetcsv($uploadHandle) : false;
+                        $headerMap = [];
+                        if ($headers) {
+                          foreach ($headers as $index => $header) {
+                            $headerMap[strtolower(trim($header))] = $index;
+                          }
+                        }
+                        foreach (['product_name', 'price', 'stock_quantity'] as $requiredHeader) {
+                          if (!array_key_exists($requiredHeader, $headerMap)) {
+                            $bulkUploadErrors[] = "Missing required column: $requiredHeader";
+                          }
+                        }
+                        if (!$bulkUploadErrors && $uploadHandle) {
+                          $insertSql = "INSERT INTO products (product_name, description, category_id, price, product_unit, is_negotiable, view_count, harvest_date, seasonal_availability, stock_quantity, low_stock_threshold, seller_email, status, join_date) VALUES (?, ?, ?, ?, ?, ?, 0, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, 2, NOW())";
+                          $uploadStatement = mysqli_prepare($db, $insertSql);
+                          if (!$uploadStatement) {
+                            $bulkUploadErrors[] = 'Unable to prepare the bulk upload.';
+                          } else {
+                            while (($row = fgetcsv($uploadHandle)) !== false) {
+                              $getUploadValue = function (string $name) use ($headerMap, $row): string {
+                                return isset($headerMap[$name]) ? trim($row[$headerMap[$name]] ?? '') : '';
+                              };
+                              $productName = $getUploadValue('product_name');
+                              $price = (float) $getUploadValue('price');
+                              $stockQuantity = max(0, (int) $getUploadValue('stock_quantity'));
+                              $productUnit = in_array(strtolower($getUploadValue('product_unit')), ['kilogram', 'litre', 'gram', 'piece', 'each'], true) ? strtolower($getUploadValue('product_unit')) : 'kilogram';
+                              if ($productName === '' || $price < 0) {
+                                $bulkUploadErrors[] = 'Skipped a row with an empty product name or invalid price.';
+                                continue;
+                              }
+                              $description = $getUploadValue('description');
+                              $categoryId = $getUploadValue('category_id') !== '' ? (int) $getUploadValue('category_id') : null;
+                              $isNegotiable = in_array(strtolower($getUploadValue('is_negotiable')), ['1', 'yes', 'true'], true) ? 1 : 0;
+                              $harvestDate = $getUploadValue('harvest_date');
+                              $seasonalAvailability = $getUploadValue('seasonal_availability');
+                              $lowStockThreshold = max(0, (int) ($getUploadValue('low_stock_threshold') ?: 5));
+                              mysqli_stmt_bind_param($uploadStatement, 'ssidsisssis', $productName, $description, $categoryId, $price, $productUnit, $isNegotiable, $harvestDate, $seasonalAvailability, $stockQuantity, $lowStockThreshold, $farmerAccessEmail);
+                              if (mysqli_stmt_execute($uploadStatement)) {
+                                $bulkUploadSuccess++;
+                              } else {
+                                $bulkUploadErrors[] = "Could not import product: $productName";
+                              }
+                            }
+                            mysqli_stmt_close($uploadStatement);
+                          }
+                        }
+                        if ($uploadHandle) {
+                          fclose($uploadHandle);
+                        }
+                      }
+                    }
                     if ($do === 'Orders' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_order'])) {
                       $orderId = (int) ($_POST['order_id'] ?? 0);
                       $orderStatus = max(0, min(3, (int) ($_POST['status'] ?? 0)));
@@ -135,7 +198,7 @@
                                 </div>
                                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                                   <a href="farmerDashboard.php?do=Add" class="btn btn-success btn-sm"><i class="fa-solid fa-plus me-1"></i>Add Product</a>
-                                  <a href="bulk_upload.php" class="btn btn-info btn-sm"><i class="fa-solid fa-upload me-1"></i>Bulk Upload</a>
+                                  <a href="farmerDashboard.php?do=BulkUpload" class="btn btn-info btn-sm"><i class="fa-solid fa-upload me-1"></i>Bulk Upload</a>
                                   <a href="farmerDashboard.php?do=ManageTrash" class="btn btn-danger btn-sm"><i class="fa-solid fa-trash me-1"></i>Trash</a>
                                 </div>
                               </div>
@@ -281,6 +344,28 @@
                       </div>
                     <?php }
 
+                    else if ( $do == "BulkUpload" ) { ?>
+                      <div class="container-fluid pb-5">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                          <div><h4 class="fw-bold mb-1">Bulk Product Upload</h4><p class="text-muted mb-0">Add multiple product listings from one CSV file.</p></div>
+                          <a href="farmerDashboard.php?do=Manage" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>Back to Products</a>
+                        </div>
+                        <?php if ($bulkUploadSuccess > 0): ?><div class="alert alert-success"><i class="fa-solid fa-circle-check me-2"></i><?php echo $bulkUploadSuccess; ?> product(s) uploaded and sent for admin approval.</div><?php endif; ?>
+                        <?php foreach ($bulkUploadErrors as $bulkUploadError): ?><div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation me-2"></i><?php echo htmlspecialchars($bulkUploadError); ?></div><?php endforeach; ?>
+                        <div class="card dashboard-card">
+                          <div class="card-body p-4">
+                            <div class="upload-dropzone mb-4"><i class="fa-solid fa-file-csv"></i><h5 class="mt-3 mb-2">Choose your product CSV</h5><p class="text-muted mb-0">Required columns: product_name, price, stock_quantity.</p></div>
+                            <form method="post" enctype="multipart/form-data">
+                              <label for="productsCsv" class="form-label">Products CSV file</label>
+                              <input id="productsCsv" type="file" name="products_csv" class="form-control mb-3" accept=".csv,text/csv" required>
+                              <button type="submit" class="btn btn-success"><i class="fa-solid fa-upload me-2"></i>Upload Products</button>
+                            </form>
+                            <p class="small text-muted mt-3 mb-0">Optional columns: product_unit, description, category_id, is_negotiable, harvest_date, seasonal_availability, low_stock_threshold.</p>
+                          </div>
+                        </div>
+                      </div>
+                    <?php }
+
                     else if ( $do == "Orders" ) {
                       $orderQuery = mysqli_query($db, "SELECT o.*, p.product_name FROM order_list o INNER JOIN products p ON p.product_id=o.or_category WHERE p.seller_email='$farmerAccessEmailEscaped' ORDER BY o.or_id DESC");
                       $orderStatuses = ['Pending', 'Confirmed', 'Fulfilled', 'Cancelled'];
@@ -395,6 +480,16 @@
                           $pendingInquiryCount = (int) mysqli_fetch_assoc(mysqli_query($db, "SELECT COUNT(*) AS total FROM product_inquiries i INNER JOIN products p ON p.product_id=i.product_id WHERE p.seller_email='$farmerEmail' AND i.status=0"))['total'];
                         }
 
+                        $farmerNotifications = [];
+                        if ($do === 'Home' && (int) ($_SESSION['role'] ?? 0) === 2) {
+                          $notificationQuery = mysqli_query($db, "SELECT n.notification_id, n.title, n.message, n.created_at, n.is_read, f.farm_name FROM farmer_notifications n LEFT JOIN farmer f ON f.farm_id = n.farm_id WHERE n.farmer_id = '" . (int) $_SESSION['user_id'] . "' ORDER BY n.created_at DESC, n.notification_id DESC LIMIT 10");
+                          if ($notificationQuery) {
+                            while ($notification = mysqli_fetch_assoc($notificationQuery)) {
+                              $farmerNotifications[] = $notification;
+                            }
+                          }
+                        }
+
                         ?>
                         <div class="page-header pt-3 mb-4">
                           <h2>Farmer Dashboard</h2>
@@ -412,6 +507,11 @@
                         <?php if (isset($_GET['subscription_submitted'])): ?><div class="alert alert-success mb-4"><i class="fa-solid fa-check me-2"></i>Subscription request submitted! Awaiting manager approval.</div><?php endif; ?>
                         <?php if ($subscriptionRequest && (int) $subscriptionRequest['status'] === 0): ?>
                           <div class="alert alert-info shadow-sm mb-4"><i class="fa-solid fa-hourglass-half me-2"></i><strong>Pending Approval:</strong> <?php echo htmlspecialchars($subscriptionRequest['subscription_name']); ?> · <span class="badge bg-secondary">Awaiting review</span></div>
+                        <?php endif; ?>
+                        <?php if ($farmerNotifications): ?>
+                          <div class="card border-info shadow-sm mb-4"><div class="card-body"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0"><i class="fa-solid fa-bell text-info me-2"></i>Notifications</h5><span class="badge bg-info text-dark"><?php echo count($farmerNotifications); ?></span></div>
+                            <?php foreach ($farmerNotifications as $notification): ?><div class="border-start border-3 border-info ps-3 mb-3"><div class="d-flex justify-content-between gap-3"><strong><?php echo htmlspecialchars($notification['title']); ?></strong><small class="text-muted text-nowrap"><?php echo date('M j, Y g:i a', strtotime($notification['created_at'])); ?></small></div><div class="small mt-1"><?php echo htmlspecialchars($notification['message']); ?></div></div><?php endforeach; ?>
+                          </div></div>
                         <?php endif; ?>
 
                         <div class="mb-4">
@@ -639,13 +739,18 @@
                           $inquiryStatus = max(0, min(2, (int) ($_POST['status'] ?? 0)));
                           $responseText = trim($_POST['response'] ?? '');
                           $response = mysqli_real_escape_string($db, $responseText);
-                          $buyerQuery = mysqli_query($db, "SELECT i.buyer_email, u.user_email, p.product_name, i.subject FROM product_inquiries i INNER JOIN products p ON p.product_id=i.product_id LEFT JOIN users u ON u.user_id=i.buyer_id WHERE i.inquiry_id='$inquiryId' AND p.seller_email='$farmerEmail' LIMIT 1");
+                          $buyerQuery = mysqli_query($db, "SELECT i.buyer_email, i.response AS previous_response, u.user_id AS buyer_id, u.user_email, p.product_name, i.subject FROM product_inquiries i INNER JOIN products p ON p.product_id=i.product_id LEFT JOIN users u ON u.user_id=i.buyer_id WHERE i.inquiry_id='$inquiryId' AND p.seller_email='$farmerEmail' LIMIT 1");
                           $buyer = $buyerQuery ? mysqli_fetch_assoc($buyerQuery) : null;
                           $updateInquirySql = "UPDATE product_inquiries i INNER JOIN products p ON p.product_id=i.product_id SET i.status='$inquiryStatus', i.response='$response', i.updated_at=NOW() WHERE i.inquiry_id='$inquiryId' AND p.seller_email='$farmerEmail'";
                           if (mysqli_query($db, $updateInquirySql)) {
                             $buyerEmail = $buyer['user_email'] ?? $buyer['buyer_email'] ?? '';
                             if (filter_var($buyerEmail, FILTER_VALIDATE_EMAIL) && $responseText !== '') {
                               farmers_market_send_email($db, $buyerEmail, 'Response to your inquiry: ' . ($buyer['subject'] ?? 'Product inquiry'), "Your inquiry about " . ($buyer['product_name'] ?? 'a product') . " has received a response.\n\n" . $responseText);
+                            }
+                            if ($responseText !== '' && $responseText !== ($buyer['previous_response'] ?? '') && !empty($buyer['buyer_id'])) {
+                              $notificationTitle = mysqli_real_escape_string($db, 'Your inquiry received a response');
+                              $notificationMessage = mysqli_real_escape_string($db, 'The farmer responded to your inquiry about ' . ($buyer['product_name'] ?? 'a product') . ': ' . $responseText);
+                              mysqli_query($db, "INSERT INTO farmer_notifications (farmer_id, notification_type, title, message) VALUES ('" . (int) $buyer['buyer_id'] . "', 'inquiry_response', '$notificationTitle', '$notificationMessage')");
                             }
                             $inquiryMessage = 'Inquiry response saved.';
                           } else {
@@ -1967,6 +2072,7 @@
           }
       });
     </script>
+    <script src="assets/js/farmer-dashboard.js"></script>
 
 
 
