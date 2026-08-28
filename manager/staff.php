@@ -38,10 +38,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_staff']) || isse
                 $addAllowed = false;
             }
             $roleLabels = [1 => 'Admin', 4 => 'Manager', 5 => 'Supervisor'];
-            $name = $selectedUser ? mysqli_real_escape_string($db, $selectedUser['user_name']) : '';
-            $role = $selectedUser ? mysqli_real_escape_string($db, $roleLabels[(int) $selectedUser['role']] ?? 'Staff') : '';
-            $email = $selectedUser ? mysqli_real_escape_string($db, $selectedUser['user_email']) : '';
-            $phone = $selectedUser ? mysqli_real_escape_string($db, $selectedUser['user_phone'] ?? '') : '';
+            $name = $selectedUser['user_name'] ?? '';
+            $role = $selectedUser ? ($roleLabels[(int) $selectedUser['role']] ?? 'Staff') : '';
+            $email = $selectedUser['user_email'] ?? '';
+            $phone = $selectedUser['user_phone'] ?? '';
         }
     } else {
         $name = mysqli_real_escape_string($db, trim($_POST['staff_name'] ?? ''));
@@ -81,8 +81,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_staff']) || isse
                 }
             }
         } else {
-        $insert = mysqli_query($db, "INSERT INTO staff_payroll (user_id, staff_name, staff_role, email, phone, salary, status, created_at) VALUES ('$userId', '$name', '$role', '$email', '$phone', '$salary', 0, NOW())");
-        $notice = $insert ? 'Staff record created successfully.' : 'Unable to create staff record: ' . mysqli_error($db);
+            $insertStatement = mysqli_prepare($db, 'INSERT INTO staff_payroll (user_id, staff_name, staff_role, email, phone, salary, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, NOW())');
+            if ($insertStatement) {
+                mysqli_stmt_bind_param($insertStatement, 'issssd', $userId, $name, $role, $email, $phone, $salary);
+                $insert = mysqli_stmt_execute($insertStatement);
+                $insertError = mysqli_stmt_error($insertStatement);
+                mysqli_stmt_close($insertStatement);
+            } else {
+                $insert = false;
+                $insertError = mysqli_error($db);
+            }
+            $notice = $insert ? 'Staff record created successfully.' : 'Unable to create staff record: ' . $insertError;
         }
     } elseif (!$addAllowed) {
         $notice = $notice !== '' ? $notice : 'Complete the staff account selection before saving.';
@@ -127,7 +136,7 @@ $availableStaff = mysqli_query($db, "SELECT u.user_id, u.user_name, u.user_email
 <div class="card p-4 mb-4">
     <h5 class="mb-1">Add staff to payroll</h5>
     <p class="text-muted mb-3">Choose an active staff account. Account details fill automatically.</p>
-    <form method="post">
+    <form method="post" action="staff.php">
         <div class="row g-3">
             <div class="col-md-3">
                 <label class="form-label" for="staffUser">Staff account</label>
@@ -181,14 +190,14 @@ $availableStaff = mysqli_query($db, "SELECT u.user_id, u.user_name, u.user_email
                         <td>
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-sm btn-outline-primary edit-staff-button" data-edit-target="editStaff<?php echo (int) $member['staff_id']; ?>" title="Edit staff"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
-                                <form method="post" onsubmit="return confirm('Delete this staff record?');">
+                                <form method="post" action="staff.php" onsubmit="return confirm('Delete this staff record?');">
                                     <input type="hidden" name="staff_id" value="<?php echo (int) $member['staff_id']; ?>">
                                     <button type="submit" name="delete_staff" class="btn btn-sm btn-outline-danger" title="Delete staff"><i class="fa-solid fa-trash-can"></i></button>
                                 </form>
                             </div>
                             <div class="edit-staff-panel border rounded p-3 mt-3 d-none" id="editStaff<?php echo (int) $member['staff_id']; ?>">
                                 <h6 class="mb-3">Edit Staff Details</h6>
-                                <form method="post">
+                                <form method="post" action="staff.php">
                                     <input type="hidden" name="staff_id" value="<?php echo (int) $member['staff_id']; ?>">
                                     <div class="row g-3">
                                         <div class="col-md-6"><label class="form-label">Name</label><input class="form-control" name="staff_name" value="<?php echo htmlspecialchars($member['account_name']); ?>" required></div>

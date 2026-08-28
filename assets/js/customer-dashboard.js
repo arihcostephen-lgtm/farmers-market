@@ -56,12 +56,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const totalOutput = document.getElementById('dashboardOrderTotal');
     if (orderForm && quantityInput) {
         const price = Number(orderForm.dataset.price || 0);
-        const taxRate = Number(orderForm.dataset.taxRate || 0);
+        const taxRules = JSON.parse(orderForm.dataset.taxRules || '[]');
         const formatMoney = value => value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const updateOrderTotals = function () {
             const quantity = Math.max(1, Math.min(Number(quantityInput.value) || 1, Number(quantityInput.max) || Number.MAX_SAFE_INTEGER));
             quantityInput.value = quantity;
             const subtotal = price * quantity;
+            const matchingRule = taxRules.find(rule => Number(rule.min) <= quantity && (rule.max === null || Number(rule.max) >= quantity));
+            const taxRate = matchingRule ? Number(matchingRule.rate) : 0;
             const tax = subtotal * taxRate / 100;
             subtotalOutput.textContent = formatMoney(subtotal);
             taxOutput.textContent = formatMoney(tax);

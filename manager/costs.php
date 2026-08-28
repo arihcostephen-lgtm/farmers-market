@@ -150,7 +150,7 @@ if (!$costRequests) {
 <?php if ($isSupervisor): ?>
     <div class="card p-4 mb-4">
         <h5 class="mb-3">Request funds for an activity</h5>
-        <form method="post">
+        <form method="post" action="costs.php">
             <div class="row g-3">
                 <div class="col-md-4"><input class="form-control" name="cost_name" placeholder="Activity or cost name" required></div>
                 <div class="col-md-3"><input class="form-control" name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required></div>
@@ -162,7 +162,7 @@ if (!$costRequests) {
 <?php else: ?>
     <div class="card p-4 mb-4">
         <h5 class="mb-3">Add direct extra cost</h5>
-        <form method="post">
+        <form method="post" action="costs.php">
             <div class="row g-3">
                 <div class="col-md-4"><input class="form-control" name="cost_name" placeholder="Cost name" required></div>
                 <div class="col-md-3"><input class="form-control" name="amount" type="number" step="0.01" min="0" placeholder="Amount" required></div>
@@ -202,11 +202,11 @@ if (!$costRequests) {
                             <td>
                                 <?php if ($request['status'] === 'pending'): ?>
                                     <div class="d-flex gap-2">
-                                        <form method="post" class="d-inline-block">
+                                        <form method="post" action="costs.php" class="d-inline-block">
                                             <input type="hidden" name="request_id" value="<?php echo (int) $request['request_id']; ?>">
                                             <button type="submit" name="approve_request" class="btn btn-sm btn-success">Approve</button>
                                         </form>
-                                        <form method="post" class="d-inline-block">
+                                        <form method="post" action="costs.php" class="d-inline-block">
                                             <input type="hidden" name="request_id" value="<?php echo (int) $request['request_id']; ?>">
                                             <button type="submit" name="reject_request" class="btn btn-sm btn-outline-danger">Reject</button>
                                         </form>

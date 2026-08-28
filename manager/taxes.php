@@ -81,7 +81,7 @@ if (!$categories || !$taxRules) {
 
 <div class="card p-4 mb-4">
     <h5 class="mb-3"><?php echo $editingRule ? 'Edit tax rule' : 'Add tax rule'; ?></h5>
-    <form method="post">
+    <form method="post" action="taxes.php">
         <input type="hidden" name="action" value="<?php echo $editingRule ? 'update' : 'create'; ?>">
         <?php if ($editingRule): ?><input type="hidden" name="rule_id" value="<?php echo (int) $editingRule['rule_id']; ?>"><?php endif; ?>
         <div class="row g-3">
@@ -124,12 +124,12 @@ if (!$categories || !$taxRules) {
                         <td><span class="badge bg-<?php echo (int) $rule['status'] === 1 ? 'success' : 'secondary'; ?>"><?php echo (int) $rule['status'] === 1 ? 'Active' : 'Inactive'; ?></span></td>
                         <td>
                             <a href="taxes.php?edit_id=<?php echo (int) $rule['rule_id']; ?>" class="btn btn-sm btn-outline-primary">Edit</a>
-                            <form method="post" class="d-inline-flex gap-1">
+                            <form method="post" action="taxes.php" class="d-inline-flex gap-1">
                                 <input type="hidden" name="rule_id" value="<?php echo (int) $rule['rule_id']; ?>">
                                 <input type="hidden" name="action" value="toggle">
                                 <button class="btn btn-sm btn-outline-secondary" type="submit"><?php echo (int) $rule['status'] === 1 ? 'Disable' : 'Enable'; ?></button>
                             </form>
-                            <form method="post" class="d-inline-flex" onsubmit="return confirm('Delete this tax rule?');">
+                            <form method="post" action="taxes.php" class="d-inline-flex" onsubmit="return confirm('Delete this tax rule?');">
                                 <input type="hidden" name="rule_id" value="<?php echo (int) $rule['rule_id']; ?>">
                                 <input type="hidden" name="action" value="delete">
                                 <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>

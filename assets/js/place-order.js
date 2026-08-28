@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('placeOrderForm');
     const quantityInput = document.getElementById('quantity');
     const price = Number(form?.dataset.price || 0);
-    const taxRate = Number(form?.dataset.taxRate || 0);
+    const taxRules = JSON.parse(form?.dataset.taxRules || '[]');
     const maxQuantity = Number(quantityInput?.max || 0);
     const subtotal = document.getElementById('orderSubtotal');
     const tax = document.getElementById('orderTax');
@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const quantity = Math.max(1, Math.min(Number(quantityInput.value) || 1, maxQuantity || Number.MAX_SAFE_INTEGER));
         quantityInput.value = quantity;
         const subtotalValue = quantity * price;
+        const matchingRule = taxRules.find(rule => Number(rule.min) <= quantity && (rule.max === null || Number(rule.max) >= quantity));
+        const taxRate = matchingRule ? Number(matchingRule.rate) : 0;
         const taxValue = subtotalValue * taxRate / 100;
         subtotal.textContent = formatMoney(subtotalValue);
         tax.textContent = formatMoney(taxValue);

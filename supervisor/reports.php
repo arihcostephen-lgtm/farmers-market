@@ -65,7 +65,7 @@ if (!$supervisorReports) {
     <div class="card p-4 mb-4">
         <h5 class="mb-1"><i class="fa-solid fa-pen-to-square text-success me-2"></i>Write field report</h5>
         <p class="text-muted mb-3">Submit operational findings for manager review.</p>
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" action="reports.php" enctype="multipart/form-data">
             <div class="row g-3">
                 <div class="col-12"><label class="form-label" for="reportTitle">Report title</label><input class="form-control" id="reportTitle" name="title" maxlength="200" required placeholder="Example: Kyambogo farm visit summary"></div>
                 <div class="col-12"><label class="form-label" for="reportBody">Report details</label><textarea class="form-control" id="reportBody" name="report_body" rows="7" required placeholder="Record findings, actions, risks, or recommendations."></textarea></div>

@@ -138,6 +138,15 @@ $activeFarmerCount = $activeFarmerCountQuery ? (int) mysqli_fetch_assoc($activeF
 $inquiryRate = $activeFarmerCount > 0 ? ((int) $inquirySummary['contacted_farmers'] / $activeFarmerCount) * 100 : 0;
 $recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, COALESCE(p.product_name, CONCAT('Product #', i.product_id)) AS product_name, p.seller_email, buyer.user_name AS customer_name, buyer.user_email AS customer_email, farmer.user_name AS farmer_name FROM product_inquiries i LEFT JOIN products p ON p.product_id = i.product_id LEFT JOIN users buyer ON buyer.user_id = i.buyer_id AND buyer.role = 3 LEFT JOIN users farmer ON farmer.user_email COLLATE utf8mb4_unicode_ci = p.seller_email COLLATE utf8mb4_unicode_ci AND farmer.role = 2 AND farmer.status = 1 ORDER BY i.created_at DESC LIMIT 10");
 ?>
+<div class="card p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="mb-1">Supervisor report details</h5><small class="text-muted">Reports submitted by supervisors are shown here for manager review.</small></div><i class="fa-solid fa-file-lines text-success fs-4"></i></div>
+    <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): mysqli_data_seek($supervisorReports, 0); while ($report = mysqli_fetch_assoc($supervisorReports)): ?>
+        <article class="border-top pt-3 mb-3 report-content">
+            <div class="d-flex justify-content-between gap-3 flex-wrap mb-2"><strong><?php echo htmlspecialchars($report['title']); ?></strong><small class="text-muted"><?php echo htmlspecialchars($report['supervisor_name']); ?> · <?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></div>
+            <div class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?></div>
+        </article>
+    <?php endwhile; else: ?><p class="text-muted mb-0">No supervisor reports submitted yet.</p><?php endif; ?>
+</div>
 
 <div class="row g-4 mb-4">
     <div class="col-lg-3 col-md-6">
@@ -241,9 +250,20 @@ $recentInquiries = mysqli_query($db, "SELECT i.subject, i.created_at, COALESCE(p
     <div class="col-xl-7">
         <div class="card p-4 h-100">
             <div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="mb-1">Supervisor reports</h5><small class="text-muted">Latest field reports joined to supervisor accounts and regions.</small></div><a href="reports.php" class="btn btn-sm btn-outline-success">Review reports</a></div>
-            <div class="table-responsive"><table class="table table-hover data-table mb-0"><thead><tr><th>Supervisor</th><th>Report</th><th>Region</th><th>Submitted</th></tr></thead><tbody>
-                <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): while ($report = mysqli_fetch_assoc($supervisorReports)): ?><tr><td><?php echo htmlspecialchars($report['supervisor_name']); ?></td><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo htmlspecialchars($report['region']); ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr><?php endwhile; else: ?><tr><td colspan="4" class="text-center text-muted py-4">No supervisor reports submitted yet.</td></tr><?php endif; ?>
+            <div class="table-responsive"><table class="table table-hover data-table mb-0"><thead><tr><th>Supervisor</th><th>Report</th><th>Details</th><th>Region</th><th>Submitted</th></tr></thead><tbody>
+                <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): while ($report = mysqli_fetch_assoc($supervisorReports)): ?><tr><td><?php echo htmlspecialchars($report['supervisor_name']); ?></td><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?></td><td><?php echo htmlspecialchars($report['region']); ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr><?php endwhile; else: ?><tr><td colspan="5" class="text-center text-muted py-4">No supervisor reports submitted yet.</td></tr><?php endif; ?>
             </tbody></table></div>
+            <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): mysqli_data_seek($supervisorReports, 0); ?>
+                <div class="mt-4">
+                    <h6 class="mb-3">Report contents</h6>
+                    <?php while ($report = mysqli_fetch_assoc($supervisorReports)): ?>
+                        <article class="border-top pt-3 mb-3 report-content">
+                            <div class="d-flex justify-content-between gap-3 flex-wrap mb-2"><strong><?php echo htmlspecialchars($report['title']); ?></strong><small class="text-muted"><?php echo htmlspecialchars($report['supervisor_name']); ?> · <?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></div>
+                            <div class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?></div>
+                        </article>
+                    <?php endwhile; ?>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
     <div class="col-xl-5">

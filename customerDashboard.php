@@ -13,6 +13,7 @@ $customerPhone = $_SESSION['user_phone'] ?? '';
 $customerEmailSql = $db->real_escape_string($customerEmail);
 $checkoutProductId = (int) ($_GET['order_product'] ?? $_POST['product_id'] ?? 0);
 $checkoutError = '';
+$cartSaved = false;
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['add_to_cart'])) {
     $checkoutProductId = (int) ($_POST['product_id'] ?? 0);
@@ -39,10 +40,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['add_to_cart']
             $db->commit();
             $checkoutProductId = 0;
             $cartMessage = 'Product added to your cart. Choose Checkout from the order list when you are ready to pay.';
+            $cartSaved = true;
         }
     }
-    $db->rollback();
-    if ($checkoutError === '') {
+    if (!$cartSaved) {
+        $db->rollback();
+    }
+    if (!$cartSaved && $checkoutError === '') {
         $checkoutError = 'The requested quantity is not available.';
     }
 }
@@ -64,11 +68,22 @@ $orderListResult = $db->query("SELECT o.or_id, o.or_name, o.quantity, o.order_un
 $checkoutProductQuery = $checkoutProductId > 0 ? $db->query("SELECT product_id, product_name, price, product_unit, stock_quantity, category_id FROM products WHERE product_id = $checkoutProductId AND status != 0 LIMIT 1") : false;
 $checkoutProduct = $checkoutProductQuery ? $checkoutProductQuery->fetch_assoc() : null;
 $checkoutTaxRate = 0;
+$checkoutTaxRules = [];
 if ($checkoutProduct) {
     $checkoutUnit = $db->real_escape_string($checkoutProduct['product_unit'] ?? 'kilogram');
     $checkoutCategory = (int) ($checkoutProduct['category_id'] ?? 0);
-    $checkoutTaxQuery = $db->query("SELECT rate_percent FROM tax_rules WHERE status = 1 AND min_quantity <= 1 AND (max_quantity IS NULL OR max_quantity >= 1) AND (applies_to = 'all' OR applies_to = '$checkoutCategory') AND (applies_unit = 'all' OR applies_unit = '$checkoutUnit') ORDER BY rate_percent DESC LIMIT 1");
-    $checkoutTaxRate = $checkoutTaxQuery ? (float) ($checkoutTaxQuery->fetch_assoc()['rate_percent'] ?? 0) : 0;
+    $checkoutTaxQuery = $db->query("SELECT min_quantity, max_quantity, rate_percent FROM tax_rules WHERE status = 1 AND (applies_to = 'all' OR applies_to = '$checkoutCategory') AND (applies_unit = 'all' OR applies_unit = '$checkoutUnit') ORDER BY (applies_to = '$checkoutCategory') DESC, (applies_unit = '$checkoutUnit') DESC, rate_percent DESC");
+    if ($checkoutTaxQuery) {
+        while ($checkoutTaxRow = $checkoutTaxQuery->fetch_assoc()) {
+            $checkoutTaxRules[] = ['min' => (int) $checkoutTaxRow['min_quantity'], 'max' => $checkoutTaxRow['max_quantity'] === null ? null : (int) $checkoutTaxRow['max_quantity'], 'rate' => (float) $checkoutTaxRow['rate_percent']];
+        }
+    }
+    foreach ($checkoutTaxRules as $checkoutTaxRule) {
+        if ($checkoutTaxRule['min'] <= 1 && ($checkoutTaxRule['max'] === null || $checkoutTaxRule['max'] >= 1)) {
+            $checkoutTaxRate = $checkoutTaxRule['rate'];
+            break;
+        }
+    }
 }
 
 $commentsCount = 0;
@@ -543,7 +558,7 @@ $inquiryClasses = ['warning', 'info', 'success'];
                     <div class="card-body">
                         <?php if ($checkoutProduct): ?>
                             <?php if ($checkoutError): ?><div class="alert alert-danger"><?php echo htmlspecialchars($checkoutError); ?></div><?php endif; ?>
-                            <form method="post" id="dashboardOrderForm" data-price="<?php echo (float) $checkoutProduct['price']; ?>" data-tax-rate="<?php echo (float) $checkoutTaxRate; ?>">
+                            <form method="post" id="dashboardOrderForm" data-price="<?php echo (float) $checkoutProduct['price']; ?>" data-tax-rules="<?php echo htmlspecialchars(json_encode($checkoutTaxRules), ENT_QUOTES, 'UTF-8'); ?>">
                                 <input type="hidden" name="product_id" value="<?php echo (int) $checkoutProduct['product_id']; ?>">
                                 <div class="row g-3 align-items-end"><div class="col-lg-4"><label class="form-label" for="dashboardOrderProduct">Product</label><input class="form-control" id="dashboardOrderProduct" value="<?php echo htmlspecialchars($checkoutProduct['product_name']); ?>" readonly></div><div class="col-lg-3"><label class="form-label" for="dashboardOrderQuantity">Quantity (<?php echo htmlspecialchars($checkoutProduct['product_unit']); ?>)</label><input class="form-control" id="dashboardOrderQuantity" name="quantity" type="number" min="1" max="<?php echo (int) $checkoutProduct['stock_quantity']; ?>" value="<?php echo max(1, (int) ($_POST['quantity'] ?? 1)); ?>" required></div><div class="col-lg-5"><div class="order-total-strip"><span>Cart total</span><strong>UGX <span id="dashboardOrderTotal"><?php echo number_format((float) $checkoutProduct['price'], 2); ?></span></strong></div></div><div class="col-md-6"><label class="form-label" for="dashboardDeliveryLocation">Delivery location <span class="text-muted fw-normal">(optional until checkout)</span></label><textarea class="form-control" id="dashboardDeliveryLocation" name="delivery_location" rows="3" placeholder="Add the delivery location during checkout"><?php echo htmlspecialchars($_POST['delivery_location'] ?? ''); ?></textarea></div><div class="col-md-6"><label class="form-label" for="dashboardDeliveryNotes">Delivery notes <span class="text-muted fw-normal">(optional)</span></label><textarea class="form-control" id="dashboardDeliveryNotes" name="delivery_notes" rows="3" placeholder="Landmark or handling instructions"><?php echo htmlspecialchars($_POST['delivery_notes'] ?? ''); ?></textarea></div><div class="col-12"><div class="small text-muted mb-3">Subtotal: UGX <span id="dashboardOrderSubtotal"><?php echo number_format((float) $checkoutProduct['price'], 2); ?></span> · Tax: UGX <span id="dashboardOrderTax">0.00</span></div><button type="submit" name="add_to_cart" class="btn btn-success"><i class="fas fa-cart-plus me-2"></i>Add to cart</button><a href="customerDashboard.php#order-list" class="btn btn-outline-light ms-2">View cart</a></div></div>
                             </form>

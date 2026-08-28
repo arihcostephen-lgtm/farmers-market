@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../inc/report_attachments.php';
 $notice = '';
 $isSupervisor = $managerRole === 5;
+$isManager = $managerRole === 4;
 
 if ($isSupervisor && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit_report'])) {
     $title = trim($_POST['title'] ?? '');
@@ -39,8 +40,11 @@ $systemSummary = [
 $reportViewerId = (int) ($_SESSION['user_id'] ?? 0);
 $reportQuerySql = $isSupervisor
     ? "SELECT r.report_id, COALESCE(u.user_name, r.supervisor_name) AS supervisor_name, r.title, r.report_body, r.created_at FROM supervisor_reports r LEFT JOIN users u ON u.user_id = r.supervisor_id AND u.role = 5 WHERE r.supervisor_id='$reportViewerId' ORDER BY r.created_at DESC"
-    : "SELECT r.report_id, COALESCE(u.user_name, r.supervisor_name) AS supervisor_name, r.title, r.report_body, r.created_at FROM supervisor_reports r LEFT JOIN users u ON u.user_id = r.supervisor_id AND u.role = 5 ORDER BY r.created_at DESC";
+    : "SELECT r.report_id, COALESCE(u.user_name, r.supervisor_name, CONCAT('Supervisor #', r.supervisor_id)) AS supervisor_name, r.title, r.report_body, r.created_at FROM supervisor_reports r LEFT JOIN users u ON u.user_id = r.supervisor_id AND u.role = 5 ORDER BY r.created_at DESC, r.report_id DESC";
 $supervisorReports = mysqli_query($db, $reportQuerySql);
+if (!$supervisorReports) {
+    $notice = 'Supervisor reports could not be loaded: ' . mysqli_error($db);
+}
 ?>
 <div class="page-header">
     <div class="text-uppercase small fw-semibold opacity-75">Reports</div>
@@ -55,7 +59,7 @@ $supervisorReports = mysqli_query($db, $reportQuerySql);
     <div class="card p-4 mb-4">
         <h5 class="mb-1"><i class="fa-solid fa-pen-to-square text-success me-2"></i>Write field report</h5>
         <p class="text-muted mb-3">Submit operational findings for manager review.</p>
-        <form method="post">
+        <form method="post" action="reports.php">
             <div class="row g-3">
                 <div class="col-12"><label class="form-label" for="reportTitle">Report title</label><input class="form-control" id="reportTitle" name="title" maxlength="200" required placeholder="Example: Kyambogo farm visit summary"></div>
                 <div class="col-12"><label class="form-label" for="reportBody">Report details</label><textarea class="form-control" id="reportBody" name="report_body" rows="7" required placeholder="Record findings, actions, risks, or recommendations."></textarea></div>
@@ -78,14 +82,14 @@ $supervisorReports = mysqli_query($db, $reportQuerySql);
     </div>
 <?php else: ?>
     <div class="card p-4 mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0"><i class="fa-solid fa-file-lines text-success me-2"></i>Supervisor reports</h5><span class="badge bg-success">Manager view</span></div>
+        <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0"><i class="fa-solid fa-file-lines text-success me-2"></i>Supervisor reports</h5><span class="badge bg-success"><?php echo $isManager ? 'Manager view' : 'Reports'; ?></span></div>
         <div class="table-responsive">
             <table class="table table-hover data-table">
-                <thead><tr><th>Report</th><th>Supervisor</th><th>Details</th><th>Submitted</th></tr></thead>
+                <thead><tr><th>Report</th><th>Supervisor</th><th>Details</th><th>Submitted</th><th>Action</th></tr></thead>
                 <tbody>
                     <?php if ($supervisorReports && mysqli_num_rows($supervisorReports) > 0): while ($report = mysqli_fetch_assoc($supervisorReports)): ?>
-                        <?php $attachments = report_attachment_rows($db, $report['report_id']); ?><tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo htmlspecialchars($report['supervisor_name']); ?></td><td class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?><?php if ($attachments): ?><div class="mt-2"><?php foreach ($attachments as $attachment): ?><a class="d-block small text-success" href="../uploads/docs/<?php echo htmlspecialchars($attachment['attachment_path']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip me-1"></i><?php echo htmlspecialchars($attachment['attachment_name']); ?></a><?php endforeach; ?></div><?php endif; ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td></tr>
-                    <?php endwhile; else: ?><tr><td colspan="4" class="text-center text-muted py-4">No supervisor reports submitted yet.</td></tr><?php endif; ?>
+                        <?php $attachments = report_attachment_rows($db, $report['report_id']); $reportModalId = 'viewReport' . (int) $report['report_id']; ?><tr><td><strong><?php echo htmlspecialchars($report['title']); ?></strong></td><td><?php echo htmlspecialchars($report['supervisor_name']); ?></td><td class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?><?php if ($attachments): ?><div class="mt-2"><?php foreach ($attachments as $attachment): ?><a class="d-block small text-success" href="../uploads/docs/<?php echo htmlspecialchars($attachment['attachment_path']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip me-1"></i><?php echo htmlspecialchars($attachment['attachment_name']); ?></a><?php endforeach; ?></div><?php endif; ?></td><td><small><?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></small></td><td><button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#<?php echo $reportModalId; ?>"><i class="fa-solid fa-eye me-1"></i>View report</button><div class="modal fade" id="<?php echo $reportModalId; ?>" tabindex="-1" aria-labelledby="<?php echo $reportModalId; ?>Label" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="<?php echo $reportModalId; ?>Label"><?php echo htmlspecialchars($report['title']); ?></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><p class="text-muted mb-3"><strong>Supervisor:</strong> <?php echo htmlspecialchars($report['supervisor_name']); ?><br><strong>Submitted:</strong> <?php echo date('M j, Y g:i a', strtotime($report['created_at'])); ?></p><div class="report-details"><?php echo nl2br(htmlspecialchars($report['report_body'])); ?></div><?php if ($attachments): ?><hr><h6>Attachments</h6><?php foreach ($attachments as $attachment): ?><a class="d-block small text-success" href="../uploads/docs/<?php echo htmlspecialchars($attachment['attachment_path']); ?>" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip me-1"></i><?php echo htmlspecialchars($attachment['attachment_name']); ?></a><?php endforeach; ?><?php endif; ?></div></div></div></div></div></td></tr>
+                    <?php endwhile; else: ?><tr><td colspan="5" class="text-center text-muted py-4">No supervisor reports submitted yet.</td></tr><?php endif; ?>
                 </tbody>
             </table>
         </div>

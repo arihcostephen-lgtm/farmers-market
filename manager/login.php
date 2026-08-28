@@ -104,7 +104,7 @@ if (isset($_POST['managerSubmit'])) {
                 <div class="alert alert-warning" role="alert"><?php echo htmlspecialchars($login_error); ?></div>
             <?php endif; ?>
 
-            <form method="post" action="">
+            <form method="post" action="login.php">
                 <div class="mb-3">
                     <label for="email" class="form-label">Email Address</label>
                     <input type="email" name="email" id="email" class="form-control form-control-lg" placeholder="Enter email" required>

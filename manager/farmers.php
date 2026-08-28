@@ -118,7 +118,7 @@ if ($managerRole === 5) {
             <div class="card p-4">
                 <h5 class="mb-1"><i class="fa-solid fa-calendar-plus text-success me-2"></i>Schedule a visit</h5>
                 <p class="text-muted mb-3">Choose a farmer and record the visit plan.</p>
-                <form method="post">
+                <form method="post" action="farmers.php">
                     <div class="mb-3"><label class="form-label" for="farmId">Farm</label><select class="form-select" name="farm_id" id="farmId" required><option value="">Select a farm</option><?php if ($farmDirectory): while ($farm = mysqli_fetch_assoc($farmDirectory)): ?><option value="<?php echo (int) $farm['farm_id']; ?>" <?php echo $formFarmId === (int) $farm['farm_id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($farm['farm_name']); ?><?php echo $farm['farm_phone'] ? ' - ' . htmlspecialchars($farm['farm_phone']) : ''; ?></option><?php endwhile; endif; ?></select></div>
                     <div class="mb-3"><label class="form-label" for="visitDate">Visit date</label><input class="form-control" type="date" name="visit_date" id="visitDate" min="<?php echo date('Y-m-d'); ?>" value="<?php echo htmlspecialchars($formVisitDate); ?>" required></div>
                     <div class="mb-3"><label class="form-label" for="visitStatus">Status</label><select class="form-select" name="visit_status" id="visitStatus"><option value="Scheduled" <?php echo $formVisitStatus === 'Scheduled' ? 'selected' : ''; ?>>Scheduled</option><option value="Completed" <?php echo $formVisitStatus === 'Completed' ? 'selected' : ''; ?>>Completed</option><option value="Cancelled" <?php echo $formVisitStatus === 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option></select></div>
@@ -235,7 +235,7 @@ if (isset($_GET['edit_plan']) && !empty($_GET['plan_id'])) {
     <div class="col-xl-5">
         <div class="card p-4">
             <h5 class="mb-3"><?php echo $editPlan ? 'Edit subscription plan' : 'Create subscription plan'; ?></h5>
-            <form method="post">
+            <form method="post" action="farmers.php">
                 <input type="hidden" name="plan_id" value="<?php echo (int) ($editPlan['plan_id'] ?? 0); ?>">
                 <div class="mb-3"><label class="form-label">Plan name</label><input class="form-control" name="plan_name" required value="<?php echo htmlspecialchars($editPlan['plan_name'] ?? ''); ?>"></div>
                 <div class="mb-3"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="3"><?php echo htmlspecialchars($editPlan['description'] ?? ''); ?></textarea></div>

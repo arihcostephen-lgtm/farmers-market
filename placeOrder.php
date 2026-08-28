@@ -26,7 +26,8 @@ if (isset($_POST['place_order'])) {
     $subtotal = (float) $product['price'] * $quantity;
     $productUnit = mysqli_real_escape_string($db, $product['product_unit'] ?? 'kilogram');
     $categoryId = (int) ($product['category_id'] ?? 0);
-    $taxRule = $db->query("SELECT * FROM tax_rules WHERE status = 1 AND min_quantity <= $quantity AND (max_quantity IS NULL OR max_quantity >= $quantity) AND (applies_to = 'all' OR applies_to = '$categoryId') AND (applies_unit = 'all' OR applies_unit = '$productUnit') ORDER BY (applies_to = '$categoryId') DESC, (applies_unit = '$productUnit') DESC, rate_percent DESC LIMIT 1")->fetch_assoc();
+      $taxQuery = $db->query("SELECT rate_percent FROM tax_rules WHERE status = 1 AND min_quantity <= $quantity AND (max_quantity IS NULL OR max_quantity >= $quantity) AND (applies_to = 'all' OR applies_to = '$categoryId') AND (applies_unit = 'all' OR applies_unit = '$productUnit') ORDER BY (applies_to = '$categoryId') DESC, (applies_unit = '$productUnit') DESC, rate_percent DESC LIMIT 1");
+      $taxRule = $taxQuery ? $taxQuery->fetch_assoc() : null;
     $taxRate = isset($taxRule['rate_percent']) ? (float) $taxRule['rate_percent'] : 0.00;
     $taxAmount = round($subtotal * ($taxRate / 100), 2);
     $totalPrice = round($subtotal + $taxAmount, 2);
@@ -51,13 +52,24 @@ if ($productId > 0 && !isset($_POST['place_order'])) {
   $db->query("UPDATE products SET view_count = view_count + 1 WHERE product_id = $productId AND status != 0");
 }
 $product = $db->query("SELECT product_name, price, product_unit, stock_quantity, category_id FROM products WHERE product_id = $productId AND status != 0 LIMIT 1")->fetch_assoc();
-$previewQuantity = max(1, (int) ($_POST['quantity'] ?? 1));
+  $previewQuantity = max(1, (int) ($_POST['quantity'] ?? 1));
 $taxRule = null;
+  $taxRules = [];
 if ($product) {
   $previewUnit = mysqli_real_escape_string($db, $product['product_unit'] ?? 'kilogram');
   $previewCategory = (int) ($product['category_id'] ?? 0);
-  $taxQuery = $db->query("SELECT rate_percent FROM tax_rules WHERE status = 1 AND min_quantity <= $previewQuantity AND (max_quantity IS NULL OR max_quantity >= $previewQuantity) AND (applies_to = 'all' OR applies_to = '$previewCategory') AND (applies_unit = 'all' OR applies_unit = '$previewUnit') ORDER BY (applies_to = '$previewCategory') DESC, (applies_unit = '$previewUnit') DESC, rate_percent DESC LIMIT 1");
-  $taxRule = $taxQuery ? $taxQuery->fetch_assoc() : null;
+    $taxQuery = $db->query("SELECT min_quantity, max_quantity, rate_percent FROM tax_rules WHERE status = 1 AND (applies_to = 'all' OR applies_to = '$previewCategory') AND (applies_unit = 'all' OR applies_unit = '$previewUnit') ORDER BY (applies_to = '$previewCategory') DESC, (applies_unit = '$previewUnit') DESC, rate_percent DESC");
+    if ($taxQuery) {
+      while ($taxRow = $taxQuery->fetch_assoc()) {
+        $taxRules[] = ['min' => (int) $taxRow['min_quantity'], 'max' => $taxRow['max_quantity'] === null ? null : (int) $taxRow['max_quantity'], 'rate' => (float) $taxRow['rate_percent']];
+      }
+    }
+    foreach ($taxRules as $taxCandidate) {
+      if ($taxCandidate['min'] <= $previewQuantity && ($taxCandidate['max'] === null || $taxCandidate['max'] >= $previewQuantity)) {
+        $taxRule = $taxCandidate;
+        break;
+      }
+    }
 }
 ?>
 <!doctype html>
@@ -93,7 +105,7 @@ if ($product) {
         <div class="col-lg-7 checkout-reveal">
           <section class="checkout-panel p-4 p-md-5">
             <h3 class="mb-1">Delivery details</h3><p class="checkout-page text-muted mb-4">Your order will be sent for payment after submission.</p>
-            <form method="post" id="placeOrderForm" data-price="<?php echo htmlspecialchars((float) ($product['price'] ?? 0)); ?>" data-tax-rate="<?php echo htmlspecialchars((float) (($taxRule['rate_percent'] ?? 0))); ?>">
+            <form method="post" id="placeOrderForm" data-price="<?php echo htmlspecialchars((float) ($product['price'] ?? 0)); ?>" data-tax-rules="<?php echo htmlspecialchars(json_encode($taxRules), ENT_QUOTES, 'UTF-8'); ?>">
               <input type="hidden" name="product_id" value="<?php echo $productId; ?>">
               <label for="quantity" class="form-label">Quantity (<?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?>)</label>
               <div class="quantity-control mb-2"><button type="button" class="btn" data-quantity-change="decrease" aria-label="Decrease quantity"><i class="fa-solid fa-minus"></i></button><input type="number" id="quantity" name="quantity" class="form-control" min="1" max="<?php echo (int) $product['stock_quantity']; ?>" value="1" required <?php echo (int) $product['stock_quantity'] < 1 ? 'disabled' : ''; ?>><button type="button" class="btn" data-quantity-change="increase" aria-label="Increase quantity"><i class="fa-solid fa-plus"></i></button></div>
