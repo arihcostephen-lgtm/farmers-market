@@ -284,7 +284,7 @@
                                             </div>
 
                                             <div class="mb-3">
-                                                <label class="form-label">Seller Email</label>
+                                                <label class="form-label">Farmer Email</label>
                                                 <input type="email" name="seller_email" class="form-control" value="<?php echo htmlspecialchars($seller_email); ?>">
                                             </div>
 

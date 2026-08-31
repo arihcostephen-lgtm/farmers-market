@@ -73,18 +73,61 @@
 																				<input type="text" name="farm_name" id="farmName" class="form-control" placeholder="Name of your farm">
 																			</div>
 																		<div class="form-group">
-																			<label for="farmLocation">Farm location</label>
-																			<textarea name="farm_location" id="farmLocation" class="form-control" rows="3" placeholder="Village, district, landmark or GPS details"></textarea>
+																			<label for="farmLocationSearch">Farm location <small class="text-muted">(Search place name in Ntungamo)</small></label>
+																			<input type="text" name="farm_location_search" id="farmLocationSearch" class="form-control" placeholder="e.g. Kabwohe, Ruhinda, Mbarara..." autocomplete="off">
+																			<small class="form-text text-muted">Start typing a place name in Ntungamo district, Uganda</small>
+																			<div id="farmLocationSuggestions" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;"></div>
 																		</div>
+																		<!-- Hidden fields for coordinates -->
+																		<input type="hidden" name="farm_latitude" id="farmLatitude" value="">
+																		<input type="hidden" name="farm_longitude" id="farmLongitude" value="">
+																		<input type="hidden" name="farm_location" id="farmLocation" value="">
+																		<!-- Map display -->
 																		<div class="form-group">
-																			<label for="farmDocument">Farm document (optional)</label>
-																			<input type="file" name="farm_document" id="farmDocument" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.txt">
+																			<label>Farm location map</label>
+																			<div id="farmMap" class="border rounded" style="height: 250px; background-color: #f0f0f0; display: none;">
+																				<small class="text-muted p-2 d-block">Map will appear after selecting a location</small>
+																			</div>
 																		</div>
-																	</div>
-
-													
-												</div>
-
+																			<div class="form-group mt-3">
+																					<label for="marketName">Nearby market / trading point</label>
+																					<input type="text" name="market_name" id="marketName" class="form-control" placeholder="e.g. Kabwohe market, Ruhinda trading center...">
+																				</div>
+																			<div class="form-group">
+																					<label for="marketLocationSearch">Market location <small class="text-muted">(Search place name in Ntungamo)</small></label>
+																					<input type="text" name="market_location_search" id="marketLocationSearch" class="form-control" placeholder="e.g. Kabwohe, Ruhinda, Mbarara..." autocomplete="off">
+																					<small class="form-text text-muted">Start typing a place name in Ntungamo district, Uganda</small>
+																					<div id="marketLocationSuggestions" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;"></div>
+																				</div>
+																		<!-- Hidden fields for coordinates -->
+																		<input type="hidden" name="market_latitude" id="marketLatitude" value="">
+																		<input type="hidden" name="market_longitude" id="marketLongitude" value="">
+																		<input type="hidden" name="market_address" id="marketAddress" value="">
+																		<!-- Map display -->
+																		<div class="form-group">
+																			<label>Market location map</label>
+																			<div id="marketMap" class="border rounded" style="height: 250px; background-color: #f0f0f0; display: none;">
+																				<small class="text-muted p-2 d-block">Map will appear after selecting a location</small>
+																			</div>
+																		</div>
+																			<div class="row mt-3">
+																					<div class="col-md-6 form-group">
+																						<label for="marketOperatingDays">Market operating days</label>
+																						<input type="text" name="market_operating_days" id="marketOperatingDays" class="form-control" placeholder="Mon-Sat">
+																					</div>
+																					<div class="col-md-6 form-group">
+																						<label for="marketHours">Market hours</label>
+																						<input type="text" name="market_hours" id="marketHours" class="form-control" placeholder="8:00 AM - 5:00 PM">
+																					</div>
+																				</div>
+																			<div class="form-group mt-3">
+																					<label for="pickupInstructions">Pickup instructions</label>
+																					<textarea name="pickup_instructions" id="pickupInstructions" class="form-control" rows="2" placeholder="How customers should collect products from your farm"></textarea>
+																				</div>
+																			<div class="form-group">
+																					<label for="deliveryInstructions">Delivery information</label>
+																					<textarea name="delivery_instructions" id="deliveryInstructions" class="form-control" rows="2" placeholder="Delivery zones, fees, or handling details"></textarea>
+																				</div>
 												<div class="col-lg-4">
 
 													<div class="mb-3">
@@ -129,8 +172,16 @@
 												$phone 			= mysqli_real_escape_string($db, $_POST['phone']);
 												$address 		= mysqli_real_escape_string($db, $_POST['address']);
 																							$farmLocation = trim($_POST['farm_location'] ?? '');
-																							$farmName = trim($_POST['farm_name'] ?? '');
-																							$farmNameEscaped = mysqli_real_escape_string($db, $farmName);
+																							$farmName = trim($_POST['farm_name'] ?? '');																						$farmLatitude = isset($_POST['farm_latitude']) && $_POST['farm_latitude'] !== '' ? (float) $_POST['farm_latitude'] : null;
+																						$farmLongitude = isset($_POST['farm_longitude']) && $_POST['farm_longitude'] !== '' ? (float) $_POST['farm_longitude'] : null;
+																						$marketName = trim($_POST['market_name'] ?? '');
+																						$marketAddress = trim($_POST['market_address'] ?? '');
+																						$marketLatitude = isset($_POST['market_latitude']) && $_POST['market_latitude'] !== '' ? (float) $_POST['market_latitude'] : null;
+																						$marketLongitude = isset($_POST['market_longitude']) && $_POST['market_longitude'] !== '' ? (float) $_POST['market_longitude'] : null;
+																						$marketOperatingDays = trim($_POST['market_operating_days'] ?? '');
+																						$marketHours = trim($_POST['market_hours'] ?? '');
+																						$pickupInstructions = trim($_POST['pickup_instructions'] ?? '');
+																						$deliveryInstructions = trim($_POST['delivery_instructions'] ?? '');																							$farmNameEscaped = mysqli_real_escape_string($db, $farmName);
 																							$farmLocationEscaped = mysqli_real_escape_string($db, $farmLocation);
 												$role 			= (int) $_POST['role'];
 												$status 		= ($role == 2) ? 2 : 1;
@@ -189,7 +240,8 @@
 
 														if ($addUserQuery) {
 																													if ($role === 2) {
-																														mysqli_query($db, "INSERT INTO farmer (farm_name, farm_phone, farm_email, farm_address, farm_document, status, join_date) VALUES ('$farmNameEscaped', '$phone', '$email', '$farmLocationEscaped', '" . mysqli_real_escape_string($db, $farmDocument) . "', 1, NOW())");
+																														$farmInsertSql = "INSERT INTO farmer (farm_name, farm_phone, farm_email, farm_address, farm_latitude, farm_longitude, market_name, market_address, market_latitude, market_longitude, market_operating_days, market_hours, pickup_instructions, delivery_instructions, farm_document, status, join_date) VALUES ('$farmNameEscaped', '$phone', '$email', '$farmLocationEscaped', " . ($farmLatitude === null ? 'NULL' : $farmLatitude) . ", " . ($farmLongitude === null ? 'NULL' : $farmLongitude) . ", '" . mysqli_real_escape_string($db, $marketName) . "', '" . mysqli_real_escape_string($db, $marketAddress) . "', " . ($marketLatitude === null ? 'NULL' : $marketLatitude) . ", " . ($marketLongitude === null ? 'NULL' : $marketLongitude) . ", '" . mysqli_real_escape_string($db, $marketOperatingDays) . "', '" . mysqli_real_escape_string($db, $marketHours) . "', '" . mysqli_real_escape_string($db, $pickupInstructions) . "', '" . mysqli_real_escape_string($db, $deliveryInstructions) . "', '" . mysqli_real_escape_string($db, $farmDocument) . "', 1, NOW())";
+																																													mysqli_query($db, $farmInsertSql);
 																													}
 															header("Location: login.php?status=success");
 															exit;

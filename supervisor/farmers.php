@@ -1,5 +1,6 @@
 <?php include __DIR__ . '/inc/header.php'; ?>
 <?php
+require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../admin/inc/email.php';
 $notice = '';
 $error = '';
@@ -301,11 +302,17 @@ if (isset($_GET['deactivate_plan']) && !empty($_GET['plan_id'])) {
 }
 if (isset($_GET['approve']) && !empty($_GET['id'])) {
     $farmerId = (int) $_GET['id'];
-    $pendingSubscription = mysqli_query($db, "SELECT id FROM farmer_subscriptions WHERE farmer_id=$farmerId AND status=0 LIMIT 1");
+    $pendingSubscription = mysqli_query($db, "SELECT id, amount FROM farmer_subscriptions WHERE farmer_id=$farmerId AND status=0 LIMIT 1");
     if ($pendingSubscription && mysqli_num_rows($pendingSubscription) > 0) {
+        $subscriptionData = mysqli_fetch_assoc($pendingSubscription);
         $update = mysqli_query($db, "UPDATE users SET status = 1 WHERE role = 2 AND user_id = $farmerId");
-        mysqli_query($db, "UPDATE farmer_subscriptions SET status=1, approved_by=$managerId, approved_at=NOW() WHERE farmer_id=$farmerId");
-        $notice = $update ? 'Farmer approved and subscription activated.' : 'Farmer could not be activated.';
+        
+        $paymentReference = 'SUB-' . strtoupper(bin2hex(random_bytes(4))) . '-' . time();
+        $ussdCode = env_value('USSD_SHORT_CODE', '*165#');
+        $mobilemoneyInstructions = "Payment Instructions:\n\n1. Dial " . $ussdCode . " on your phone\n2. Select 'Pay Bill' option\n3. Enter reference: " . $paymentReference . "\n4. Enter amount: UGX " . number_format((int) $subscriptionData['amount']) . "\n5. Confirm with your PIN\n\nAlternatively, use mobile money transfer to complete your payment.";
+        
+        mysqli_query($db, "UPDATE farmer_subscriptions SET status=1, approved_by=$managerId, approved_at=NOW(), ussd_code='" . mysqli_real_escape_string($db, $ussdCode) . "', mobile_money_instructions='" . mysqli_real_escape_string($db, $mobilemoneyInstructions) . "', payment_reference='" . mysqli_real_escape_string($db, $paymentReference) . "' WHERE farmer_id=$farmerId");
+        $notice = $update ? 'Farmer approved and subscription activated. Payment details have been sent to their dashboard.' : 'Farmer could not be activated.';
     } else {
         $error = 'This farmer has not submitted a subscription payment request yet.';
     }

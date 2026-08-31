@@ -83,6 +83,12 @@
 		if ($planIdColumn && mysqli_num_rows($planIdColumn) === 0) {
 			@mysqli_query($db, "ALTER TABLE farmer_subscriptions ADD COLUMN plan_id INT UNSIGNED DEFAULT NULL AFTER farmer_id");
 		}
+		$ussdCodeColumn = mysqli_query($db, "SHOW COLUMNS FROM farmer_subscriptions LIKE 'ussd_code'");
+		if ($ussdCodeColumn && mysqli_num_rows($ussdCodeColumn) === 0) {
+			@mysqli_query($db, "ALTER TABLE farmer_subscriptions ADD COLUMN ussd_code VARCHAR(50) DEFAULT NULL AFTER approved_at");
+			@mysqli_query($db, "ALTER TABLE farmer_subscriptions ADD COLUMN mobile_money_instructions TEXT DEFAULT NULL AFTER ussd_code");
+			@mysqli_query($db, "ALTER TABLE farmer_subscriptions ADD COLUMN payment_reference VARCHAR(100) DEFAULT NULL AFTER mobile_money_instructions");
+		}
 		$planCountQuery = mysqli_query($db, "SELECT COUNT(*) AS total FROM subscription_plans");
 		if ($planCountQuery && (int) mysqli_fetch_assoc($planCountQuery)['total'] === 0) {
 			@mysqli_query($db, "INSERT INTO subscription_plans (plan_name, description, amount, duration_days, status, created_at) VALUES ('Standard Plan', 'Access to farmer product listings, orders, inquiries, and reports.', 50000, 30, 1, NOW())");
@@ -220,6 +226,24 @@
 		$farmDocumentColumn = mysqli_query($db, "SHOW COLUMNS FROM farmer LIKE 'farm_document'");
 		if ($farmDocumentColumn && mysqli_num_rows($farmDocumentColumn) === 0) {
 			@mysqli_query($db, "ALTER TABLE farmer ADD COLUMN farm_document VARCHAR(255) DEFAULT NULL AFTER farm_address");
+		}
+		$marketColumns = [
+			'farm_latitude' => "ALTER TABLE farmer ADD COLUMN farm_latitude DECIMAL(10,7) DEFAULT NULL AFTER farm_address",
+			'farm_longitude' => "ALTER TABLE farmer ADD COLUMN farm_longitude DECIMAL(10,7) DEFAULT NULL AFTER farm_latitude",
+			'market_name' => "ALTER TABLE farmer ADD COLUMN market_name VARCHAR(255) DEFAULT NULL AFTER farm_longitude",
+			'market_address' => "ALTER TABLE farmer ADD COLUMN market_address VARCHAR(255) DEFAULT NULL AFTER market_name",
+			'market_latitude' => "ALTER TABLE farmer ADD COLUMN market_latitude DECIMAL(10,7) DEFAULT NULL AFTER market_address",
+			'market_longitude' => "ALTER TABLE farmer ADD COLUMN market_longitude DECIMAL(10,7) DEFAULT NULL AFTER market_latitude",
+			'market_operating_days' => "ALTER TABLE farmer ADD COLUMN market_operating_days VARCHAR(255) DEFAULT NULL AFTER market_longitude",
+			'market_hours' => "ALTER TABLE farmer ADD COLUMN market_hours VARCHAR(120) DEFAULT NULL AFTER market_operating_days",
+			'pickup_instructions' => "ALTER TABLE farmer ADD COLUMN pickup_instructions TEXT DEFAULT NULL AFTER market_hours",
+			'delivery_instructions' => "ALTER TABLE farmer ADD COLUMN delivery_instructions TEXT DEFAULT NULL AFTER pickup_instructions"
+		];
+		foreach ($marketColumns as $column => $alterSql) {
+			$columnCheck = mysqli_query($db, "SHOW COLUMNS FROM farmer LIKE '$column'");
+			if ($columnCheck && mysqli_num_rows($columnCheck) === 0) {
+				@mysqli_query($db, $alterSql);
+			}
 		}
 		mysqli_query($db, "CREATE TABLE IF NOT EXISTS supervisor_document_reviews (
 			review_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -252,7 +252,7 @@
 
                 <div class="mb-3">
                   <label class="form-label">Farmer Email</label>
-                  <input type="email" name="seller_email" class="form-control" placeholder="Enter seller email">
+                  <input type="email" name="seller_email" class="form-control" placeholder="Enter farmer email">
                 </div>
               </div>
 

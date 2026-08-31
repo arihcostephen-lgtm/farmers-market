@@ -313,18 +313,43 @@
 			        color: red;
 			}
 
+			/* Keep header action buttons on one line */
+			.header-nav-top .nav-pills,
+			.header-nav-main .nav-pills {
+				display: flex;
+				flex-wrap: nowrap;
+				align-items: center;
+				white-space: nowrap;
+				gap: 0.15rem;
+			}
+
+			.header-nav-top .nav-pills > li,
+			.header-nav-main .nav-pills > li {
+				white-space: nowrap;
+			}
+
+			.header-nav-top .nav-link,
+			.header-nav-main .dropdown-item,
+			.header-nav-main .nav-link {
+				padding: 0.35rem 0.55rem;
+				font-size: 0.78rem;
+				line-height: 1.2;
+			}
+
+			.header-nav-main .dropdown-item {
+				padding-top: 0.4rem;
+				padding-bottom: 0.4rem;
+			}
+
+			.header-nav-main .nav-pills {
+				margin-right: 0;
+			}
+
 		</style>
 
 	</head>
 
-	<body class="loading-overlay-showing" data-plugin-page-transition data-loading-overlay data-plugin-options="{'hideDelay': 500}">
-		<div class="loading-overlay">
-			<div class="bounce-loader">
-				<div class="bounce1"></div>
-				<div class="bounce2"></div>
-				<div class="bounce3"></div>
-			</div>
-		</div>
+	<body data-plugin-page-transition>
 		
 		<div class="body">
 			

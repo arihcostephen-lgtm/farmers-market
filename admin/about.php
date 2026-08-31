@@ -13,7 +13,7 @@
 				$aboutRow = mysqli_fetch_assoc($aboutQuery);
 				$aboutId = $aboutRow['id'] ?? '';
 				$title = $aboutRow['title'] ?? 'Farmers Market System';
-				$descrive = $aboutRow['descrive'] ?? 'The Farmers Market System connects local farmers and buyers through one digital marketplace. Farmers can manage products, stock, harvest dates, documents, inquiries, orders, and delivery updates, while buyers can browse approved products, ask questions, place orders, and follow delivery progress. Administrators approve products, manage users, respond to support requests, and monitor marketplace performance.';
+				$descrive = $aboutRow['descrive'] ?? 'The Farmers Market System connects local farmers and buyers through one digital marketplace. Farmers can manage products, stock, harvest dates, documents, inquiries, orders, and delivery updates, while buyers can browse approved products, ask questions, place orders, and follow delivery progress. The platform also supports farmer-buyer messaging, contact information sharing, inquiry and quotation requests, and notifications for new inquiries and orders. Administrators approve products, manage users, respond to support requests, and monitor marketplace performance.';
 				$year = $aboutRow['year'] ?? '';
 				$total_age = $aboutRow['total_age'] ?? '';
 				$a_image = $aboutRow['a_image'] ?? '';

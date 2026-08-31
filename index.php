@@ -11,7 +11,8 @@
 						<h1 class="display-4 fw-bold text-dark mb-3">From farm animals to fresh produce, everything is available in one place.</h1>
 						<p class="lead text-muted mb-4">Discover livestock, dairy, eggs, grains, vegetables, fruits, and farm essentials through a modern and centralized platform built for the Local Farm Market.</p>
 						<div class="d-flex flex-wrap gap-3 mb-4">
-							<a href="register.php" class="btn btn-success btn-lg px-4">Register as Farmer</a>
+						<a href="products.php" class="btn btn-success btn-lg px-4"><i class="fa-solid fa-leaf me-2"></i>Browse Products</a>
+						<a href="register.php" class="btn btn-outline-success btn-lg px-4">Register as Farmer</a>
 							<a href="login.php" class="btn btn-outline-dark btn-lg px-4">Shop as Customer</a>
 							<a href="admin/index.php" class="btn btn-dark btn-lg px-4"><i class="fa-solid fa-user-shield me-2"></i>Staff Sign In</a>
 						</div>
@@ -134,12 +135,12 @@
 				<div class="row g-4 align-items-center">
 					<div class="col-lg-6">
 						<h2 class="fw-bold mb-3">A centralized marketplace built for modern farming</h2>
-						<p class="text-muted lead">From verified sellers to quick orders, the Local Farm Market helps farmers and customers connect effortlessly.</p>
+							<p class="text-muted lead">From verified farmers to quick orders, the Local Farm Market helps farmers and customers connect effortlessly.</p>
 						<div class="row g-3 mt-2">
 							<div class="col-sm-6">
 								<div class="border rounded p-3 bg-white shadow-sm">
 									<h6 class="fw-bold mb-1">Verified farmers</h6>
-									<p class="text-muted mb-0">Admin-approved accounts for trusted sellers.</p>
+									<p class="text-muted mb-0">Admin-approved accounts for trusted farmers.</p>
 								</div>
 							</div>
 							<div class="col-sm-6">

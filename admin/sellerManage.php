@@ -36,7 +36,7 @@
 									      <th scope="col">Cat_Image</th>
 									      <th scope="col">Product Name</th>
 									      <th scope="col">Price (Taka)</th>
-									      <th scope="col">Seller Email</th>
+									      <th scope="col">Farmer Email</th>
 									      <th scope="col">Parent/Child Category</th>
 									      <th scope="col">Category Name</th>
 									      <th scope="col">Status</th>

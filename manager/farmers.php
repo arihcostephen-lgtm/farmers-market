@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../config.php';
 include __DIR__ . '/inc/header.php';
 $notice = '';
 $error = '';
@@ -317,14 +318,20 @@ if (isset($_GET['deactivate_plan']) && !empty($_GET['plan_id'])) {
 }
 if (isset($_GET['approve']) && !empty($_GET['id'])) {
     $farmerId = (int) $_GET['id'];
-    $pendingSubscription = mysqli_query($db, "SELECT id FROM farmer_subscriptions WHERE farmer_id=$farmerId AND status=0 LIMIT 1");
+    $pendingSubscription = mysqli_query($db, "SELECT id, amount FROM farmer_subscriptions WHERE farmer_id=$farmerId AND status=0 LIMIT 1");
     if ($pendingSubscription && mysqli_num_rows($pendingSubscription) > 0) {
+        $subscriptionData = mysqli_fetch_assoc($pendingSubscription);
         mysqli_begin_transaction($db);
         $update = mysqli_query($db, "UPDATE users SET status = 1 WHERE role = 2 AND user_id = $farmerId");
-        $subscriptionUpdate = $update && mysqli_query($db, "UPDATE farmer_subscriptions SET status=1, approved_by=$managerId, approved_at=NOW() WHERE farmer_id=$farmerId");
+        
+        $paymentReference = 'SUB-' . strtoupper(bin2hex(random_bytes(4))) . '-' . time();
+        $ussdCode = env_value('USSD_SHORT_CODE', '*165#');
+        $mobilemoneyInstructions = "Payment Instructions:\n\n1. Dial " . $ussdCode . " on your phone\n2. Select 'Pay Bill' option\n3. Enter reference: " . $paymentReference . "\n4. Enter amount: UGX " . number_format((int) $subscriptionData['amount']) . "\n5. Confirm with your PIN\n\nAlternatively, use mobile money transfer to complete your payment.";
+        
+        $subscriptionUpdate = $update && mysqli_query($db, "UPDATE farmer_subscriptions SET status=1, approved_by=$managerId, approved_at=NOW(), ussd_code='" . mysqli_real_escape_string($db, $ussdCode) . "', mobile_money_instructions='" . mysqli_real_escape_string($db, $mobilemoneyInstructions) . "', payment_reference='" . mysqli_real_escape_string($db, $paymentReference) . "' WHERE farmer_id=$farmerId");
         if ($subscriptionUpdate) {
             mysqli_commit($db);
-            $notice = 'Farmer approved and subscription activated.';
+            $notice = 'Farmer approved and subscription activated. Payment details have been sent to their dashboard.';
         } else {
             mysqli_rollback($db);
             $error = 'Farmer approval could not be saved: ' . mysqli_error($db);
@@ -375,32 +382,66 @@ if (isset($_GET['edit_plan']) && !empty($_GET['plan_id'])) {
     </div>
     <div class="col-xl-7">
         <div class="card p-4">
-            <h5 class="mb-3">Subscription plans</h5>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th>Plan</th>
-                            <th>Price</th>
-                            <th>Duration</th>
-                            <th>Status</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if ($plans && mysqli_num_rows($plans) > 0): while ($plan = mysqli_fetch_assoc($plans)): ?><tr>
-                                    <td><strong><?php echo htmlspecialchars($plan['plan_name']); ?></strong><br><small class="text-muted"><?php echo htmlspecialchars($plan['description'] ?: 'No description'); ?></small></td>
-                                    <td>UGX <?php echo number_format((float) $plan['amount'], 2); ?></td>
-                                    <td><?php echo (int) $plan['duration_days']; ?> days</td>
-                                    <td><?php echo (int) $plan['status'] === 1 ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'; ?></td>
-                                    <td class="text-nowrap"><a class="btn btn-sm btn-outline-primary" href="farmers.php?edit_plan=1&plan_id=<?php echo (int) $plan['plan_id']; ?>">Edit</a><?php if ((int) $plan['status'] === 1): ?><a class="btn btn-sm btn-outline-danger" href="farmers.php?deactivate_plan=1&plan_id=<?php echo (int) $plan['plan_id']; ?>">Deactivate</a><?php endif; ?></td>
-                                </tr><?php endwhile;
-                                else: ?><tr>
-                                <td colspan="5" class="text-center text-muted">No plans created yet.</td>
-                            </tr><?php endif; ?>
-                    </tbody>
-                </table>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h5 class="mb-1"><i class="fa-solid fa-layer-group me-2 text-primary"></i>Subscription Plans</h5>
+                    <small class="text-muted">Manage and monitor your service plans</small>
+                </div>
+                <span class="badge bg-primary"><?php echo $plans ? mysqli_num_rows($plans) : 0; ?> plans</span>
             </div>
+            
+            <?php if ($plans && mysqli_num_rows($plans) > 0): ?>
+                <div class="row g-3">
+                    <?php while ($plan = mysqli_fetch_assoc($plans)): ?>
+                        <div class="col-md-6">
+                            <div class="card h-100 border-0 shadow-sm position-relative">
+                                <?php if ((int) $plan['status'] === 1): ?>
+                                    <span class="badge bg-success position-absolute top-0 end-0 m-2"><i class="fa-solid fa-check me-1"></i>Active</span>
+                                <?php else: ?>
+                                    <span class="badge bg-secondary position-absolute top-0 end-0 m-2"><i class="fa-solid fa-ban me-1"></i>Inactive</span>
+                                <?php endif; ?>
+                                
+                                <div class="card-body">
+                                    <h6 class="card-title fw-bold text-dark mb-2">
+                                        <i class="fa-solid fa-star text-warning me-2"></i><?php echo htmlspecialchars($plan['plan_name']); ?>
+                                    </h6>
+                                    
+                                    <p class="card-text small text-muted mb-3"><?php echo htmlspecialchars($plan['description'] ?: 'No description provided'); ?></p>
+                                    
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="small text-muted"><i class="fa-solid fa-tag me-1"></i>Price:</span>
+                                            <h5 class="mb-0 text-success fw-bold">UGX <?php echo number_format((float) $plan['amount'], 0); ?></h5>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="small text-muted"><i class="fa-solid fa-calendar me-1"></i>Duration:</span>
+                                            <span class="badge bg-info text-dark"><?php echo (int) $plan['duration_days']; ?> days</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="border-top pt-2">
+                                        <div class="d-grid gap-2">
+                                            <a class="btn btn-sm btn-outline-primary" href="farmers.php?edit_plan=1&plan_id=<?php echo (int) $plan['plan_id']; ?>">
+                                                <i class="fa-solid fa-pen-to-square me-1"></i>Edit Plan
+                                            </a>
+                                            <?php if ((int) $plan['status'] === 1): ?>
+                                                <a class="btn btn-sm btn-outline-danger" href="farmers.php?deactivate_plan=1&plan_id=<?php echo (int) $plan['plan_id']; ?>">
+                                                    <i class="fa-solid fa-power-off me-1"></i>Deactivate
+                                                </a>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endwhile; ?>
+                </div>
+            <?php else: ?>
+                <div class="alert alert-info mb-0">
+                    <i class="fa-solid fa-info-circle me-2"></i>
+                    <strong>No plans created yet.</strong> Click the "Create subscription plan" form on the left to get started.
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>

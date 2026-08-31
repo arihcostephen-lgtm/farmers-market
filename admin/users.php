@@ -457,7 +457,7 @@
 												      <td>
 												      	<?php  
 												      		if (!empty($user_image)) {
-																echo '<img src="assets/images/seller/' . $user_image . '" style="width: 60px">';
+																echo '<img src="assets/images/farmer/' . $user_image . '" style="width: 60px">';
 															}
 															else {
 																echo '<img src="assets/images/users/default.png" style="width: 60px">';
@@ -611,7 +611,7 @@
 																																	<select class="form-select" name="role" required>
 																																	  <option value="">Please select the user role</option>
 																																	  <option value="1">Admin</option>
-																																	  <option value="2">Seller</option>
+																																	  <option value="2">Farmer</option>
 																																	  <option value="3">Customer</option>
 
 												<div class="mb-3">
@@ -767,7 +767,7 @@
 																<select class="form-select" name="role" required>
 																  <option value="">Please select the user role</option>
 																  <option value="1" <?php if( $role == 1 ){ echo "selected"; } ?>>Admin</option>
-																  <option value="2" <?php if( $role == 2 ){ echo "selected"; } ?>>Seller</option>
+																  <option value="2" <?php if( $role == 2 ){ echo "selected"; } ?>>Farmer</option>
 																  <option value="3" <?php if( $role == 3 ){ echo "selected"; } ?>>Customer</option>
 																</select>
 															</div>

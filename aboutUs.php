@@ -72,8 +72,7 @@
 								<div class="col-md-6"><div class="p-3 bg-light rounded h-100"><h3 class="text-4 mb-2">For Farmers</h3><p class="text-dark mb-0">Manage products, inventory, harvest dates, documents, inquiries, orders, and delivery communication.</p></div></div>
 								<div class="col-md-6"><div class="p-3 bg-light rounded h-100"><h3 class="text-4 mb-2">For Buyers</h3><p class="text-dark mb-0">Discover produce, ask questions, order conveniently, provide delivery details, and track updates.</p></div></div>
 								<div class="col-md-6"><div class="p-3 bg-light rounded h-100"><h3 class="text-4 mb-2">For Administrators</h3><p class="text-dark mb-0">Approve products, manage users and orders, answer support requests, review documents, and monitor analytics.</p></div></div>
-								<div class="col-md-6"><div class="p-3 bg-light rounded h-100"><h3 class="text-4 mb-2">Connected Marketplace</h3><p class="text-dark mb-0">Notifications, stock alerts, product views, sales reports, and farmer performance metrics support better decisions.</p></div></div>
-							</div>
+								<div class="col-md-6"><div class="p-3 bg-light rounded h-100"><h3 class="text-4 mb-2">Connected Marketplace</h3><p class="text-dark mb-0">Notifications, stock alerts, product views, sales reports, and farmer performance metrics support better decisions.</p></div></div>									<div class="col-md-12"><div class="p-3 bg-light rounded h-100"><h3 class="text-4 mb-2">Communication</h3><ul class="text-dark mb-0 ps-3"><li>Farmer–buyer messaging</li><li>Contact information</li><li>Inquiry/quotation requests</li><li>Notifications for new inquiries and orders</li></ul></div></div>							</div>
 						</div>
 
 						<?php  

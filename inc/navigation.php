@@ -10,6 +10,12 @@
 					</li>
 
 					<li class="">
+						<a class="dropdown-item dropdown-toggle" href="products.php">
+							<i class="fa-solid fa-leaf me-1"></i><?php echo t('Products'); ?>
+						</a>
+					</li>
+
+					<li class="">
 						<a class="dropdown-item dropdown-toggle" href="aboutUs.php">
 							<?php echo t('About Us'); ?>
 						</a>
@@ -86,7 +92,7 @@
 							</li>
 
 							<li class="">
-								<a class="dropdown-item dropdown-toggle" href="seller.php">
+								<a class="dropdown-item dropdown-toggle" href="farmer.php">
 									<i class="fa-solid fa-wheat-awn px-1"></i> <?php echo t('Farmer Account'); ?>
 								</a>
 							</li>

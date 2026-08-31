@@ -51,7 +51,7 @@ $productId = isset($_GET['product']) ? (int) $_GET['product'] : 0;
 if ($productId > 0 && !isset($_POST['place_order'])) {
   $db->query("UPDATE products SET view_count = view_count + 1 WHERE product_id = $productId AND status != 0");
 }
-$product = $db->query("SELECT product_name, price, product_unit, stock_quantity, category_id FROM products WHERE product_id = $productId AND status != 0 LIMIT 1")->fetch_assoc();
+$product = $db->query("SELECT product_name, description, price, product_unit, stock_quantity, category_id FROM products WHERE product_id = $productId AND status != 0 LIMIT 1")->fetch_assoc();
   $previewQuantity = max(1, (int) ($_POST['quantity'] ?? 1));
 $taxRule = null;
   $taxRules = [];
@@ -97,6 +97,12 @@ if ($product) {
             <div class="summary-icon mb-4"><i class="fa-solid fa-basket-shopping"></i></div>
             <div class="checkout-kicker mb-2">Selected produce</div>
             <h2 class="mb-3"><?php echo htmlspecialchars($product['product_name']); ?></h2>
+            <?php if (!empty($product['description'])): ?>
+              <div class="alert alert-info mb-3" style="background-color: rgba(13, 202, 240, 0.1); border: 1px solid rgba(13, 202, 240, 0.3); color: #0dcaf0;">
+                <strong>About this product:</strong>
+                <p class="mb-0 mt-2"><?php echo nl2br(htmlspecialchars($product['description'])); ?></p>
+              </div>
+            <?php endif; ?>
             <div class="summary-line"><span>Price</span><strong>UGX <?php echo number_format($product['price'], 2); ?> / <?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?></strong></div>
             <div class="summary-line"><span>Available stock</span><strong><?php echo number_format((int) $product['stock_quantity']); ?> <?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?></strong></div>
             <div class="mt-4"><span class="badge stock-badge rounded-pill px-3 py-2"><i class="fa-solid fa-circle-check me-1"></i><?php echo (int) $product['stock_quantity'] > 0 ? 'In stock' : 'Out of stock'; ?></span></div>

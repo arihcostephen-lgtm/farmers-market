@@ -82,10 +82,10 @@
                             <div>
                               <?php  
                                     if (!empty($user_image)) {
-                                  echo '<img src="admin/assets/images/seller/' . $user_image . '" style="width: 50px;margin: 0px 10px;">';
+                                  echo '<img src="admin/assets/images/farmer/' . $user_image . '" style="width: 50px;margin: 0px 10px;">';
                                 }
                                 else {
-                                  echo '<img src="admin/assets/images/seller/default.png" style="width: 50px;margin: 0px 10px;">';
+                                  echo '<img src="admin/assets/images/farmer/default.png" style="width: 50px;margin: 0px 10px;">';
                                 }
                                   ?>
                             </div>
@@ -405,10 +405,11 @@
                                       <td><span class="badge bg-<?php echo $orderClasses[$orderStatus] ?? 'secondary'; ?>"><?php echo $orderStatuses[$orderStatus] ?? 'Pending'; ?></span><?php if (!empty($order['delivery_update'])) { ?><small class="d-block text-muted mt-1"><?php echo nl2br(htmlspecialchars($order['delivery_update'])); ?></small><?php } ?></td>
                                       <td>
                                         <form method="post" class="d-flex flex-column gap-2" style="min-width: 190px">
+                                          <input type="hidden" name="update_order" value="1"> 
                                           <input type="hidden" name="order_id" value="<?php echo (int) $order['or_id']; ?>">
                                           <select name="status" class="form-select form-select-sm" aria-label="Order status"><?php foreach ($orderStatuses as $statusIndex => $statusLabel) { ?><option value="<?php echo $statusIndex; ?>" <?php echo $statusIndex === $orderStatus ? 'selected' : ''; ?>><?php echo $statusLabel; ?></option><?php } ?></select>
                                           <textarea name="delivery_update" class="form-control form-control-sm" rows="2" placeholder="Add delivery update"><?php echo htmlspecialchars($order['delivery_update'] ?? ''); ?></textarea>
-                                          <button type="submit" name="update_order" class="btn btn-sm btn-success"><i class="fa-solid fa-check me-1"></i>Save Update</button>
+                                          <button type="submit" class="btn btn-sm btn-success"><i class="fa-solid fa-check me-1"></i>Save Update</button>
                                         </form>
                                       </td>
                                     </tr>
@@ -507,6 +508,29 @@
                         <?php if (isset($_GET['subscription_submitted'])): ?><div class="alert alert-success mb-4"><i class="fa-solid fa-check me-2"></i>Subscription request submitted! Awaiting manager approval.</div><?php endif; ?>
                         <?php if ($subscriptionRequest && (int) $subscriptionRequest['status'] === 0): ?>
                           <div class="alert alert-info shadow-sm mb-4"><i class="fa-solid fa-hourglass-half me-2"></i><strong>Pending Approval:</strong> <?php echo htmlspecialchars($subscriptionRequest['subscription_name']); ?> · <span class="badge bg-secondary">Awaiting review</span></div>
+                        <?php endif; ?>
+                        <?php if ($subscriptionRequest && (int) $subscriptionRequest['status'] === 1): ?>
+                          <div class="card border-success shadow-sm mb-4">
+                            <div class="card-body">
+                              <div class="d-flex align-items-center gap-2 mb-3">
+                                <i class="fa-solid fa-circle-check text-success fs-5"></i>
+                                <h5 class="mb-0">Subscription Approved - Payment Required</h5>
+                              </div>
+                              <p class="mb-3"><strong>Plan:</strong> <?php echo htmlspecialchars($subscriptionRequest['subscription_name'] ?? ''); ?> | <strong>Amount:</strong> UGX <?php echo number_format((float) $subscriptionRequest['amount'] ?? 0, 0); ?></p>
+                              <div class="bg-light p-3 rounded mb-3">
+                                <h6 class="mb-2"><i class="fa-solid fa-mobile me-2"></i>USSD Payment Method</h6>
+                                <p class="mb-1"><strong>Short Code:</strong> <code><?php echo htmlspecialchars($subscriptionRequest['ussd_code'] ?? '*165#'); ?></code></p>
+                                <p class="small text-muted mb-2">Dial the above code on your phone and follow the prompts to complete payment.</p>
+                              </div>
+                              <div class="bg-light p-3 rounded">
+                                <h6 class="mb-2"><i class="fa-solid fa-mobile-screen me-2"></i>Mobile Money Instructions</h6>
+                                <pre class="mb-0 small" style="white-space: pre-wrap; word-wrap: break-word;"><?php echo htmlspecialchars($subscriptionRequest['mobile_money_instructions'] ?? ''); ?></pre>
+                              </div>
+                              <div class="mt-3 p-2 bg-warning bg-opacity-10 rounded">
+                                <small class="text-muted"><strong>Payment Reference:</strong> <code><?php echo htmlspecialchars($subscriptionRequest['payment_reference'] ?? ''); ?></code></small>
+                              </div>
+                            </div>
+                          </div>
                         <?php endif; ?>
                         <?php if ($farmerNotifications): ?>
                           <div class="card border-info shadow-sm mb-4"><div class="card-body"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0"><i class="fa-solid fa-bell text-info me-2"></i>Notifications</h5><span class="badge bg-info text-dark"><?php echo count($farmerNotifications); ?></span></div>
@@ -769,7 +793,7 @@
                             <h4 class="fw-bold mb-1">Buyer Inquiries</h4>
                             <p class="text-muted mb-0">Read buyer questions and respond from your dashboard.</p>
                           </div>
-                          <a href="farmerDashboard.php?do=Home" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>Back</a>
+                          <a href="farmerDashboard.php?do=Home" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>black</a>
                         </div>
                         <?php if ($inquiryMessage) { ?><div class="alert alert-success"><?php echo htmlspecialchars($inquiryMessage); ?></div><?php } ?>
                         <?php if ($inquiryError) { ?><div class="alert alert-danger"><?php echo htmlspecialchars($inquiryError); ?></div><?php } ?>
@@ -927,7 +951,7 @@
                           <?php  
 
                             $sessionId = (int) ($_SESSION['user_id'] ?? 0);
-                            $readUId_Sql = "SELECT u.*, f.farm_id, f.farm_name, f.farm_address AS farm_location, f.farm_document FROM users u LEFT JOIN farmer f ON f.farm_email COLLATE utf8mb4_unicode_ci = u.user_email COLLATE utf8mb4_unicode_ci WHERE u.status=1 AND u.user_id='$sessionId'";
+                            $readUId_Sql = "SELECT u.*, f.farm_id, f.farm_name, f.farm_address AS farm_location, f.farm_latitude, f.farm_longitude, f.market_name, f.market_address, f.market_latitude, f.market_longitude, f.market_operating_days, f.market_hours, f.pickup_instructions, f.delivery_instructions, f.farm_about, f.farm_document FROM users u LEFT JOIN farmer f ON f.farm_email COLLATE utf8mb4_unicode_ci = u.user_email COLLATE utf8mb4_unicode_ci WHERE u.status=1 AND u.user_id='$sessionId'";
                             $readUId_Query = mysqli_query($db, $readUId_Sql);
 
                             while( $row = mysqli_fetch_assoc($readUId_Query) ) {
@@ -943,6 +967,17 @@
                               $farm_id      = (int) ($row['farm_id'] ?? 0);
                               $farm_name    = $row['farm_name'] ?? '';
                               $farm_location = $row['farm_location'] ?? '';
+                              $farm_latitude = $row['farm_latitude'] ?? '';
+                              $farm_longitude = $row['farm_longitude'] ?? '';
+                              $market_name = $row['market_name'] ?? '';
+                              $market_address = $row['market_address'] ?? '';
+                              $market_latitude = $row['market_latitude'] ?? '';
+                              $market_longitude = $row['market_longitude'] ?? '';
+                              $market_operating_days = $row['market_operating_days'] ?? '';
+                              $market_hours = $row['market_hours'] ?? '';
+                              $pickup_instructions = $row['pickup_instructions'] ?? '';
+                              $delivery_instructions = $row['delivery_instructions'] ?? '';
+                              $farm_about   = $row['farm_about'] ?? '';
                               $farm_document = $row['farm_document'] ?? '';
 
                               ?>
@@ -991,6 +1026,57 @@
                                         <label for="farmLocationProfile" class="form-label">Farm location</label>
                                         <textarea name="farm_location" id="farmLocationProfile" class="form-control" rows="4" required><?php echo htmlspecialchars($farm_location); ?></textarea>
                                       </div>
+                                      <div class="row g-2">
+                                        <div class="col-md-6 mb-3">
+                                          <label for="farmLatitudeProfile" class="form-label">Farm latitude</label>
+                                          <input type="number" step="any" name="farm_latitude" id="farmLatitudeProfile" class="form-control" value="<?php echo htmlspecialchars((string) $farm_latitude); ?>">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                          <label for="farmLongitudeProfile" class="form-label">Farm longitude</label>
+                                          <input type="number" step="any" name="farm_longitude" id="farmLongitudeProfile" class="form-control" value="<?php echo htmlspecialchars((string) $farm_longitude); ?>">
+                                        </div>
+                                      </div>
+                                      <div class="mb-3">
+                                        <label for="marketNameProfile" class="form-label">Nearby market / collection point</label>
+                                        <input type="text" name="market_name" id="marketNameProfile" class="form-control" value="<?php echo htmlspecialchars($market_name); ?>" placeholder="e.g. Mukono market or local buyers hub">
+                                      </div>
+                                      <div class="mb-3">
+                                        <label for="marketAddressProfile" class="form-label">Market address</label>
+                                        <textarea name="market_address" id="marketAddressProfile" class="form-control" rows="2" placeholder="Physical market or pickup site"><?php echo htmlspecialchars($market_address); ?></textarea>
+                                      </div>
+                                      <div class="row g-2">
+                                        <div class="col-md-6 mb-3">
+                                          <label for="marketLatitudeProfile" class="form-label">Market latitude</label>
+                                          <input type="number" step="any" name="market_latitude" id="marketLatitudeProfile" class="form-control" value="<?php echo htmlspecialchars((string) $market_latitude); ?>">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                          <label for="marketLongitudeProfile" class="form-label">Market longitude</label>
+                                          <input type="number" step="any" name="market_longitude" id="marketLongitudeProfile" class="form-control" value="<?php echo htmlspecialchars((string) $market_longitude); ?>">
+                                        </div>
+                                      </div>
+                                      <div class="row g-2">
+                                        <div class="col-md-6 mb-3">
+                                          <label for="marketOperatingDaysProfile" class="form-label">Market operating days</label>
+                                          <input type="text" name="market_operating_days" id="marketOperatingDaysProfile" class="form-control" value="<?php echo htmlspecialchars($market_operating_days); ?>" placeholder="Mon-Sat">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                          <label for="marketHoursProfile" class="form-label">Market hours</label>
+                                          <input type="text" name="market_hours" id="marketHoursProfile" class="form-control" value="<?php echo htmlspecialchars($market_hours); ?>" placeholder="8:00 AM - 5:00 PM">
+                                        </div>
+                                      </div>
+                                      <div class="mb-3">
+                                        <label for="pickupInstructionsProfile" class="form-label">Pickup instructions</label>
+                                        <textarea name="pickup_instructions" id="pickupInstructionsProfile" class="form-control" rows="3" placeholder="When and where buyers can collect their produce"><?php echo htmlspecialchars($pickup_instructions); ?></textarea>
+                                      </div>
+                                      <div class="mb-3">
+                                        <label for="deliveryInstructionsProfile" class="form-label">Delivery information</label>
+                                        <textarea name="delivery_instructions" id="deliveryInstructionsProfile" class="form-control" rows="3" placeholder="Available delivery areas, fees, and timing"><?php echo htmlspecialchars($delivery_instructions); ?></textarea>
+                                      </div>
+                                      <div class="mb-3">
+                                        <label for="farmAboutProfile" class="form-label">Farm/Business Description</label>
+                                        <textarea name="farm_about" id="farmAboutProfile" class="form-control" rows="5" placeholder="Describe your farm, products, practices, certifications, or business story. This helps customers understand what makes your farm special."><?php echo htmlspecialchars($farm_about); ?></textarea>
+                                        <small class="text-muted">Maximum 1000 characters. Admins can view this information.</small>
+                                      </div>
                                     <?php } ?>
 
                                     
@@ -1029,6 +1115,17 @@
                                 if (isset($_POST['updateUser']) && (int) $role === 2) {
                                   $profileFarmLocation = mysqli_real_escape_string($db, trim($_POST['farm_location'] ?? ''));
                                   $profileFarmName = mysqli_real_escape_string($db, trim($_POST['farm_name'] ?? ''));
+                                  $profileFarmLatitude = isset($_POST['farm_latitude']) && $_POST['farm_latitude'] !== '' ? (float) $_POST['farm_latitude'] : 'NULL';
+                                  $profileFarmLongitude = isset($_POST['farm_longitude']) && $_POST['farm_longitude'] !== '' ? (float) $_POST['farm_longitude'] : 'NULL';
+                                  $profileMarketName = mysqli_real_escape_string($db, trim($_POST['market_name'] ?? ''));
+                                  $profileMarketAddress = mysqli_real_escape_string($db, trim($_POST['market_address'] ?? ''));
+                                  $profileMarketLatitude = isset($_POST['market_latitude']) && $_POST['market_latitude'] !== '' ? (float) $_POST['market_latitude'] : 'NULL';
+                                  $profileMarketLongitude = isset($_POST['market_longitude']) && $_POST['market_longitude'] !== '' ? (float) $_POST['market_longitude'] : 'NULL';
+                                  $profileMarketOperatingDays = mysqli_real_escape_string($db, trim($_POST['market_operating_days'] ?? ''));
+                                  $profileMarketHours = mysqli_real_escape_string($db, trim($_POST['market_hours'] ?? ''));
+                                  $profilePickupInstructions = mysqli_real_escape_string($db, trim($_POST['pickup_instructions'] ?? ''));
+                                  $profileDeliveryInstructions = mysqli_real_escape_string($db, trim($_POST['delivery_instructions'] ?? ''));
+                                  $profileFarmAbout = mysqli_real_escape_string($db, substr(trim($_POST['farm_about'] ?? ''), 0, 1000));
                                   $profileEmail = mysqli_real_escape_string($db, $_SESSION['email'] ?? $_SESSION['user_email'] ?? '');
                                   $farmDocumentSql = '';
                                   if (!empty($_FILES['farm_document']['name']) && $_FILES['farm_document']['error'] === UPLOAD_ERR_OK) {
@@ -1046,9 +1143,9 @@
                                   }
                                   $farmExistsQuery = mysqli_query($db, "SELECT farm_id FROM farmer WHERE farm_email COLLATE utf8mb4_unicode_ci='$profileEmail' COLLATE utf8mb4_unicode_ci LIMIT 1");
                                   if ($farmExistsQuery && mysqli_num_rows($farmExistsQuery) > 0) {
-                                    mysqli_query($db, "UPDATE farmer SET farm_name='$profileFarmName', farm_phone='" . mysqli_real_escape_string($db, $_POST['phone'] ?? $user_phone) . "', farm_address='$profileFarmLocation'$farmDocumentSql WHERE farm_email COLLATE utf8mb4_unicode_ci='$profileEmail' COLLATE utf8mb4_unicode_ci");
+                                    mysqli_query($db, "UPDATE farmer SET farm_name='$profileFarmName', farm_phone='" . mysqli_real_escape_string($db, $_POST['phone'] ?? $user_phone) . "', farm_address='$profileFarmLocation', farm_latitude=" . ($profileFarmLatitude === 'NULL' ? 'NULL' : $profileFarmLatitude) . ", farm_longitude=" . ($profileFarmLongitude === 'NULL' ? 'NULL' : $profileFarmLongitude) . ", market_name='$profileMarketName', market_address='$profileMarketAddress', market_latitude=" . ($profileMarketLatitude === 'NULL' ? 'NULL' : $profileMarketLatitude) . ", market_longitude=" . ($profileMarketLongitude === 'NULL' ? 'NULL' : $profileMarketLongitude) . ", market_operating_days='$profileMarketOperatingDays', market_hours='$profileMarketHours', pickup_instructions='$profilePickupInstructions', delivery_instructions='$profileDeliveryInstructions', farm_about='$profileFarmAbout'$farmDocumentSql WHERE farm_email COLLATE utf8mb4_unicode_ci='$profileEmail' COLLATE utf8mb4_unicode_ci");
                                   } else {
-                                    mysqli_query($db, "INSERT INTO farmer (farm_name, farm_phone, farm_email, farm_address, farm_document, status, join_date) VALUES ('$profileFarmName', '" . mysqli_real_escape_string($db, $_POST['phone'] ?? $user_phone) . "', '$profileEmail', '$profileFarmLocation', '', 1, NOW())");
+                                    mysqli_query($db, "INSERT INTO farmer (farm_name, farm_phone, farm_email, farm_address, farm_latitude, farm_longitude, market_name, market_address, market_latitude, market_longitude, market_operating_days, market_hours, pickup_instructions, delivery_instructions, farm_about, farm_document, status, join_date) VALUES ('$profileFarmName', '" . mysqli_real_escape_string($db, $_POST['phone'] ?? $user_phone) . "', '$profileEmail', '$profileFarmLocation', " . ($profileFarmLatitude === 'NULL' ? 'NULL' : $profileFarmLatitude) . ", " . ($profileFarmLongitude === 'NULL' ? 'NULL' : $profileFarmLongitude) . ", '$profileMarketName', '$profileMarketAddress', " . ($profileMarketLatitude === 'NULL' ? 'NULL' : $profileMarketLatitude) . ", " . ($profileMarketLongitude === 'NULL' ? 'NULL' : $profileMarketLongitude) . ", '$profileMarketOperatingDays', '$profileMarketHours', '$profilePickupInstructions', '$profileDeliveryInstructions', '$profileFarmAbout', '', 1, NOW())");
                                   }
                                 }
 
@@ -1076,11 +1173,11 @@
 
                                     while ( $row = mysqli_fetch_assoc($oldImageQuery) ) {
                                       $oldImage   = $row['user_image'];
-                                      unlink("admin/assets/images/seller/$img" . $oldImage);
+                                      unlink("admin/assets/images/farmer/" . $oldImage);
                                     }
 
                                     $img = rand(0, 999999) . "_" . $image;
-                                    move_uploaded_file($temp_img, 'admin/assets/images/seller/' . $img);
+                                    move_uploaded_file($temp_img, 'admin/assets/images/farmer/' . $img);
 
                                     $updateUserSql = "UPDATE users SET user_name='$fname', user_password='$hassedPass', user_phone='$phone', user_address='$address', role='$role', status='$status', user_image='$img' WHERE user_id='$updateUserId'";
                                     $upateUserQuery = mysqli_query($db, $updateUserSql);
@@ -1108,11 +1205,11 @@
 
                                     while ( $row = mysqli_fetch_assoc($oldImageQuery) ) {
                                       $oldImage   = $row['user_image'];
-                                      unlink("admin/assets/images/seller/$img" . $oldImage);
+                                      unlink("admin/assets/images/farmer/" . $oldImage);
                                     }
 
                                   $img = rand(0, 999999) . "_" . $image;
-                                  move_uploaded_file($temp_img, 'admin/assets/images/seller/' . $img);
+                                  move_uploaded_file($temp_img, 'admin/assets/images/farmer/' . $img);
 
                                   $updateUserSql = "UPDATE users SET user_name='$fname', user_phone='$phone', user_address='$address', role='$role', status='$status', user_image='$img' WHERE user_id='$updateUserId'";
                                   $upateUserQuery = mysqli_query($db, $updateUserSql);

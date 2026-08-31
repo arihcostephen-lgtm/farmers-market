@@ -124,7 +124,29 @@
 												The password you entered is incorrect.
 											</div>
 										<?php }
-										else {
+										else {											// Transfer temp cart to database for customer
+											if ($_SESSION['role'] === 3 && !empty($_SESSION['temp_cart'])) {
+												foreach ($_SESSION['temp_cart'] as $tempProductId => $tempQuantity) {
+													$tempProductId = (int) $tempProductId;
+													$tempQuantity = max(1, (int) $tempQuantity);
+													$checkProduct = $db->query("SELECT product_name, price, product_unit, stock_quantity, category_id FROM products WHERE product_id = $tempProductId AND status != 0 LIMIT 1");
+													if ($checkProduct && $checkProduct->num_rows > 0) {
+														$tempProduct = $checkProduct->fetch_assoc();
+														if ($tempQuantity <= (int) $tempProduct['stock_quantity']) {
+															$tempSubtotal = (float) $tempProduct['price'] * $tempQuantity;
+															$tempProductName = mysqli_real_escape_string($db, $tempProduct['product_name']);
+															$tempProductUnit = mysqli_real_escape_string($db, $tempProduct['product_unit'] ?? 'kilogram');
+															$tempCategoryId = (int) ($tempProduct['category_id'] ?? 0);
+															$tempTaxQuery = $db->query("SELECT rate_percent FROM tax_rules WHERE status = 1 AND min_quantity <= $tempQuantity AND (max_quantity IS NULL OR max_quantity >= $tempQuantity) AND (applies_to = 'all' OR applies_to = '$tempCategoryId') AND (applies_unit = 'all' OR applies_unit = '$tempProductUnit') ORDER BY (applies_to = '$tempCategoryId') DESC, (applies_unit = '$tempProductUnit') DESC, rate_percent DESC LIMIT 1");
+															$tempTaxRate = $tempTaxQuery ? (float) ($tempTaxQuery->fetch_assoc()['rate_percent'] ?? 0) : 0;
+															$tempTaxAmount = round($tempSubtotal * ($tempTaxRate / 100), 2);
+															$tempTotalPrice = round($tempSubtotal + $tempTaxAmount, 2);
+															$db->query("INSERT INTO order_list (user_id, user_phone, or_name, or_category, price, tax_amount, total_amount, quantity, order_unit, status, join_date) VALUES ('" . (int) $_SESSION['user_id'] . "', '" . mysqli_real_escape_string($db, $_SESSION['user_phone'] ?? '') . "', '$tempProductName', '$tempProductId', '$tempSubtotal', '$tempTaxAmount', '$tempTotalPrice', '$tempQuantity', '$tempProductUnit', 0, NOW())");
+														}
+													}
+												}
+												unset($_SESSION['temp_cart']);
+											}
 											if ($_SESSION['role'] === 1) {
 												header("Location: admin/dashboard.php");
 											} elseif ($_SESSION['role'] === 2) {
