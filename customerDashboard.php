@@ -1,5 +1,6 @@
 <?php
 include "inc/header.php";
+require_once __DIR__ . '/locations_helper.php';
 
 if (empty($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -51,7 +52,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['add_to_cart']
     }
 }
 
-$productsSql = "SELECT p.*, c.cat_name, u.user_name AS farmer_name, f.farm_address, f.farm_latitude, f.farm_longitude, f.market_name, f.market_address, f.market_latitude, f.market_longitude, f.market_operating_days, f.market_hours, f.pickup_instructions, f.delivery_instructions FROM products p LEFT JOIN category c ON c.cat_id = p.category_id LEFT JOIN users u ON u.user_email COLLATE utf8mb4_unicode_ci = p.seller_email COLLATE utf8mb4_unicode_ci LEFT JOIN farmer f ON f.farm_email COLLATE utf8mb4_unicode_ci = p.seller_email COLLATE utf8mb4_unicode_ci WHERE p.status != 0 ORDER BY p.product_name ASC";
+$productsSql = "SELECT p.*, c.cat_name, u.user_name AS farmer_name, f.farm_address, f.farm_location_id, f.market_name, f.market_location_id, f.market_operating_days, f.market_hours, f.pickup_instructions, f.delivery_instructions, 
+  COALESCE(l1.location_name, '') AS farm_location, COALESCE(l2.location_name, '') AS market_location 
+  FROM products p 
+  LEFT JOIN category c ON c.cat_id = p.category_id 
+  LEFT JOIN users u ON u.user_email COLLATE utf8mb4_unicode_ci = p.seller_email COLLATE utf8mb4_unicode_ci 
+  LEFT JOIN farmer f ON f.farm_email COLLATE utf8mb4_unicode_ci = p.seller_email COLLATE utf8mb4_unicode_ci 
+  LEFT JOIN locations l1 ON l1.location_id = f.farm_location_id 
+  LEFT JOIN locations l2 ON l2.location_id = f.market_location_id 
+  WHERE p.status != 0 ORDER BY p.product_name ASC";
 $productsResult = $db->query($productsSql);
 $productsCount = $productsResult->num_rows;
 $featuredProducts = $db->query("SELECT product_id, product_name, price, product_unit, stock_quantity, image FROM products WHERE status != 0 AND stock_quantity > 0 ORDER BY view_count DESC, join_date DESC LIMIT 3");
@@ -140,6 +149,7 @@ if ($requestMethod === 'POST' && isset($_POST['update_cart_quantity'])) {
 $cartTotalQuery = $db->query("SELECT COALESCE(SUM(CASE WHEN total_amount > 0 THEN total_amount ELSE price + COALESCE(tax_amount, 0) END), 0) AS total FROM order_list WHERE (user_id = '$customerId' OR user_id = '$customerEmailSql') AND payment_status <> 'paid' AND status <> 3");
 $cartTotal = $cartTotalQuery ? (float) ($cartTotalQuery->fetch_assoc()['total'] ?? 0) : 0;
 $reviewError = '';
+$farmerRatingError = '';
 $inquiryMessage = '';
 $inquiryError = '';
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit_review'])) {
@@ -160,6 +170,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit_review
         }
     }
 }
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit_farmer_rating'])) {
+    $farmerOrderId = (int) ($_POST['farmer_order_id'] ?? 0);
+    $farmerRating = (int) ($_POST['farmer_rating'] ?? 0);
+    $farmerReviewTextInput = trim($_POST['farmer_review_text'] ?? '');
+    $farmerOrderQuery = $db->query("SELECT o.or_id, p.seller_email, p.product_name FROM order_list o INNER JOIN products p ON p.product_id = o.or_category WHERE o.or_id = $farmerOrderId AND (o.user_id = '$customerId' OR o.user_id = '$customerEmailSql') AND o.status = 2 LIMIT 1");
+    $farmerOrder = $farmerOrderQuery ? $farmerOrderQuery->fetch_assoc() : null;
+    $farmerAlreadyReviewed = $db->query("SELECT rating_id FROM farmer_ratings WHERE order_id = $farmerOrderId LIMIT 1");
+    if (!$farmerOrder || !$farmerOrder['seller_email'] || $farmerRating < 1 || $farmerRating > 5 || $farmerReviewTextInput === '' || ($farmerAlreadyReviewed && $farmerAlreadyReviewed->num_rows > 0)) {
+        $farmerRatingError = 'Select a fulfilled order, choose a rating from 1 to 5, and enter your farmer feedback.';
+    } else {
+        $farmerEmail = $db->real_escape_string($farmerOrder['seller_email']);
+        $farmerReviewText = $db->real_escape_string($farmerReviewTextInput);
+        if ($db->query("INSERT INTO farmer_ratings (farmer_email, buyer_id, order_id, rating, review_text, status) VALUES ('$farmerEmail', $customerId, $farmerOrderId, $farmerRating, '$farmerReviewText', 'pending')")) {
+            $message = 'Thank you. Your farmer rating was submitted for moderation.';
+        } else {
+            $farmerRatingError = 'Unable to save your farmer rating. Please try again.';
+        }
+    }
+}
 $ratingSummary = $db->query("SELECT product_id, ROUND(AVG(rating), 1) AS average_rating, COUNT(*) AS review_count FROM product_reviews WHERE status = 'approved' GROUP BY product_id");
 $productRatings = [];
 if ($ratingSummary) {
@@ -167,7 +196,15 @@ if ($ratingSummary) {
         $productRatings[(int) $ratingRow['product_id']] = $ratingRow;
     }
 }
+$farmerRatingSummary = $db->query("SELECT farmer_email, ROUND(AVG(rating), 1) AS average_rating, COUNT(*) AS review_count FROM farmer_ratings WHERE status = 'approved' GROUP BY farmer_email");
+$farmerRatings = [];
+if ($farmerRatingSummary) {
+    while ($farmerRatingRow = $farmerRatingSummary->fetch_assoc()) {
+        $farmerRatings[strtolower(trim((string) $farmerRatingRow['farmer_email']))] = $farmerRatingRow;
+    }
+}
 $reviewableOrders = $db->query("SELECT o.or_id, o.or_name, o.or_category FROM order_list o LEFT JOIN product_reviews r ON r.order_id = o.or_id WHERE (o.user_id = '$customerId' OR o.user_id = '$customerEmailSql') AND o.status = 2 AND r.review_id IS NULL ORDER BY o.or_id DESC");
+$farmerReviewableOrders = $db->query("SELECT o.or_id, o.or_name, p.product_name, p.seller_email, COALESCE(u.user_name, p.seller_email) AS farmer_name FROM order_list o INNER JOIN products p ON p.product_id = o.or_category LEFT JOIN users u ON u.user_email COLLATE utf8mb4_unicode_ci = p.seller_email COLLATE utf8mb4_unicode_ci LEFT JOIN farmer_ratings fr ON fr.order_id = o.or_id WHERE (o.user_id = '$customerId' OR o.user_id = '$customerEmailSql') AND o.status = 2 AND fr.rating_id IS NULL ORDER BY o.or_id DESC");
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit_inquiry'])) {
     $inquiryProductId = (int) ($_POST['inquiry_product_id'] ?? 0);
     $inquirySubjectInput = trim($_POST['inquiry_subject'] ?? '');
@@ -206,11 +243,148 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit_commen
     }
 }
 
+// Handle quick product rating
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['submit_product_rating'])) {
+    $ratingProductId = (int) ($_POST['rating_product_id'] ?? 0);
+    $ratingValue = (int) ($_POST['rating_value'] ?? 0);
+    
+    if ($ratingProductId > 0 && $ratingValue >= 1 && $ratingValue <= 5) {
+        // Check if product exists
+        $productExists = $db->query("SELECT product_id FROM products WHERE product_id = $ratingProductId LIMIT 1");
+        if ($productExists && $productExists->num_rows > 0) {
+            // Insert rating (allow multiple ratings from same user for same product)
+            if ($db->query("INSERT INTO product_reviews (product_id, buyer_id, rating, review_text, status, created_at) VALUES ($ratingProductId, $customerId, $ratingValue, 'Quick rating', 'approved', NOW())")) {
+                $message = 'Thank you! Your rating has been saved.';
+            }
+        }
+    }
+}
+
 $recentComments = $db->query("SELECT * FROM comments WHERE user_id = '" . $db->real_escape_string($customerEmail ?: $customerId) . "' ORDER BY cmt_date DESC LIMIT 5");
 $inquiryHistory = $db->query("SELECT i.*, p.product_name FROM product_inquiries i LEFT JOIN products p ON p.product_id = i.product_id WHERE i.buyer_id = '$customerId' ORDER BY i.created_at DESC");
 $farmerNotifications = $db->query("SELECT notification_id, title, message, created_at, is_read FROM farmer_notifications WHERE farmer_id = $customerId ORDER BY created_at DESC, notification_id DESC LIMIT 10");
 $inquiryLabels = ['Pending', 'Responded', 'Resolved'];
 $inquiryClasses = ['warning', 'info', 'success'];
+
+// Customer messaging with farmers
+$selectedCustomerConversation = null;
+$selectedCustomerMessages = [];
+$unreadMessagesCount = 0;
+$allCustomerConversations = null;
+$messagingError = '';
+$messagingSuccess = '';
+
+// Handle starting a new conversation
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['start_new_conversation'])) {
+    $farmerId = (int) ($_POST['farmer_id'] ?? 0);
+    $firstMessage = trim($_POST['first_message'] ?? '');
+    
+    if ($farmerId <= 0) {
+        $messagingError = 'Please select a farmer.';
+    } elseif (empty($firstMessage)) {
+        $messagingError = 'Please enter a message.';
+    } elseif (strlen($firstMessage) > 5000) {
+        $messagingError = 'Message is too long (max 5000 characters).';
+    } else {
+        // Check if conversation already exists
+        $existingConv = $db->query("SELECT conversation_id FROM conversations WHERE customer_id = $customerId AND farmer_id = $farmerId LIMIT 1");
+        if ($existingConv && $existingConv->num_rows > 0) {
+            $conv = $existingConv->fetch_assoc();
+            $conversationId = $conv['conversation_id'];
+        } else {
+            // Create new conversation
+            if ($db->query("INSERT INTO conversations (customer_id, farmer_id, created_at, updated_at) VALUES ($customerId, $farmerId, NOW(), NOW())")) {
+                $conversationId = $db->insert_id;
+            } else {
+                $messagingError = 'Failed to start conversation. Please try again.';
+                $conversationId = 0;
+            }
+        }
+        
+        // Send the first message
+        if ($conversationId > 0) {
+            if ($db->query("INSERT INTO messages (conversation_id, sender_id, sender_type, message_text, created_at) VALUES ($conversationId, $customerId, 'customer', '" . $db->real_escape_string($firstMessage) . "', NOW())")) {
+                $db->query("UPDATE conversations SET updated_at = NOW() WHERE conversation_id = $conversationId");
+                $messagingSuccess = 'Message sent! Farmer will receive your message shortly.';
+                $_SESSION['last_conversation_id'] = $conversationId;
+            } else {
+                $messagingError = 'Failed to send message. Please try again.';
+            }
+        }
+    }
+}
+
+// Handle sending a message from customer
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['send_customer_message'])) {
+    $conversationId = (int) ($_POST['conversation_id'] ?? 0);
+    $messageText = trim($_POST['message_text'] ?? '');
+    
+    if (empty($messageText)) {
+        $messagingError = 'Message cannot be empty.';
+    } elseif (strlen($messageText) > 5000) {
+        $messagingError = 'Message is too long (max 5000 characters).';
+    } elseif ($conversationId > 0) {
+        $conversationAccess = $db->query("SELECT conversation_id FROM conversations WHERE conversation_id = $conversationId AND customer_id = $customerId LIMIT 1");
+        if (!$conversationAccess || $conversationAccess->num_rows === 0) {
+            $messagingError = 'That conversation is not available.';
+        } elseif ($db->query("INSERT INTO messages (conversation_id, sender_id, sender_type, message_text, created_at) VALUES ($conversationId, $customerId, 'customer', '" . $db->real_escape_string($messageText) . "', NOW())")) {
+            $db->query("UPDATE conversations SET updated_at = NOW() WHERE conversation_id = $conversationId");
+            $messagingSuccess = 'Message sent!';
+            $_SESSION['last_conversation_id'] = $conversationId;
+        } else {
+            $messagingError = 'Failed to send message. Please try again.';
+        }
+    }
+}
+
+// Get all conversations for this customer
+$conversationsSql = "SELECT c.conversation_id, c.farmer_id, c.subject, c.updated_at, u.user_name AS farmer_name, u.user_email AS farmer_email, 
+                    COUNT(CASE WHEN m.is_read = 0 AND m.sender_id != $customerId THEN 1 END) AS unread_count,
+                    (SELECT message_text FROM messages WHERE conversation_id = c.conversation_id ORDER BY created_at DESC LIMIT 1) AS last_message,
+                    (SELECT MAX(created_at) FROM messages WHERE conversation_id = c.conversation_id) AS last_message_date
+                    FROM conversations c
+                    LEFT JOIN users u ON u.user_id = c.farmer_id
+                    LEFT JOIN messages m ON m.conversation_id = c.conversation_id
+                    WHERE c.customer_id = $customerId
+                    GROUP BY c.conversation_id, c.farmer_id, c.subject, c.updated_at, u.user_name, u.user_email
+                    ORDER BY c.updated_at DESC";
+$allCustomerConversations = $db->query($conversationsSql);
+// Determine which conversation to display - check session first, then POST, then GET
+$selectedConversationId = 0;
+if (isset($_SESSION['last_conversation_id'])) {
+    $selectedConversationId = (int) $_SESSION['last_conversation_id'];
+    unset($_SESSION['last_conversation_id']);
+} elseif (isset($_POST['conversation_id'])) {
+    $selectedConversationId = (int) $_POST['conversation_id'];
+} elseif (isset($_GET['conversation_id'])) {
+    $selectedConversationId = (int) $_GET['conversation_id'];
+}
+
+
+// Get messages for selected conversation
+if ($selectedConversationId > 0) {
+    $convCheck = $db->query("SELECT c.*, u.user_name AS farmer_name, u.user_email AS farmer_email FROM conversations c LEFT JOIN users u ON u.user_id = c.farmer_id WHERE c.conversation_id = $selectedConversationId AND c.customer_id = $customerId LIMIT 1");
+    if ($convCheck && $convCheck->num_rows > 0) {
+        $selectedCustomerConversation = $convCheck->fetch_assoc();
+        
+        // Mark messages as read
+        $db->query("UPDATE messages SET is_read = 1, read_at = NOW() WHERE conversation_id = $selectedConversationId AND sender_id != $customerId AND is_read = 0");
+        
+        // Get all messages
+        $messagesSql = "SELECT m.*, u.user_name AS sender_name FROM messages m LEFT JOIN users u ON u.user_id = m.sender_id WHERE m.conversation_id = $selectedConversationId ORDER BY m.created_at ASC";
+        $messagesResult = $db->query($messagesSql);
+        while ($msg = $messagesResult->fetch_assoc()) {
+            $selectedCustomerMessages[] = $msg;
+        }
+    }
+}
+
+// Get list of farmers the customer can message (from their orders + all active farmers)
+$availableFarmersQuery = $db->query("SELECT DISTINCT u.user_id, u.user_name, u.user_email FROM users u WHERE u.role = 2 AND u.status = 1 ORDER BY u.user_name ASC");
+
+// Get unread message count
+$unreadResult = $db->query("SELECT COUNT(*) as count FROM messages WHERE conversation_id IN (SELECT conversation_id FROM conversations WHERE customer_id = $customerId) AND is_read = 0 AND sender_id != $customerId");
+$unreadMessagesCount = $unreadResult ? (int) $unreadResult->fetch_assoc()['count'] : 0;
 ?>
 
 <style>
@@ -300,6 +474,41 @@ $inquiryClasses = ['warning', 'info', 'success'];
     .customer-dashboard a:not(.nav-link):hover {
         color: #c9ffd9;
     }
+    #farmer-messages .card-body {
+        color: #1f2937 !important;
+    }
+    #farmer-messages .card-body h5,
+    #farmer-messages .card-body h6,
+    #farmer-messages .card-body .form-label {
+        color: #17251d !important;
+    }
+    #farmer-messages .card-body .text-muted,
+    #farmer-messages .card-body small.text-muted {
+        color: #52655a !important;
+    }
+    #farmer-messages .nav-tabs .nav-link {
+        color: #52655a !important;
+    }
+    #farmer-messages .nav-tabs .nav-link.active {
+        color: #087f5b !important;
+        font-weight: 700;
+    }
+    #farmer-messages .form-control,
+    #farmer-messages .form-select {
+        background: #ffffff !important;
+        color: #17251d !important;
+    }
+    #farmer-messages .form-control::placeholder {
+        color: #68786e !important;
+        opacity: 1;
+    }
+    #farmer-messages .customer-conversation-link {
+        color: #17251d;
+    }
+    #farmer-messages .customer-conversation-link:hover {
+        background: #eef8f2 !important;
+        border-color: #78c99a !important;
+    }
     .customer-dashboard .form-control,
     .customer-dashboard .form-select {
         color: #f2fff7 !important;
@@ -332,6 +541,13 @@ $inquiryClasses = ['warning', 'info', 'success'];
     .customer-dashboard .order-history-table tbody tr.order-reveal { animation: orderReveal .45s ease both; }
     @keyframes orderReveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     .customer-dashboard .history-empty { color: #b8d8c5 !important; }
+    /* Star Rating Styles */
+    .star-rating { display: inline-flex; gap: 4px; align-items: center; }
+    .star-rating .star { cursor: pointer; font-size: 1.2rem; color: #666; transition: color 0.2s, transform 0.2s; }
+    .star-rating .star:hover, .star-rating .star.hover { color: #ffc107; transform: scale(1.15); }
+    .star-rating .star.active { color: #ffc107; }
+    .product-card .star-rating { margin: 10px 0; }
+    .product-card .star-rating .star { font-size: 1rem; }
     @media (max-width: 991px) {
         .dashboard-sidebar { border-right: none; }
     }
@@ -350,6 +566,7 @@ $inquiryClasses = ['warning', 'info', 'success'];
                 <a class="nav-link" href="#check-products"><span class="sidebar-icon"><i class="fas fa-box-open"></i></span><span class="sidebar-label"><?php echo t('Check Products'); ?></span></a>
                 <a class="nav-link" href="#browse"><span class="sidebar-icon"><i class="fas fa-search"></i></span><span class="sidebar-label"><?php echo t('Browse Marketplace'); ?></span></a>
                 <a class="nav-link" href="#place-order"><span class="sidebar-icon"><i class="fas fa-basket-shopping"></i></span><span class="sidebar-label"><?php echo t('Place Order'); ?></span></a>
+                <a class="nav-link" href="#farmer-messages"><span class="sidebar-icon"><i class="fas fa-comments"></i></span><span class="sidebar-label"><?php echo t('Messages'); ?></span></a>
                 <a class="nav-link" href="#add-comments"><span class="sidebar-icon"><i class="fas fa-comments"></i></span><span class="sidebar-label"><?php echo t('Add Comments'); ?></span></a>
                  <a class="nav-link" href="#order-list"><span class="sidebar-icon"><i class="fas fa-history"></i></span><span class="sidebar-label"><?php echo t('Order History'); ?></span></a>
                  <a class="nav-link" href="#inquiry-history"><span class="sidebar-icon"><i class="fas fa-message"></i></span><span class="sidebar-label"><?php echo t('Inquiry History'); ?></span></a>
@@ -405,7 +622,38 @@ $inquiryClasses = ['warning', 'info', 'success'];
                 <div class="dashboard-card mt-4 p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3"><div><div class="welcome-kicker">Market picks</div><h5 class="mb-0">Available today</h5></div><a href="#browse" class="btn btn-sm btn-outline-success">View all</a></div>
                     <div class="row g-3">
-                        <?php if ($featuredProducts && $featuredProducts->num_rows > 0): while ($featured = $featuredProducts->fetch_assoc()): ?><div class="col-md-4"><div class="featured-product"><div class="featured-product-icon"><i class="fas fa-leaf"></i></div><div><strong><?php echo htmlspecialchars($featured['product_name']); ?></strong><small class="d-block text-muted">UGX <?php echo number_format((float) $featured['price'], 2); ?> / <?php echo htmlspecialchars($featured['product_unit']); ?></small><small class="d-block text-success"><?php echo number_format((int) $featured['stock_quantity']); ?> available</small></div></div></div><?php endwhile; else: ?><div class="col-12"><p class="text-muted mb-0">New market products will appear here soon.</p></div><?php endif; ?>
+                        <?php if ($featuredProducts && $featuredProducts->num_rows > 0): while ($featured = $featuredProducts->fetch_assoc()): $featuredProductId = (int) $featured['product_id']; ?>
+                            <div class="col-md-4">
+                                <div class="featured-product">
+                                    <div class="featured-product-icon"><i class="fas fa-leaf"></i></div>
+                                    <div>
+                                        <strong><?php echo htmlspecialchars($featured['product_name']); ?></strong>
+                                        <small class="d-block text-muted">UGX <?php echo number_format((float) $featured['price'], 2); ?> / <?php echo htmlspecialchars($featured['product_unit']); ?></small>
+                                        <small class="d-block text-success"><?php echo number_format((int) $featured['stock_quantity']); ?> available</small>
+                                        <!-- Product Rating Display -->
+                                        <?php if (isset($productRatings[$featuredProductId])): ?>
+                                            <small class="d-block text-warning mt-2">
+                                                <?php echo str_repeat('&#9733;', (int) round($productRatings[$featuredProductId]['average_rating'])); ?>
+                                                <span class="text-muted"><?php echo number_format((float) $productRatings[$featuredProductId]['average_rating'], 1); ?>/5 (<?php echo (int) $productRatings[$featuredProductId]['review_count']; ?>)</span>
+                                            </small>
+                                        <?php else: ?>
+                                            <small class="d-block text-muted mt-2">No ratings yet</small>
+                                        <?php endif; ?>
+                                        <!-- Star Rating Input -->
+                                        <form method="POST" class="mt-2" style="display: inline;">
+                                            <input type="hidden" name="rating_product_id" value="<?php echo $featuredProductId; ?>">
+                                            <div class="star-rating" data-product-id="<?php echo $featuredProductId; ?>">
+                                                <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                    <span class="star" data-value="<?php echo $i; ?>" style="cursor: pointer; font-size: 0.9rem;">★</span>
+                                                <?php endfor; ?>
+                                            </div>
+                                            <input type="hidden" name="rating_value" class="rating-value" value="0">
+                                            <button type="submit" name="submit_product_rating" style="display: none;"></button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endwhile; else: ?><div class="col-12"><p class="text-muted mb-0">New market products will appear here soon.</p></div><?php endif; ?>
                     </div>
                 </div>
             </section>
@@ -455,25 +703,92 @@ $inquiryClasses = ['warning', 'info', 'success'];
                         <h5 class="mb-0"><?php echo t('Check Available Products'); ?></h5>
                     </div>
                     <div class="card-body">
+                        <div class="row gy-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label"><?php echo t('Search Products'); ?></label>
+                                <input id="searchCheckProducts" type="text" class="form-control" placeholder="<?php echo t('Search product name...'); ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label"><?php echo t('Filter by Category'); ?></label>
+                                <select id="categoryCheckFilter" class="form-select">
+                                    <option value="all"><?php echo t('All Categories'); ?></option>
+                                    <?php $categories->data_seek(0); while ($category = $categories->fetch_assoc()): ?>
+                                        <option value="<?php echo htmlspecialchars($category['cat_name']); ?>"><?php echo htmlspecialchars($category['cat_name']); ?></option>
+                                    <?php endwhile; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row gy-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label"><?php echo t('Min Price (UGX)'); ?></label>
+                                <input id="minPriceCheck" type="number" class="form-control" placeholder="Min price" value="0" min="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label"><?php echo t('Max Price (UGX)'); ?></label>
+                                <input id="maxPriceCheck" type="number" class="form-control" placeholder="Max price" value="1000000" min="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label"><?php echo t('Availability'); ?></label>
+                                <select id="availabilityCheckFilter" class="form-select">
+                                    <option value="all"><?php echo t('All Products'); ?></option>
+                                    <option value="in-stock"><?php echo t('In Stock'); ?></option>
+                                    <option value="low-stock"><?php echo t('Low Stock'); ?></option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row gy-3 mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label"><?php echo t('Filter by Location'); ?></label>
+                                <input id="locationCheckFilter" type="text" class="form-control" placeholder="<?php echo t('Search by location, address, or market name...'); ?>">
+                            </div>
+                        </div>
+                        <div class="row gy-3 mb-3">
+                            <div class="col-md-12">
+                                <button type="button" id="resetCheckFilters" class="btn btn-outline-success w-100">
+                                    <i class="fas fa-rotate-left me-2"></i><?php echo t('Reset Filters'); ?>
+                                </button>
+                            </div>
+                        </div>
                         <div class="row g-3" id="product-list">
                             <?php if ($productsCount === 0): ?>
                                 <div class="alert alert-secondary text-white"><?php echo t('No products are available at the moment.'); ?></div>
                             <?php else: ?>
                                 <?php
                                 $productsResult->data_seek(0);
-                                while ($product = $productsResult->fetch_assoc()): ?>
-                                    <div class="col-md-6">
+                                while ($product = $productsResult->fetch_assoc()): 
+                                  $displayLocation = !empty($product['farm_location']) ? htmlspecialchars($product['farm_location']) : (!empty($product['farm_address']) ? htmlspecialchars($product['farm_address']) : '');
+                                  $displayMarket = !empty($product['market_location']) ? htmlspecialchars($product['market_location']) : (!empty($product['market_name']) ? htmlspecialchars($product['market_name']) : '');
+                                  $locationLowerCheck = strtolower(trim($displayLocation . ' ' . $displayMarket));
+                                  $sellerEmailKey = strtolower(trim((string) ($product['seller_email'] ?? '')));
+                                  $farmerFeedback = isset($farmerRatings[$sellerEmailKey]) ? $farmerRatings[$sellerEmailKey] : null;
+                                ?>
+                                    <div class="col-md-6 check-product-card" data-name="<?php echo strtolower(htmlspecialchars($product['product_name'])); ?>" data-category="<?php echo strtolower(htmlspecialchars($product['cat_name'] ?? '')); ?>" data-price="<?php echo (float) $product['price']; ?>" data-stock="<?php echo (int) $product['stock_quantity']; ?>" data-location="<?php echo $locationLowerCheck; ?>" data-market="<?php echo strtolower($displayMarket); ?>">
                                         <div class="card product-card h-100 p-3">
                                             <div class="card-body d-flex flex-column justify-content-between">
                                                 <div>
                                                     <h6 class="text-white"><?php echo htmlspecialchars($product['product_name']); ?></h6>
                                                     <p class="text-muted mb-2"><?php echo htmlspecialchars($product['description'] ?: t('Fresh farm produce')); ?></p>
                                                     <small class="text-muted d-block mb-2"><?php echo t('Available'); ?>: <?php echo number_format((int) $product['stock_quantity']); ?> <?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?></small>
+                                                    <?php if (!empty($displayLocation)): ?><small class="text-info d-block mb-2"><i class="fas fa-map-marker-alt me-1"></i><?php echo $displayLocation; ?></small><?php endif; ?>
                                                     <?php echo (int) $product['stock_quantity'] > 0 ? '<span class="badge bg-success mb-2">' . t('In stock') . '</span>' : '<span class="badge bg-danger mb-2">' . t('Out of stock') . '</span>'; ?>
                                                     <?php if (!empty($product['is_negotiable'])): ?><span class="badge bg-warning text-dark mb-2"><?php echo t('Price is negotiable'); ?></span><?php endif; ?>
                                                     <?php if (!empty($product['harvest_date'])): ?><small class="text-muted d-block mb-2"><?php echo t('Harvest date'); ?>: <?php echo htmlspecialchars(date('d M Y', strtotime($product['harvest_date']))); ?></small><?php endif; ?>
                                                     <?php if (!empty($product['seasonal_availability'])): ?><small class="text-muted d-block mb-2"><?php echo t('Season'); ?>: <?php echo htmlspecialchars($product['seasonal_availability']); ?></small><?php endif; ?>
                                                     <small class="text-muted d-block mb-2"><?php echo htmlspecialchars($product['cat_name'] ?: t('Uncategorized')); ?></small>
+                                                    <!-- Product Rating Display -->
+                                                    <?php if (isset($productRatings[(int) $product['product_id']])): ?><small class="d-block text-warning mb-2"><?php echo str_repeat('&#9733;', (int) round($productRatings[(int) $product['product_id']]['average_rating'])); ?> <span class="text-muted"><?php echo number_format((float) $productRatings[(int) $product['product_id']]['average_rating'], 1); ?>/5 (<?php echo (int) $productRatings[(int) $product['product_id']]['review_count']; ?>)</span></small><?php else: ?><small class="d-block text-muted mb-2">No ratings yet</small><?php endif; ?>
+                                                    <!-- Star Rating Input -->
+                                                    <form method="POST" class="mb-2" style="display: inline;">
+                                                        <input type="hidden" name="rating_product_id" value="<?php echo (int) $product['product_id']; ?>">
+                                                        <div class="star-rating" data-product-id="<?php echo (int) $product['product_id']; ?>">
+                                                            <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                                <span class="star" data-value="<?php echo $i; ?>" style="cursor: pointer;">★</span>
+                                                            <?php endfor; ?>
+                                                        </div>
+                                                        <input type="hidden" name="rating_value" class="rating-value" value="0">
+                                                        <button type="submit" name="submit_product_rating" class="btn btn-xs btn-link" style="padding: 0; font-size: 0.75rem; color: #9ef7b8; display: none;">Rate</button>
+                                                    </form>
+                                                    <?php if ($farmerFeedback): ?><small class="d-block text-warning mb-2"><?php echo str_repeat('&#9733;', (int) round($farmerFeedback['average_rating'])); ?> <span class="text-muted"><?php echo number_format((float) $farmerFeedback['average_rating'], 1); ?>/5 (<?php echo (int) $farmerFeedback['review_count']; ?>)</span></small><?php else: ?><small class="d-block text-muted mb-2">Farmer rating not yet available</small><?php endif; ?>
                                                     <div class="badge mb-2"><?php echo htmlspecialchars($product['farmer_name'] ?: t('Local Farm Market')); ?></div>
                                                 </div>
                                                 <div class="d-flex justify-content-between align-items-center mt-3">
@@ -511,31 +826,76 @@ $inquiryClasses = ['warning', 'info', 'success'];
                                 <label class="form-label"><?php echo t('Filter by Category'); ?></label>
                                 <select id="categoryFilter" class="form-select">
                                     <option value="all"><?php echo t('All Categories'); ?></option>
-                                    <?php while ($category = $categories->fetch_assoc()): ?>
+                                    <?php $categories->data_seek(0); while ($category = $categories->fetch_assoc()): ?>
                                         <option value="<?php echo htmlspecialchars($category['cat_name']); ?>"><?php echo htmlspecialchars($category['cat_name']); ?></option>
                                     <?php endwhile; ?>
                                 </select>
                             </div>
                         </div>
+                        <div class="row gy-3 mt-3">
+                            <div class="col-md-4">
+                                <label class="form-label"><?php echo t('Min Price (UGX)'); ?></label>
+                                <input id="minPriceBrowse" type="number" class="form-control" placeholder="Min price" value="0" min="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label"><?php echo t('Max Price (UGX)'); ?></label>
+                                <input id="maxPriceBrowse" type="number" class="form-control" placeholder="Max price" value="1000000" min="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label"><?php echo t('Availability'); ?></label>
+                                <select id="availabilityFilter" class="form-select">
+                                    <option value="all"><?php echo t('All Products'); ?></option>
+                                    <option value="in-stock"><?php echo t('In Stock'); ?></option>
+                                    <option value="low-stock"><?php echo t('Low Stock'); ?></option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row gy-3 mt-1">
+                            <div class="col-md-12">
+                                <label class="form-label"><?php echo t('Filter by Location'); ?></label>
+                                <input id="locationFilter" type="text" class="form-control" placeholder="<?php echo t('Search by location, address, or market name...'); ?>">
+                            </div>
+                        </div>
+                        <div class="row gy-3 mt-1">
+                            <div class="col-md-12">
+                                <button type="button" id="resetBrowseFilters" class="btn btn-outline-success w-100">
+                                    <i class="fas fa-rotate-left me-2"></i><?php echo t('Reset Filters'); ?>
+                                </button>
+                            </div>
+                        </div>
                         <div class="row g-3 mt-3" id="browse-results">
-                            <?php $productsResult->data_seek(0); while ($product = $productsResult->fetch_assoc()): ?>
-                                <div class="col-md-6 browse-card" data-name="<?php echo strtolower(htmlspecialchars($product['product_name'])); ?>" data-category="<?php echo strtolower(htmlspecialchars($product['cat_name'] ?? '')); ?>">
+                            <?php $productsResult->data_seek(0); while ($product = $productsResult->fetch_assoc()): $location = !empty($product['farm_address']) ? htmlspecialchars($product['farm_address']) : (!empty($product['market_address']) ? htmlspecialchars($product['market_address']) : ''); $locationLower = strtolower(trim($location)); $sellerEmailKey = strtolower(trim((string) ($product['seller_email'] ?? ''))); $farmerFeedback = isset($farmerRatings[$sellerEmailKey]) ? $farmerRatings[$sellerEmailKey] : null; ?>
+                                <div class="col-md-6 browse-card" data-name="<?php echo strtolower(htmlspecialchars($product['product_name'])); ?>" data-category="<?php echo strtolower(htmlspecialchars($product['cat_name'] ?? '')); ?>" data-price="<?php echo (float) $product['price']; ?>" data-stock="<?php echo (int) $product['stock_quantity']; ?>" data-location="<?php echo $locationLower; ?>" data-market="<?php echo strtolower(htmlspecialchars($product['market_name'] ?? '')); ?>">
                                     <div class="card product-card p-3">
                                         <?php if (!empty($product['image']) && is_file(__DIR__ . '/admin/assets/images/products/' . basename($product['image']))): ?><img src="admin/assets/images/products/<?php echo rawurlencode(basename($product['image'])); ?>" class="img-fluid rounded mb-3" style="height: 170px; width: 100%; object-fit: cover;" alt="<?php echo htmlspecialchars($product['product_name']); ?>"><?php endif; ?>
                                         <div class="card-body">
                                             <h6 class="text-white"><?php echo htmlspecialchars($product['product_name']); ?></h6>
                                             <p class="text-muted mb-2"><?php echo htmlspecialchars($product['description'] ?: t('Fresh farm produce')); ?></p>
                                             <small class="text-muted d-block mb-2"><?php echo t('Available'); ?>: <?php echo number_format((int) $product['stock_quantity']); ?> <?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?></small>
+                                            <?php $displayLocation = !empty($product['farm_location']) ? htmlspecialchars($product['farm_location']) : (!empty($product['farm_address']) ? htmlspecialchars($product['farm_address']) : ''); ?>
+                                            <?php if (!empty($displayLocation)): ?><small class="text-info d-block mb-2"><i class="fas fa-map-marker-alt me-1"></i><?php echo $displayLocation; ?></small><?php endif; ?>
                                             <?php echo (int) $product['stock_quantity'] > 0 ? '<span class="badge bg-success mb-2">' . t('In stock') . '</span>' : '<span class="badge bg-danger mb-2">' . t('Out of stock') . '</span>'; ?>
                                             <?php if (!empty($product['is_negotiable'])): ?><span class="badge bg-warning text-dark mb-2"><?php echo t('Price is negotiable'); ?></span><?php endif; ?>
                                             <?php if (!empty($product['harvest_date'])): ?><small class="text-muted d-block mb-2"><?php echo t('Harvest date'); ?>: <?php echo htmlspecialchars(date('d M Y', strtotime($product['harvest_date']))); ?></small><?php endif; ?>
                                             <?php if (!empty($product['seasonal_availability'])): ?><small class="text-muted d-block mb-2"><?php echo t('Season'); ?>: <?php echo htmlspecialchars($product['seasonal_availability']); ?></small><?php endif; ?>
                                             <small class="text-muted d-block mb-2"><?php echo htmlspecialchars($product['cat_name'] ?: t('Uncategorized')); ?></small>
-                                            <?php if (!empty($product['farm_address'])): ?><a class="small text-info d-block mb-2" href="https://www.google.com/maps/search/?api=1&query=<?php echo rawurlencode($product['farm_address']); ?>" target="_blank" rel="noopener"><i class="fas fa-location-dot me-1"></i><?php echo htmlspecialchars($product['farm_address']); ?></a><?php endif; ?>
-                                            <?php if (!empty($product['market_name']) || !empty($product['market_address'])): ?><div class="small text-light mb-2"><i class="fas fa-store me-1 text-primary"></i><?php echo htmlspecialchars($product['market_name'] ?: $product['market_address']); ?><?php if (!empty($product['market_address'])): ?><a href="https://www.google.com/maps/search/?api=1&query=<?php echo rawurlencode($product['market_address']); ?>" target="_blank" rel="noopener" class="ms-2 text-info">Map</a><?php endif; ?></div><?php endif; ?>
+                                            <?php $displayMarket = !empty($product['market_location']) ? htmlspecialchars($product['market_location']) : (!empty($product['market_name']) ? htmlspecialchars($product['market_name']) : ''); ?>
+                                            <?php if (!empty($displayMarket)): ?><div class="small text-light mb-2"><i class="fas fa-store me-1 text-primary"></i><?php echo $displayMarket; ?></div><?php endif; ?>
                                             <?php if (!empty($product['market_operating_days']) || !empty($product['market_hours'])): ?><div class="small text-light mb-2"><i class="fas fa-clock me-1 text-warning"></i><?php echo htmlspecialchars(trim(($product['market_operating_days'] ?: '') . ' ' . ($product['market_hours'] ?: ''))); ?></div><?php endif; ?>
                                             <?php if (!empty($product['pickup_instructions']) || !empty($product['delivery_instructions'])): ?><div class="small text-muted mb-2"><i class="fas fa-truck me-1 text-success"></i><?php echo htmlspecialchars($product['pickup_instructions'] ?: $product['delivery_instructions']); ?></div><?php endif; ?>
                                             <?php if (isset($productRatings[(int) $product['product_id']])): ?><small class="d-block text-warning mb-2"><?php echo str_repeat('&#9733;', (int) round($productRatings[(int) $product['product_id']]['average_rating'])); ?> <span class="text-muted"><?php echo number_format((float) $productRatings[(int) $product['product_id']]['average_rating'], 1); ?>/5 (<?php echo (int) $productRatings[(int) $product['product_id']]['review_count']; ?>)</span></small><?php else: ?><small class="d-block text-muted mb-2">No reviews yet</small><?php endif; ?>
+                                            <?php if ($farmerFeedback): ?><small class="d-block text-info mb-2"><?php echo str_repeat('&#9733;', (int) round($farmerFeedback['average_rating'])); ?> <span class="text-muted"><?php echo number_format((float) $farmerFeedback['average_rating'], 1); ?>/5 farmer reputation (<?php echo (int) $farmerFeedback['review_count']; ?>)</span></small><?php endif; ?>
+                                            <!-- Star Rating Input -->
+                                            <form method="POST" class="mb-2" style="display: inline;">
+                                                <input type="hidden" name="rating_product_id" value="<?php echo (int) $product['product_id']; ?>">
+                                                <div class="star-rating" data-product-id="<?php echo (int) $product['product_id']; ?>">
+                                                    <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                        <span class="star" data-value="<?php echo $i; ?>" style="cursor: pointer;">★</span>
+                                                    <?php endfor; ?>
+                                                </div>
+                                                <input type="hidden" name="rating_value" class="rating-value" value="0">
+                                                <button type="submit" name="submit_product_rating" class="btn btn-xs btn-link" style="padding: 0; font-size: 0.75rem; color: #9ef7b8; display: none;">Rate</button>
+                                            </form>
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <span class="text-success">UGX <?php echo number_format($product['price'], 2); ?> per <?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?></span>
                                                 <div class="d-flex gap-2">
@@ -672,6 +1032,179 @@ $inquiryClasses = ['warning', 'info', 'success'];
                     </div>
                 </div>
             </section>
+
+            <section id="farmer-messages" class="mb-4">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fa-solid fa-comments me-2"></i><?php echo t('Messages with Farmers'); ?></h5>
+                            <span class="badge bg-info"><?php echo $unreadMessagesCount; ?> unread</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <?php if ($messagingError): ?><div class="alert alert-danger alert-dismissible fade show" role="alert"><i class="fa-solid fa-circle-exclamation me-2"></i><?php echo htmlspecialchars($messagingError); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><?php endif; ?>
+                        <?php if ($messagingSuccess): ?><div class="alert alert-success alert-dismissible fade show" role="alert"><i class="fa-solid fa-circle-check me-2"></i><?php echo htmlspecialchars($messagingSuccess); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><?php endif; ?>
+
+                        <!-- Nav Tabs -->
+                        <ul class="nav nav-tabs mb-4" role="tablist" style="border-bottom: 2px solid #e0e0e0;">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="conversations-tab" data-bs-toggle="tab" data-bs-target="#conversations-pane" type="button" role="tab" aria-controls="conversations-pane" aria-selected="true">
+                                    <i class="fa-solid fa-inbox me-2"></i>Conversations <?php if ($allCustomerConversations && $allCustomerConversations->num_rows > 0): ?><span class="badge bg-info ms-1"><?php echo $allCustomerConversations->num_rows; ?></span><?php endif; ?>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="new-message-tab" data-bs-toggle="tab" data-bs-target="#new-message-pane" type="button" role="tab" aria-controls="new-message-pane" aria-selected="false">
+                                    <i class="fa-solid fa-pen-to-square me-2"></i>Start New Conversation
+                                </button>
+                            </li>
+                        </ul>
+
+                        <!-- Tab Content -->
+                        <div class="tab-content">
+                            <!-- Existing Conversations Tab -->
+                            <div class="tab-pane fade show active" id="conversations-pane" role="tabpanel" aria-labelledby="conversations-tab">
+                                <div class="row" style="min-height: 500px;">
+                                    <!-- Conversations List -->
+                                    <div class="col-lg-4">
+                                        <div style="background: #f9f9f9; border-radius: 8px; padding: 15px; max-height: 500px; overflow-y: auto;">
+                                            <h6 class="mb-3"><i class="fa-solid fa-list me-2"></i>Your Conversations</h6>
+                                            <?php if ($allCustomerConversations && $allCustomerConversations->num_rows > 0): 
+                                                mysqli_data_seek($allCustomerConversations, 0); // Reset pointer
+                                                while ($conv = $allCustomerConversations->fetch_assoc()): ?>
+                                                    <button type="button" class="customer-conversation-link" data-conversation-id="<?php echo (int) $conv['conversation_id']; ?>" style="border: 1px solid #e0e0e0; border-radius: 6px; margin-bottom: 10px; padding: 12px; text-decoration: none; display: block; background: <?php echo $selectedConversationId === (int) $conv['conversation_id'] ? '#e3f2fd' : '#fff'; ?>; transition: all 0.2s; width: 100%; text-align: left; cursor: pointer;">
+                                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                                            <strong style="color: #087f5b;"><?php echo htmlspecialchars($conv['farmer_name'] ?: 'Unknown Farmer'); ?></strong>
+                                                            <?php if ($conv['unread_count'] > 0): ?><span class="badge bg-danger"><?php echo (int) $conv['unread_count']; ?></span><?php endif; ?>
+                                                        </div>
+                                                        <small class="text-muted d-block text-truncate" style="color: #666;"><?php echo htmlspecialchars(substr($conv['last_message'] ?? 'No messages', 0, 60)); ?></small>
+                                                        <small class="text-muted d-block mt-1" style="color: #999;"><?php echo $conv['last_message_date'] ? htmlspecialchars(date('M j, g:i A', strtotime($conv['last_message_date']))) : ''; ?></small>
+                                                    </button>
+                                                <?php endwhile; 
+                                            else: ?>
+                                                <div class="alert alert-info mb-0"><i class="fa-solid fa-info-circle me-2"></i>No conversations yet. Use the "Start New Conversation" tab to message a farmer!</div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+
+                                    <!-- Messages Display -->
+                                    <div class="col-lg-8">
+                                        <?php if ($selectedCustomerConversation): ?>
+                                            <div class="border rounded" style="background: #fff; display: flex; flex-direction: column; height: 500px; border: 1px solid #e0e0e0;">
+                                                <!-- Chat Header -->
+                                                <div style="padding: 15px; background: linear-gradient(135deg, #087f5b 0%, #05604a 100%); color: white; border-radius: 8px 8px 0 0;">
+                                                    <h6 class="mb-0"><i class="fa-solid fa-user-circle me-2"></i><?php echo htmlspecialchars($selectedCustomerConversation['farmer_name'] ?: 'Farmer'); ?></h6>
+                                                    <small style="opacity: 0.9;"><?php echo htmlspecialchars($selectedCustomerConversation['farmer_email'] ?: ''); ?></small>
+                                                </div>
+
+                                                <!-- Messages Area -->
+                                                <div style="flex: 1; overflow-y: auto; padding: 20px; background: #fafafa; display: flex; flex-direction: column; gap: 12px;">
+                                                    <?php if (count($selectedCustomerMessages) > 0): ?>
+                                                        <?php foreach ($selectedCustomerMessages as $msg): $isSent = (int) $msg['sender_id'] === $customerId; ?>
+                                                            <div class="d-flex <?php echo $isSent ? 'justify-content-end' : 'justify-content-start'; ?>">
+                                                                <div style="max-width: 70%;">
+                                                                    <div style="padding: 12px 16px; border-radius: 12px; background: <?php echo $isSent ? '#087f5b' : '#e9f5f0'; ?>; color: <?php echo $isSent ? '#fff' : '#000'; ?>; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                                                                        <p class="mb-2"><?php echo nl2br(htmlspecialchars($msg['message_text'])); ?></p>
+                                                                        <small style="opacity: 0.8; display: block;"><?php echo htmlspecialchars(date('M j, g:i A', strtotime($msg['created_at']))); ?></small>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        <?php endforeach; ?>
+                                                    <?php else: ?>
+                                                        <div class="text-center text-muted py-5"><i class="fa-solid fa-comments fs-1 d-block mb-2" style="opacity: 0.3;"></i><small>No messages yet. Start the conversation below!</small></div>
+                                                    <?php endif; ?>
+                                                </div>
+
+                                                <!-- Input Area -->
+                                                <form method="POST" action="customerDashboard.php#farmer-messages" style="padding: 15px; background: #fff; border-top: 1px solid #e0e0e0; border-radius: 0 0 8px 8px;">
+                                                    <input type="hidden" name="conversation_id" value="<?php echo (int) $selectedCustomerConversation['conversation_id']; ?>">
+                                                    <div class="input-group">
+                                                        <textarea name="message_text" placeholder="Type your message..." rows="2" maxlength="5000" class="form-control" required style="resize: none; border-radius: 6px 0 0 6px;"></textarea>
+                                                        <button type="submit" name="send_customer_message" class="btn btn-success" style="border-radius: 0 6px 6px 0;"><i class="fa-solid fa-paper-plane"></i> Send</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        <?php else: ?>
+                                            <div style="background: #f9f9f9; border-radius: 8px; padding: 60px 30px; text-align: center; border: 1px solid #e0e0e0; min-height: 500px; display: flex; align-items: center; justify-content: center;">
+                                                <div>
+                                                    <i class="fa-solid fa-message fs-1 d-block mb-3" style="color: #ccc;"></i>
+                                                    <p class="text-muted mb-0"><strong>Select a conversation to view messages</strong></p>
+                                                    <small class="text-muted d-block mt-2">or use the "Start New Conversation" tab to message a farmer</small>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- New Conversation Tab -->
+                            <div class="tab-pane fade" id="new-message-pane" role="tabpanel" aria-labelledby="new-message-tab">
+                                <div class="row justify-content-center">
+                                    <div class="col-lg-8">
+                                        <div style="background: linear-gradient(135deg, #f0faf8 0%, #e8f5f0 100%); border-radius: 12px; padding: 30px; border: 1px solid #d0e8e0;">
+                                            <h5 class="mb-4"><i class="fa-solid fa-envelope-open-text me-2"></i>Start a New Conversation</h5>
+                                            <p class="text-muted mb-4">Send a message to any farmer in the marketplace. They'll receive your message and can respond directly.</p>
+
+                                            <form method="POST" action="customerDashboard.php#farmer-messages">
+                                                <div class="mb-4">
+                                                    <label class="form-label" for="farmer_id"><strong>Select a Farmer</strong></label>
+                                                    <select class="form-select form-select-lg" id="farmer_id" name="farmer_id" required style="border: 2px solid #e0e0e0;">
+                                                        <option value="">-- Choose a farmer --</option>
+                                                        <?php if ($availableFarmersQuery && $availableFarmersQuery->num_rows > 0): 
+                                                            while ($farmer = $availableFarmersQuery->fetch_assoc()): ?>
+                                                                <option value="<?php echo (int) $farmer['user_id']; ?>">
+                                                                    <?php echo htmlspecialchars($farmer['user_name']); ?> (<?php echo htmlspecialchars($farmer['user_email']); ?>)
+                                                                </option>
+                                                            <?php endwhile; 
+                                                        endif; ?>
+                                                    </select>
+                                                    <small class="text-muted d-block mt-2"><i class="fa-solid fa-info-circle me-1"></i>Can't find a farmer? Browse products first to see farmers in the marketplace.</small>
+                                                </div>
+
+                                                <div class="mb-4">
+                                                    <label class="form-label" for="first_message"><strong>Your Message</strong></label>
+                                                    <textarea name="first_message" id="first_message" class="form-control" rows="4" placeholder="Hello! I'm interested in your products..." maxlength="5000" required style="border: 2px solid #e0e0e0; resize: vertical;"></textarea>
+                                                    <small class="text-muted d-block mt-2">You can include questions about products, bulk orders, delivery, or anything else.</small>
+                                                </div>
+
+                                                <div class="d-grid gap-2">
+                                                    <button type="submit" name="start_new_conversation" value="1" class="btn btn-success btn-lg" style="border-radius: 8px; font-weight: 600;">
+                                                        <i class="fa-solid fa-paper-plane me-2"></i>Send Message
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+
+                                        <!-- Info Cards -->
+                                        <div class="row g-3 mt-4">
+                                            <div class="col-md-4">
+                                                <div style="background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; text-align: center;">
+                                                    <i class="fa-solid fa-leaf" style="font-size: 2.5rem; color: #087f5b; margin-bottom: 10px; display: block;"></i>
+                                                    <h6 class="mb-2">Direct Connection</h6>
+                                                    <small class="text-muted">Chat directly with farmers</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div style="background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; text-align: center;">
+                                                    <i class="fa-solid fa-handshake" style="font-size: 2.5rem; color: #087f5b; margin-bottom: 10px; display: block;"></i>
+                                                    <h6 class="mb-2">Negotiate Prices</h6>
+                                                    <small class="text-muted">Discuss bulk orders & deals</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div style="background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; text-align: center;">
+                                                    <i class="fa-solid fa-truck" style="font-size: 2.5rem; color: #087f5b; margin-bottom: 10px; display: block;"></i>
+                                                    <h6 class="mb-2">Arrange Delivery</h6>
+                                                    <small class="text-muted">Coordinate pickup & delivery</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 </div>
@@ -695,19 +1228,82 @@ $inquiryClasses = ['warning', 'info', 'success'];
     orderHistoryFilter?.addEventListener('input', filterOrderHistory);
     orderStatusFilter?.addEventListener('change', filterOrderHistory);
     filterOrderHistory();
-    document.getElementById('searchProducts').addEventListener('input', filterBrowse);
-    document.getElementById('categoryFilter').addEventListener('change', filterBrowse);
     function filterBrowse() {
         const text = document.getElementById('searchProducts').value.toLowerCase();
         const category = document.getElementById('categoryFilter').value.toLowerCase();
+        const minPrice = parseFloat(document.getElementById('minPriceBrowse').value) || 0;
+        const maxPrice = parseFloat(document.getElementById('maxPriceBrowse').value) || Infinity;
+        const availability = document.getElementById('availabilityFilter').value;
+        const location = document.getElementById('locationFilter').value.toLowerCase();
         document.querySelectorAll('#browse-results .browse-card').forEach(card => {
             const name = card.dataset.name || '';
             const cat = card.dataset.category || '';
+            const price = parseFloat(card.dataset.price) || 0;
+            const stock = parseInt(card.dataset.stock) || 0;
+            const cardLocation = card.dataset.location || '';
+            const cardMarket = card.dataset.market || '';
             const matchesText = name.includes(text);
             const matchesCat = category === 'all' || cat === category;
-            card.style.display = matchesText && matchesCat ? 'block' : 'none';
+            const matchesPrice = price >= minPrice && price <= maxPrice;
+            const matchesAvailability = availability === 'all' || (availability === 'in-stock' && stock > 0) || (availability === 'low-stock' && stock > 0 && stock <= 5);
+            const matchesLocation = location === '' || cardLocation.includes(location) || cardMarket.includes(location);
+            const display = matchesText && matchesCat && matchesPrice && matchesAvailability && matchesLocation;
+            card.style.display = display ? 'block' : 'none';
         });
     }
+    document.getElementById('searchProducts').addEventListener('input', filterBrowse);
+    document.getElementById('categoryFilter').addEventListener('change', filterBrowse);
+    document.getElementById('minPriceBrowse').addEventListener('input', filterBrowse);
+    document.getElementById('maxPriceBrowse').addEventListener('input', filterBrowse);
+    document.getElementById('availabilityFilter').addEventListener('change', filterBrowse);
+    document.getElementById('locationFilter').addEventListener('input', filterBrowse);
+    document.getElementById('resetBrowseFilters').addEventListener('click', function() {
+        document.getElementById('searchProducts').value = '';
+        document.getElementById('categoryFilter').value = 'all';
+        document.getElementById('minPriceBrowse').value = '0';
+        document.getElementById('maxPriceBrowse').value = '1000000';
+        document.getElementById('availabilityFilter').value = 'all';
+        document.getElementById('locationFilter').value = '';
+        filterBrowse();
+    });
+    function filterCheckProducts() {
+        const text = document.getElementById('searchCheckProducts').value.toLowerCase();
+        const category = document.getElementById('categoryCheckFilter').value.toLowerCase();
+        const minPrice = parseFloat(document.getElementById('minPriceCheck').value) || 0;
+        const maxPrice = parseFloat(document.getElementById('maxPriceCheck').value) || Infinity;
+        const availability = document.getElementById('availabilityCheckFilter').value;
+        const location = document.getElementById('locationCheckFilter').value.toLowerCase();
+        document.querySelectorAll('#product-list .check-product-card').forEach(card => {
+            const name = card.dataset.name || '';
+            const cat = card.dataset.category || '';
+            const price = parseFloat(card.dataset.price) || 0;
+            const stock = parseInt(card.dataset.stock) || 0;
+            const cardLocation = card.dataset.location || '';
+            const cardMarket = card.dataset.market || '';
+            const matchesText = name.includes(text);
+            const matchesCat = category === 'all' || cat === category;
+            const matchesPrice = price >= minPrice && price <= maxPrice;
+            const matchesAvailability = availability === 'all' || (availability === 'in-stock' && stock > 0) || (availability === 'low-stock' && stock > 0 && stock <= 5);
+            const matchesLocation = location === '' || cardLocation.includes(location) || cardMarket.includes(location);
+            const display = matchesText && matchesCat && matchesPrice && matchesAvailability && matchesLocation;
+            card.style.display = display ? 'block' : 'none';
+        });
+    }
+    document.getElementById('searchCheckProducts').addEventListener('input', filterCheckProducts);
+    document.getElementById('categoryCheckFilter').addEventListener('change', filterCheckProducts);
+    document.getElementById('minPriceCheck').addEventListener('input', filterCheckProducts);
+    document.getElementById('maxPriceCheck').addEventListener('input', filterCheckProducts);
+    document.getElementById('availabilityCheckFilter').addEventListener('change', filterCheckProducts);
+    document.getElementById('locationCheckFilter').addEventListener('input', filterCheckProducts);
+    document.getElementById('resetCheckFilters').addEventListener('click', function() {
+        document.getElementById('searchCheckProducts').value = '';
+        document.getElementById('categoryCheckFilter').value = 'all';
+        document.getElementById('minPriceCheck').value = '0';
+        document.getElementById('maxPriceCheck').value = '1000000';
+        document.getElementById('availabilityCheckFilter').value = 'all';
+        document.getElementById('locationCheckFilter').value = '';
+        filterCheckProducts();
+    });
     document.querySelectorAll('[data-inquiry-product]').forEach(function (button) {
         button.addEventListener('click', function () {
             const productSelect = document.getElementById('inquiryProduct');
@@ -717,6 +1313,64 @@ $inquiryClasses = ['warning', 'info', 'success'];
                 subject.value = 'Question about ' + productSelect.options[productSelect.selectedIndex].text;
                 subject.focus();
             }
+        });
+    });
+
+    document.querySelectorAll('.customer-conversation-link').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'customerDashboard.php#farmer-messages';
+            form.hidden = true;
+
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'conversation_id';
+            input.value = button.dataset.conversationId;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        });
+    });
+
+    // Star Rating Functionality
+    document.querySelectorAll('.star-rating').forEach(function (ratingContainer) {
+        const stars = ratingContainer.querySelectorAll('.star');
+        const ratingInput = ratingContainer.parentElement.querySelector('.rating-value');
+        const submitBtn = ratingContainer.parentElement.querySelector('button[name="submit_product_rating"]');
+
+        stars.forEach(star => {
+            // Hover effect
+            star.addEventListener('mouseover', function () {
+                const value = this.dataset.value;
+                stars.forEach((s, idx) => {
+                    if (idx < value) {
+                        s.classList.add('hover');
+                    } else {
+                        s.classList.remove('hover');
+                    }
+                });
+            });
+
+            // Click to rate
+            star.addEventListener('click', function () {
+                const value = this.dataset.value;
+                ratingInput.value = value;
+                stars.forEach((s, idx) => {
+                    if (idx < value) {
+                        s.classList.add('active');
+                    } else {
+                        s.classList.remove('active');
+                    }
+                });
+                // Auto-submit the form
+                ratingContainer.parentElement.submit();
+            });
+        });
+
+        // Remove hover effect when leaving the rating
+        ratingContainer.addEventListener('mouseleave', function () {
+            stars.forEach(s => s.classList.remove('hover'));
         });
     });
 </script>

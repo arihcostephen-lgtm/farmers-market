@@ -200,6 +200,19 @@
 			INDEX idx_product_reviews_product_status (product_id, status),
 			INDEX idx_product_reviews_buyer (buyer_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS farmer_ratings (
+			rating_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			farmer_email VARCHAR(150) NOT NULL,
+			buyer_id INT UNSIGNED NOT NULL,
+			order_id INT UNSIGNED NOT NULL,
+			rating TINYINT UNSIGNED NOT NULL,
+			review_text TEXT DEFAULT NULL,
+			status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE KEY uq_farmer_rating_order (order_id),
+			INDEX idx_farmer_ratings_farmer_status (farmer_email, status),
+			INDEX idx_farmer_ratings_buyer (buyer_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 		mysqli_query($db, "CREATE TABLE IF NOT EXISTS supervisor_report_attachments (
 			attachment_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 			report_id INT UNSIGNED NOT NULL,
@@ -388,6 +401,116 @@
 				@mysqli_query($db, $alterSql);
 			}
 		}
+		// Locations table for Ntungamo areas
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS locations (
+			location_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			location_name VARCHAR(100) NOT NULL UNIQUE,
+			district VARCHAR(50) NOT NULL DEFAULT 'Ntungamo',
+			description TEXT DEFAULT NULL,
+			is_active TINYINT(1) NOT NULL DEFAULT 1,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_location_name (location_name),
+			INDEX idx_location_active (is_active)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		// Insert default Ntungamo locations if empty
+		$locationCount = mysqli_query($db, "SELECT COUNT(*) as cnt FROM locations");
+		if ($locationCount && (int) mysqli_fetch_assoc($locationCount)['cnt'] === 0) {
+			@mysqli_query($db, "INSERT INTO locations (location_name, district, description) VALUES
+			('Ntungamo Town', 'Ntungamo', 'Central Ntungamo town area'),
+			('Rubaare', 'Ntungamo', 'Rubaare division'),
+			('Bushenyi', 'Ntungamo', 'Bushenyi division'),
+			('Kabwohe', 'Ntungamo', 'Kabwohe area'),
+			('Mirama Hills', 'Ntungamo', 'Mirama Hills region'),
+			('Kanungu', 'Ntungamo', 'Kanungu area'),
+			('Rukungiri', 'Ntungamo', 'Rukungiri division'),
+			('Katuna', 'Ntungamo', 'Katuna border area'),
+			('Rukoki', 'Ntungamo', 'Rukoki area'),
+			('Kisoro', 'Ntungamo', 'Kisoro area')");
+		}
+		// Add location columns to farmer table
+		$farmLocationColumn = mysqli_query($db, "SHOW COLUMNS FROM farmer LIKE 'farm_location_id'");
+		if ($farmLocationColumn && mysqli_num_rows($farmLocationColumn) === 0) {
+			@mysqli_query($db, "ALTER TABLE farmer ADD COLUMN farm_location_id INT UNSIGNED DEFAULT NULL AFTER farm_address");
+			@mysqli_query($db, "ALTER TABLE farmer ADD INDEX idx_farm_location (farm_location_id)");
+		}
+		$marketLocationColumn = mysqli_query($db, "SHOW COLUMNS FROM farmer LIKE 'market_location_id'");
+		if ($marketLocationColumn && mysqli_num_rows($marketLocationColumn) === 0) {
+			@mysqli_query($db, "ALTER TABLE farmer ADD COLUMN market_location_id INT UNSIGNED DEFAULT NULL AFTER market_address");
+			@mysqli_query($db, "ALTER TABLE farmer ADD INDEX idx_market_location (market_location_id)");
+		}
+		// Add delivery location to order_list table
+		$deliveryLocationColumn = mysqli_query($db, "SHOW COLUMNS FROM order_list LIKE 'delivery_location_id'");
+		if ($deliveryLocationColumn && mysqli_num_rows($deliveryLocationColumn) === 0) {
+			@mysqli_query($db, "ALTER TABLE order_list ADD COLUMN delivery_location_id INT UNSIGNED DEFAULT NULL AFTER delivery_location");
+			@mysqli_query($db, "ALTER TABLE order_list ADD INDEX idx_order_delivery_location (delivery_location_id)");
+		}
+		// Messaging and notifications tables
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS conversations (
+			conversation_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			customer_id INT UNSIGNED NOT NULL,
+			farmer_id INT UNSIGNED NOT NULL,
+			product_id INT UNSIGNED DEFAULT NULL,
+			subject VARCHAR(255) DEFAULT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			UNIQUE KEY unique_conversation (customer_id, farmer_id),
+			INDEX idx_conversation_customer (customer_id),
+			INDEX idx_conversation_farmer (farmer_id),
+			INDEX idx_conversation_created (created_at)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS messages (
+			message_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			conversation_id INT UNSIGNED NOT NULL,
+			sender_id INT UNSIGNED NOT NULL,
+			sender_type ENUM('customer', 'farmer') NOT NULL,
+			message_text TEXT NOT NULL,
+			attachment_path VARCHAR(255) DEFAULT NULL,
+			is_read TINYINT(1) NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			read_at DATETIME DEFAULT NULL,
+			INDEX idx_messages_conversation (conversation_id),
+			INDEX idx_messages_sender (sender_id),
+			INDEX idx_messages_created (created_at),
+			FOREIGN KEY (conversation_id) REFERENCES conversations(conversation_id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		$messagesReadColumn = mysqli_query($db, "SHOW COLUMNS FROM messages LIKE 'is_read'");
+		if ($messagesReadColumn && mysqli_num_rows($messagesReadColumn) === 0) {
+			@mysqli_query($db, "ALTER TABLE messages ADD COLUMN is_read TINYINT(1) NOT NULL DEFAULT 0 AFTER attachment_path");
+		}
+		$messagesReadAtColumn = mysqli_query($db, "SHOW COLUMNS FROM messages LIKE 'read_at'");
+		if ($messagesReadAtColumn && mysqli_num_rows($messagesReadAtColumn) === 0) {
+			@mysqli_query($db, "ALTER TABLE messages ADD COLUMN read_at DATETIME DEFAULT NULL AFTER created_at");
+		}
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS manager_notifications (
+			notification_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			manager_id INT UNSIGNED NOT NULL,
+			notification_type VARCHAR(50) NOT NULL DEFAULT 'general',
+			title VARCHAR(255) NOT NULL,
+			message TEXT NOT NULL,
+			related_entity_type VARCHAR(100) DEFAULT NULL,
+			related_entity_id INT UNSIGNED DEFAULT NULL,
+			is_read TINYINT(1) NOT NULL DEFAULT 0,
+			action_url VARCHAR(255) DEFAULT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			read_at DATETIME DEFAULT NULL,
+			INDEX idx_manager_notifications_manager (manager_id, is_read),
+			INDEX idx_manager_notifications_type (notification_type),
+			INDEX idx_manager_notifications_created (created_at)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		mysqli_query($db, "CREATE TABLE IF NOT EXISTS system_notifications (
+			notification_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			notification_type VARCHAR(50) NOT NULL DEFAULT 'general',
+			title VARCHAR(255) NOT NULL,
+			message TEXT NOT NULL,
+			target_role TINYINT(1) NOT NULL DEFAULT 4,
+			icon_class VARCHAR(100) DEFAULT 'fas fa-bell',
+			action_url VARCHAR(255) DEFAULT NULL,
+			is_active TINYINT(1) NOT NULL DEFAULT 1,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			expires_at DATETIME DEFAULT NULL,
+			INDEX idx_system_notifications_type (notification_type),
+			INDEX idx_system_notifications_created (created_at)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 		// echo "Database Connected Successfully";
 	}
 	else {

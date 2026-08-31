@@ -2,6 +2,7 @@
 session_start();
 ob_start();
 include "admin/inc/db.php";
+require_once __DIR__ . '/locations_helper.php';
 
 if (empty($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -10,41 +11,49 @@ if (empty($_SESSION['user_id'])) {
 
 if (isset($_POST['place_order'])) {
     $productId = (int) $_POST['product_id'];
-  $quantity = max(1, (int) ($_POST['quantity'] ?? 1));
+    $quantity = max(1, (int) ($_POST['quantity'] ?? 1));
     $userId = (int) $_SESSION['user_id'];
     $userPhone = mysqli_real_escape_string($db, $_SESSION['user_phone'] ?? '');
     $deliveryLocationInput = trim($_POST['delivery_location'] ?? '');
     $deliveryLocation = mysqli_real_escape_string($db, $deliveryLocationInput);
     $deliveryNotes = mysqli_real_escape_string($db, trim($_POST['delivery_notes'] ?? ''));
+    
     if ($deliveryLocationInput === '') {
-      $orderError = 'Please provide a delivery location.';
+      $orderError = 'Please select a delivery location.';
     }
-  $db->begin_transaction();
-  $productQuery = $db->query("SELECT product_name, price, product_unit, stock_quantity, category_id FROM products WHERE product_id = $productId AND status != 0 FOR UPDATE");
-  $product = $productQuery ? $productQuery->fetch_assoc() : null;
-  if (empty($orderError) && $product && $quantity <= (int) $product['stock_quantity']) {
-    $subtotal = (float) $product['price'] * $quantity;
-    $productUnit = mysqli_real_escape_string($db, $product['product_unit'] ?? 'kilogram');
-    $categoryId = (int) ($product['category_id'] ?? 0);
-      $taxQuery = $db->query("SELECT rate_percent FROM tax_rules WHERE status = 1 AND min_quantity <= $quantity AND (max_quantity IS NULL OR max_quantity >= $quantity) AND (applies_to = 'all' OR applies_to = '$categoryId') AND (applies_unit = 'all' OR applies_unit = '$productUnit') ORDER BY (applies_to = '$categoryId') DESC, (applies_unit = '$productUnit') DESC, rate_percent DESC LIMIT 1");
-      $taxRule = $taxQuery ? $taxQuery->fetch_assoc() : null;
-    $taxRate = isset($taxRule['rate_percent']) ? (float) $taxRule['rate_percent'] : 0.00;
-    $taxAmount = round($subtotal * ($taxRate / 100), 2);
-    $totalPrice = round($subtotal + $taxAmount, 2);
-    $productName = mysqli_real_escape_string($db, $product['product_name']);
-    $orderUnit = $productUnit;
-    $insertSql = "INSERT INTO order_list (user_id, user_phone, delivery_location, delivery_notes, or_name, or_category, price, tax_amount, total_amount, quantity, order_unit, status, join_date) VALUES ('$userId', '$userPhone', '$deliveryLocation', '$deliveryNotes', '$productName', '$productId', '$subtotal', '$taxAmount', '$totalPrice', '$quantity', '$orderUnit', 0, NOW())";
-    if ($db->query($insertSql) && $db->query("UPDATE products SET stock_quantity = stock_quantity - $quantity WHERE product_id = $productId AND stock_quantity >= $quantity")) {
-      $newOrderId = $db->insert_id;
-      $db->commit();
-      header("Location: payment.php?order_id=" . (int) $newOrderId);
-      exit;
+    
+    if (empty($orderError)) {
+      $db->begin_transaction();
+      $productQuery = $db->query("SELECT product_name, price, product_unit, stock_quantity, category_id FROM products WHERE product_id = $productId AND status != 0 FOR UPDATE");
+      $product = $productQuery ? $productQuery->fetch_assoc() : null;
+      
+      if ($product && $quantity <= (int) $product['stock_quantity']) {
+        $subtotal = (float) $product['price'] * $quantity;
+        $productUnit = mysqli_real_escape_string($db, $product['product_unit'] ?? 'kilogram');
+        $categoryId = (int) ($product['category_id'] ?? 0);
+        $taxQuery = $db->query("SELECT rate_percent FROM tax_rules WHERE status = 1 AND min_quantity <= $quantity AND (max_quantity IS NULL OR max_quantity >= $quantity) AND (applies_to = 'all' OR applies_to = '$categoryId') AND (applies_unit = 'all' OR applies_unit = '$productUnit') ORDER BY (applies_to = '$categoryId') DESC, (applies_unit = '$productUnit') DESC, rate_percent DESC LIMIT 1");
+        $taxRule = $taxQuery ? $taxQuery->fetch_assoc() : null;
+        $taxRate = isset($taxRule['rate_percent']) ? (float) $taxRule['rate_percent'] : 0.00;
+        $taxAmount = round($subtotal * ($taxRate / 100), 2);
+        $totalPrice = round($subtotal + $taxAmount, 2);
+        $productName = mysqli_real_escape_string($db, $product['product_name']);
+        $orderUnit = $productUnit;
+        
+        $insertSql = "INSERT INTO order_list (user_id, user_phone, delivery_location, delivery_notes, or_name, or_category, price, tax_amount, total_amount, quantity, order_unit, status, join_date) VALUES ('$userId', '$userPhone', '$deliveryLocation', '$deliveryNotes', '$productName', '$productId', '$subtotal', '$taxAmount', '$totalPrice', '$quantity', '$orderUnit', 0, NOW())";
+        
+        if ($db->query($insertSql) && $db->query("UPDATE products SET stock_quantity = stock_quantity - $quantity WHERE product_id = $productId AND stock_quantity >= $quantity")) {
+          $newOrderId = $db->insert_id;
+          $db->commit();
+          header("Location: payment.php?order_id=" . (int) $newOrderId);
+          exit;
+        }
+      }
     }
+    
+    $db->rollback();
+    if (empty($orderError)) {
+      $orderError = 'The requested quantity is not available.';
     }
-  $db->rollback();
-  if (empty($orderError)) {
-    $orderError = 'The requested quantity is not available.';
-  }
 }
 
 $productId = isset($_GET['product']) ? (int) $_GET['product'] : 0;
@@ -116,8 +125,17 @@ if ($product) {
               <label for="quantity" class="form-label">Quantity (<?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?>)</label>
               <div class="quantity-control mb-2"><button type="button" class="btn" data-quantity-change="decrease" aria-label="Decrease quantity"><i class="fa-solid fa-minus"></i></button><input type="number" id="quantity" name="quantity" class="form-control" min="1" max="<?php echo (int) $product['stock_quantity']; ?>" value="1" required <?php echo (int) $product['stock_quantity'] < 1 ? 'disabled' : ''; ?>><button type="button" class="btn" data-quantity-change="increase" aria-label="Increase quantity"><i class="fa-solid fa-plus"></i></button></div>
               <div class="form-text mb-4">Maximum available: <?php echo number_format((int) $product['stock_quantity']); ?> <?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?></div>
-              <label for="delivery_location" class="form-label">Delivery location</label>
-              <textarea id="delivery_location" name="delivery_location" class="form-control mb-4" rows="3" placeholder="Enter the address or location where your order should be delivered" required><?php echo htmlspecialchars($_POST['delivery_location'] ?? ''); ?></textarea>
+              <label for="delivery_location" class="form-label">Delivery location (Ntungamo area)</label>
+              <select id="delivery_location" name="delivery_location" class="form-select mb-4" required>
+                <option value="">-- Select Delivery Location --</option>
+                <?php 
+                  $locations = get_all_locations();
+                  foreach ($locations as $loc) {
+                    $selected = (!empty($_POST['delivery_location']) && $_POST['delivery_location'] == $loc['location_name']) ? 'selected' : '';
+                    echo '<option value="' . htmlspecialchars($loc['location_name']) . '" ' . $selected . '>' . htmlspecialchars($loc['location_name']) . '</option>';
+                  }
+                ?>
+              </select>
               <label for="delivery_notes" class="form-label">Delivery notes <span class="text-muted fw-normal">(optional)</span></label>
               <textarea id="delivery_notes" name="delivery_notes" class="form-control" rows="3" placeholder="Landmark, preferred time, or handling instructions"><?php echo htmlspecialchars($_POST['delivery_notes'] ?? ''); ?></textarea>
               <div class="total-panel"><div class="total-row"><span>Subtotal</span><strong>UGX <span id="orderSubtotal"><?php echo number_format((float) $product['price'], 2, '.', ''); ?></span></strong></div><div class="total-row"><span>Tax</span><strong>UGX <span id="orderTax">0.00</span></strong></div><div class="total-row total-final"><span>Total due</span><strong>UGX <span id="orderTotal"><?php echo number_format((float) $product['price'], 2, '.', ''); ?></span></strong></div></div>

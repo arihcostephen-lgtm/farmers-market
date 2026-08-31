@@ -49,6 +49,7 @@ $managerStatusLabel = 'Manager';
                 </div>
                 <nav class="nav flex-column p-3 gap-1">
                     <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php"><i class="fa-solid fa-gauge me-2"></i>Dashboard</a>
+                    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'manager_notifications.php' ? 'active' : ''; ?>" href="../manager_notifications.php"><i class="fa-solid fa-bell me-2"></i>Notifications</a>
                     <?php if ($managerRole === 4): ?>
                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'admins.php' ? 'active' : ''; ?>" href="admins.php"><i class="fa-solid fa-user-shield me-2"></i>Admins & Supervisors</a>
                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'farmers.php' ? 'active' : ''; ?>" href="farmers.php"><i class="fa-solid fa-tractor me-2"></i>Farmer Subscriptions</a>

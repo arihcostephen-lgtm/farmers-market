@@ -4,6 +4,7 @@
   include "admin/inc/db.php";
   require_once __DIR__ . '/admin/inc/email.php';
   require_once __DIR__ . '/inc/language.php';
+  require_once __DIR__ . '/locations_helper.php';
 ?>
 
 <!doctype html>
@@ -41,6 +42,7 @@
                         <a href="farmerDashboard.php?do=Manage" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-box"></i> <span>&nbsp;My Products</span></a>
                         <a href="farmerDashboard.php?do=Orders" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-cart-shopping"></i> <span>&nbsp;Orders</span></a>
                         <a href="farmerDashboard.php?do=Inquiries" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-regular fa-message"></i> <span>&nbsp;Buyer Inquiries</span></a>
+                        <a href="farmerDashboard.php?do=Messages" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-comments"></i> <span>&nbsp;Messages</span></a>
                         <a href="farmerDashboard.php?do=AddDoc" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-file-circle-plus"></i> <span>&nbsp;Add Documents</span></a>
                         <a href="farmerDashboard.php?do=ViewDoc" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-file-lines"></i> <span>&nbsp;View Documents</span></a>
                         <a href="farmerDashboard.php?do=Profile" class="list-group-item border-end-0 d-inline-block text-truncate" data-bs-parent="#sidebar"><i class="fa-solid fa-user"></i> <span>&nbsp;Profile</span></a>
@@ -529,6 +531,10 @@
                               <div class="mt-3 p-2 bg-warning bg-opacity-10 rounded">
                                 <small class="text-muted"><strong>Payment Reference:</strong> <code><?php echo htmlspecialchars($subscriptionRequest['payment_reference'] ?? ''); ?></code></small>
                               </div>
+                              <div class="mt-4 d-flex gap-2">
+                                <a href="subscription_payment.php" class="btn btn-success flex-grow-1"><i class="fa-solid fa-credit-card me-2"></i>Pay Now</a>
+                                <a href="farmerDashboard.php?do=Home" class="btn btn-outline-secondary">Cancel</a>
+                              </div>
                             </div>
                           </div>
                         <?php endif; ?>
@@ -864,6 +870,187 @@
                       </div>
                     <?php }
 
+                    else if ( $do == "Messages" ) {
+                      $userId = (int) $_SESSION['user_id'];
+                      $selectedConversationId = (int) ($_GET['conversation_id'] ?? 0);
+                      $messageError = '';
+                      $messageSuccess = '';
+
+                      // Handle sending a message
+                      if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
+                        $conversationId = (int) ($_POST['conversation_id'] ?? 0);
+                        $messageText = trim($_POST['message_text'] ?? '');
+                        
+                        if (empty($messageText)) {
+                          $messageError = 'Message cannot be empty.';
+                        } elseif (strlen($messageText) <= 5000) {
+                          if ($db->query("INSERT INTO messages (conversation_id, sender_id, sender_type, message_text, created_at) VALUES ($conversationId, $userId, 'farmer', '" . $db->real_escape_string($messageText) . "', NOW())")) {
+                            $db->query("UPDATE conversations SET updated_at = NOW() WHERE conversation_id = $conversationId");
+                            $messageSuccess = 'Message sent successfully!';
+                            $_POST['message_text'] = '';
+                          } else {
+                            $messageError = 'Failed to send message. Please try again.';
+                          }
+                        } else {
+                          $messageError = 'Message is too long (max 5000 characters).';
+                        }
+                      }
+
+                      // Start a new conversation with a customer
+                      if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_conversation'])) {
+                        $customerId = (int) ($_POST['customer_id'] ?? 0);
+                        $firstMessage = trim($_POST['first_message'] ?? '');
+                        
+                        if ($customerId > 0 && !empty($firstMessage)) {
+                          $existingConv = $db->query("SELECT conversation_id FROM conversations WHERE customer_id = $customerId AND farmer_id = $userId LIMIT 1");
+                          if ($existingConv && $existingConv->num_rows > 0) {
+                            $conv = $existingConv->fetch_assoc();
+                            $selectedConversationId = $conv['conversation_id'];
+                            $db->query("INSERT INTO messages (conversation_id, sender_id, sender_type, message_text, created_at) VALUES ($selectedConversationId, $userId, 'farmer', '" . $db->real_escape_string($firstMessage) . "', NOW())");
+                          } else {
+                            if ($db->query("INSERT INTO conversations (customer_id, farmer_id, created_at, updated_at) VALUES ($customerId, $userId, NOW(), NOW())")) {
+                              $selectedConversationId = $db->insert_id;
+                              $db->query("INSERT INTO messages (conversation_id, sender_id, sender_type, message_text, created_at) VALUES ($selectedConversationId, $userId, 'farmer', '" . $db->real_escape_string($firstMessage) . "', NOW())");
+                              $messageSuccess = 'Conversation started!';
+                            } else {
+                              $messageError = 'Failed to start conversation.';
+                            }
+                          }
+                        } elseif (empty($firstMessage)) {
+                          $messageError = 'Please enter a message to start the conversation.';
+                        } else {
+                          $messageError = 'Please select a customer.';
+                        }
+                      }
+
+                      // Get all conversations for this farmer
+                      $conversationsSql = "SELECT c.conversation_id, c.customer_id, c.subject, c.updated_at, u.user_name AS customer_name, u.user_email AS customer_email, 
+                                          (SELECT COUNT(*) FROM messages WHERE conversation_id = c.conversation_id AND is_read = 0 AND sender_id != $userId) AS unread_count,
+                                          (SELECT message_text FROM messages WHERE conversation_id = c.conversation_id ORDER BY created_at DESC LIMIT 1) AS last_message,
+                                          (SELECT created_at FROM messages WHERE conversation_id = c.conversation_id ORDER BY created_at DESC LIMIT 1) AS last_message_date
+                                          FROM conversations c
+                                          LEFT JOIN users u ON u.user_id = c.customer_id
+                                          WHERE c.farmer_id = $userId
+                                          ORDER BY c.updated_at DESC";
+                      $conversationsResult = $db->query($conversationsSql);
+
+                      // Get messages for selected conversation
+                      $messages = [];
+                      $currentConversation = null;
+                      if ($selectedConversationId > 0) {
+                        $convCheck = $db->query("SELECT c.*, u.user_name AS customer_name, u.user_email AS customer_email FROM conversations c LEFT JOIN users u ON u.user_id = c.customer_id WHERE c.conversation_id = $selectedConversationId AND c.farmer_id = $userId LIMIT 1");
+                        if ($convCheck && $convCheck->num_rows > 0) {
+                          $currentConversation = $convCheck->fetch_assoc();
+                          $db->query("UPDATE messages SET is_read = 1, read_at = NOW() WHERE conversation_id = $selectedConversationId AND sender_id != $userId AND is_read = 0");
+                          $messagesSql = "SELECT m.*, u.user_name AS sender_name FROM messages m LEFT JOIN users u ON u.user_id = m.sender_id WHERE m.conversation_id = $selectedConversationId ORDER BY m.created_at ASC";
+                          $messagesResult = $db->query($messagesSql);
+                          while ($msg = $messagesResult->fetch_assoc()) {
+                            $messages[] = $msg;
+                          }
+                        }
+                      }
+
+                      // Get list of customers for starting new conversation
+                      $customersSql = "SELECT DISTINCT u.user_id, u.user_name, u.user_email FROM users u WHERE u.role = 3 AND u.status = 1 ORDER BY u.user_name ASC";
+                      $customersResult = $db->query($customersSql);
+                    ?>
+                      <div class="container-fluid pb-5">
+                        <div class="page-header text-start mb-4">
+                          <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                              <span class="text-uppercase small">Communication</span>
+                              <h2><i class="fa-solid fa-comments me-2"></i>Customer Messages</h2>
+                              <p class="mb-0">Chat directly with customers about products and orders.</p>
+                            </div>
+                            <a href="farmerDashboard.php?do=Home" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i>Back to Dashboard</a>
+                          </div>
+                        </div>
+
+                        <?php if ($messageError): ?><div class="alert alert-danger alert-dismissible fade show" role="alert"><i class="fa-solid fa-circle-exclamation me-2"></i><?php echo htmlspecialchars($messageError); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><?php endif; ?>
+                        <?php if ($messageSuccess): ?><div class="alert alert-success alert-dismissible fade show" role="alert"><i class="fa-solid fa-circle-check me-2"></i><?php echo htmlspecialchars($messageSuccess); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><?php endif; ?>
+
+                        <div class="row g-3" style="min-height: 600px;">
+                          <!-- Conversations Sidebar -->
+                          <div class="col-lg-4">
+                            <div class="card h-100">
+                              <div class="card-header"><h5 class="mb-0"><i class="fa-solid fa-inbox me-2"></i>Conversations</h5></div>
+                              <div class="card-body p-0">
+                                <div style="max-height: 150px; overflow-y: auto; border-bottom: 1px solid #e0e0e0;">
+                                  <form method="POST" class="p-3" style="border-bottom: 1px solid #e0e0e0; background: #f9f9f9;">
+                                    <h6 class="mb-3"><i class="fa-solid fa-plus me-1"></i>New Conversation</h6>
+                                    <div class="mb-2">
+                                      <label class="form-label small" for="customer_id">Select Customer</label>
+                                      <select class="form-select form-select-sm" id="customer_id" name="customer_id" required>
+                                        <option value="">Choose a customer...</option>
+                                        <?php if ($customersResult && $customersResult->num_rows > 0): while ($customer = $customersResult->fetch_assoc()): ?>
+                                          <option value="<?php echo (int) $customer['user_id']; ?>"><?php echo htmlspecialchars($customer['user_name']); ?></option>
+                                        <?php endwhile; endif; ?>
+                                      </select>
+                                    </div>
+                                    <div class="mb-2">
+                                      <label class="form-label small" for="first_message">Message</label>
+                                      <textarea class="form-control form-control-sm" id="first_message" name="first_message" rows="2" placeholder="Type your message..." maxlength="5000" required></textarea>
+                                    </div>
+                                    <button type="submit" name="start_conversation" class="btn btn-sm btn-success w-100"><i class="fa-solid fa-paper-plane me-1"></i>Send</button>
+                                  </form>
+                                </div>
+                                <div style="max-height: 450px; overflow-y: auto;">
+                                  <?php if ($conversationsResult && $conversationsResult->num_rows > 0): while ($conv = $conversationsResult->fetch_assoc()): ?>
+                                    <a href="?do=Messages&conversation_id=<?php echo (int) $conv['conversation_id']; ?>" class="list-group-item list-group-item-action <?php echo $selectedConversationId === (int) $conv['conversation_id'] ? 'active' : ''; ?>" style="border: none; border-bottom: 1px solid #e0e0e0; text-decoration: none;">
+                                      <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <strong><?php echo htmlspecialchars($conv['customer_name'] ?: 'Unknown'); ?></strong>
+                                        <?php if ($conv['unread_count'] > 0): ?><span class="badge bg-danger"><?php echo (int) $conv['unread_count']; ?></span><?php endif; ?>
+                                      </div>
+                                      <small class="text-muted d-block text-truncate"><?php echo htmlspecialchars(substr($conv['last_message'] ?? 'No messages yet', 0, 50)); ?></small>
+                                      <small class="text-muted d-block"><?php echo $conv['last_message_date'] ? htmlspecialchars(date('M j, g:i A', strtotime($conv['last_message_date']))) : 'No messages'; ?></small>
+                                    </a>
+                                  <?php endwhile; else: ?>
+                                    <div class="p-3 text-center text-muted"><small>No conversations yet. Start one above!</small></div>
+                                  <?php endif; ?>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Messages Area -->
+                          <div class="col-lg-8">
+                            <?php if ($currentConversation): ?>
+                              <div class="card h-100 d-flex flex-column">
+                                <div class="card-header"><h6 class="mb-0"><i class="fa-solid fa-user me-2"></i><?php echo htmlspecialchars($currentConversation['customer_name'] ?: 'Unknown'); ?></h6><small class="text-muted"><?php echo htmlspecialchars($currentConversation['customer_email'] ?: ''); ?></small></div>
+                                <div class="card-body flex-grow-1" style="overflow-y: auto; background: #f9f9f9; min-height: 400px;">
+                                  <?php if (count($messages) > 0): ?>
+                                    <?php foreach ($messages as $msg): $isSent = (int) $msg['sender_id'] === $userId; ?>
+                                      <div class="d-flex mb-3 <?php echo $isSent ? 'justify-content-end' : 'justify-content-start'; ?>">
+                                        <div style="max-width: 70%; padding: 10px 14px; border-radius: 8px; background: <?php echo $isSent ? '#087f5b' : '#e9f5f0'; ?>; color: <?php echo $isSent ? '#fff' : '#000'; ?>;">
+                                          <p class="mb-1"><?php echo nl2br(htmlspecialchars($msg['message_text'])); ?></p>
+                                          <small style="opacity: 0.8;"><?php echo htmlspecialchars(date('M j, g:i A', strtotime($msg['created_at']))); ?></small>
+                                        </div>
+                                      </div>
+                                    <?php endforeach; ?>
+                                  <?php else: ?>
+                                    <div class="text-center text-muted py-5"><i class="fa-solid fa-comment-dots fs-3 mb-2"></i><p>No messages yet. Start the conversation!</p></div>
+                                  <?php endif; ?>
+                                </div>
+                                <div class="card-footer" style="background: #fff; border-top: 1px solid #e0e0e0;">
+                                  <form method="POST">
+                                    <input type="hidden" name="conversation_id" value="<?php echo (int) $currentConversation['conversation_id']; ?>">
+                                    <div class="input-group">
+                                      <textarea class="form-control" name="message_text" placeholder="Type a message..." rows="2" maxlength="5000" required></textarea>
+                                      <button type="submit" name="send_message" class="btn btn-success"><i class="fa-solid fa-paper-plane"></i></button>
+                                    </div>
+                                  </form>
+                                </div>
+                              </div>
+                            <?php else: ?>
+                              <div class="card h-100 d-flex align-items-center justify-content-center text-center text-muted">
+                                <div class="p-5"><i class="fa-solid fa-comments fs-1 mb-3 d-block" style="opacity: 0.5;"></i><p>Select a conversation or start a new one to begin messaging.</p></div>
+                              </div>
+                            <?php endif; ?>
+                          </div>
+                        </div>
+                      </div>
+                    <?php }
+
                     else if ( $do == "Contact" ) { 
 
                         $contact_email = "";
@@ -1023,36 +1210,39 @@
                                         <input type="text" name="farm_name" id="farmNameProfile" class="form-control" value="<?php echo htmlspecialchars($farm_name); ?>" required>
                                       </div>
                                       <div class="mb-3">
-                                        <label for="farmLocationProfile" class="form-label">Farm location</label>
-                                        <textarea name="farm_location" id="farmLocationProfile" class="form-control" rows="4" required><?php echo htmlspecialchars($farm_location); ?></textarea>
+                                        <label for="farmLocationProfile" class="form-label">Farm area (Ntungamo location)</label>
+                                        <select name="farm_location_id" id="farmLocationProfile" class="form-select" required>
+                                          <option value="">-- Select Farm Location --</option>
+                                          <?php 
+                                            $locations = get_all_locations();
+                                            foreach ($locations as $loc) {
+                                              $selected = (!empty($farm_location) && $farm_location == $loc['location_name']) ? 'selected' : '';
+                                              echo '<option value="' . $loc['location_id'] . '" ' . $selected . '>' . htmlspecialchars($loc['location_name']) . '</option>';
+                                            }
+                                          ?>
+                                        </select>
+                                        <small class="text-muted d-block mt-1">Select the Ntungamo area where your farm is located</small>
                                       </div>
-                                      <div class="row g-2">
-                                        <div class="col-md-6 mb-3">
-                                          <label for="farmLatitudeProfile" class="form-label">Farm latitude</label>
-                                          <input type="number" step="any" name="farm_latitude" id="farmLatitudeProfile" class="form-control" value="<?php echo htmlspecialchars((string) $farm_latitude); ?>">
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                          <label for="farmLongitudeProfile" class="form-label">Farm longitude</label>
-                                          <input type="number" step="any" name="farm_longitude" id="farmLongitudeProfile" class="form-control" value="<?php echo htmlspecialchars((string) $farm_longitude); ?>">
-                                        </div>
+                                      <div class="mb-3">
+                                        <label for="farmDescProfile" class="form-label">Farm address / directions</label>
+                                        <textarea name="farm_location_desc" id="farmDescProfile" class="form-control" rows="3" placeholder="e.g. Near Ntungamo High School, 2km from town, etc."><?php echo htmlspecialchars($farm_location); ?></textarea>
+                                        <small class="text-muted d-block mt-1">Provide specific directions or landmarks to help buyers locate your farm</small>
                                       </div>
                                       <div class="mb-3">
                                         <label for="marketNameProfile" class="form-label">Nearby market / collection point</label>
-                                        <input type="text" name="market_name" id="marketNameProfile" class="form-control" value="<?php echo htmlspecialchars($market_name); ?>" placeholder="e.g. Mukono market or local buyers hub">
+                                        <input type="text" name="market_name" id="marketNameProfile" class="form-control" value="<?php echo htmlspecialchars($market_name); ?>" placeholder="e.g. Ntungamo market or local buyers hub">
                                       </div>
                                       <div class="mb-3">
-                                        <label for="marketAddressProfile" class="form-label">Market address</label>
-                                        <textarea name="market_address" id="marketAddressProfile" class="form-control" rows="2" placeholder="Physical market or pickup site"><?php echo htmlspecialchars($market_address); ?></textarea>
-                                      </div>
-                                      <div class="row g-2">
-                                        <div class="col-md-6 mb-3">
-                                          <label for="marketLatitudeProfile" class="form-label">Market latitude</label>
-                                          <input type="number" step="any" name="market_latitude" id="marketLatitudeProfile" class="form-control" value="<?php echo htmlspecialchars((string) $market_latitude); ?>">
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                          <label for="marketLongitudeProfile" class="form-label">Market longitude</label>
-                                          <input type="number" step="any" name="market_longitude" id="marketLongitudeProfile" class="form-control" value="<?php echo htmlspecialchars((string) $market_longitude); ?>">
-                                        </div>
+                                        <label for="marketLocationProfile" class="form-label">Market area (Ntungamo location)</label>
+                                        <select name="market_location_id" id="marketLocationProfile" class="form-select">
+                                          <option value="">-- Select Market Location --</option>
+                                          <?php 
+                                            foreach ($locations as $loc) {
+                                              $selected = (!empty($market_address) && $market_address == $loc['location_name']) ? 'selected' : '';
+                                              echo '<option value="' . $loc['location_id'] . '" ' . $selected . '>' . htmlspecialchars($loc['location_name']) . '</option>';
+                                            }
+                                          ?>
+                                        </select>
                                       </div>
                                       <div class="row g-2">
                                         <div class="col-md-6 mb-3">
@@ -1113,14 +1303,11 @@
 
                               <?php  
                                 if (isset($_POST['updateUser']) && (int) $role === 2) {
-                                  $profileFarmLocation = mysqli_real_escape_string($db, trim($_POST['farm_location'] ?? ''));
+                                  $profileFarmLocationId = isset($_POST['farm_location_id']) && $_POST['farm_location_id'] !== '' ? (int) $_POST['farm_location_id'] : NULL;
+                                  $profileMarketLocationId = isset($_POST['market_location_id']) && $_POST['market_location_id'] !== '' ? (int) $_POST['market_location_id'] : NULL;
+                                  $profileFarmLocationDesc = mysqli_real_escape_string($db, trim($_POST['farm_location_desc'] ?? ''));
                                   $profileFarmName = mysqli_real_escape_string($db, trim($_POST['farm_name'] ?? ''));
-                                  $profileFarmLatitude = isset($_POST['farm_latitude']) && $_POST['farm_latitude'] !== '' ? (float) $_POST['farm_latitude'] : 'NULL';
-                                  $profileFarmLongitude = isset($_POST['farm_longitude']) && $_POST['farm_longitude'] !== '' ? (float) $_POST['farm_longitude'] : 'NULL';
                                   $profileMarketName = mysqli_real_escape_string($db, trim($_POST['market_name'] ?? ''));
-                                  $profileMarketAddress = mysqli_real_escape_string($db, trim($_POST['market_address'] ?? ''));
-                                  $profileMarketLatitude = isset($_POST['market_latitude']) && $_POST['market_latitude'] !== '' ? (float) $_POST['market_latitude'] : 'NULL';
-                                  $profileMarketLongitude = isset($_POST['market_longitude']) && $_POST['market_longitude'] !== '' ? (float) $_POST['market_longitude'] : 'NULL';
                                   $profileMarketOperatingDays = mysqli_real_escape_string($db, trim($_POST['market_operating_days'] ?? ''));
                                   $profileMarketHours = mysqli_real_escape_string($db, trim($_POST['market_hours'] ?? ''));
                                   $profilePickupInstructions = mysqli_real_escape_string($db, trim($_POST['pickup_instructions'] ?? ''));
@@ -1128,6 +1315,7 @@
                                   $profileFarmAbout = mysqli_real_escape_string($db, substr(trim($_POST['farm_about'] ?? ''), 0, 1000));
                                   $profileEmail = mysqli_real_escape_string($db, $_SESSION['email'] ?? $_SESSION['user_email'] ?? '');
                                   $farmDocumentSql = '';
+                                  
                                   if (!empty($_FILES['farm_document']['name']) && $_FILES['farm_document']['error'] === UPLOAD_ERR_OK) {
                                     $documentExtension = strtolower(pathinfo($_FILES['farm_document']['name'], PATHINFO_EXTENSION));
                                     if (in_array($documentExtension, ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'doc', 'docx', 'txt'], true) && $_FILES['farm_document']['size'] <= 10 * 1024 * 1024) {
@@ -1141,11 +1329,14 @@
                                       }
                                     }
                                   }
+                                  
                                   $farmExistsQuery = mysqli_query($db, "SELECT farm_id FROM farmer WHERE farm_email COLLATE utf8mb4_unicode_ci='$profileEmail' COLLATE utf8mb4_unicode_ci LIMIT 1");
                                   if ($farmExistsQuery && mysqli_num_rows($farmExistsQuery) > 0) {
-                                    mysqli_query($db, "UPDATE farmer SET farm_name='$profileFarmName', farm_phone='" . mysqli_real_escape_string($db, $_POST['phone'] ?? $user_phone) . "', farm_address='$profileFarmLocation', farm_latitude=" . ($profileFarmLatitude === 'NULL' ? 'NULL' : $profileFarmLatitude) . ", farm_longitude=" . ($profileFarmLongitude === 'NULL' ? 'NULL' : $profileFarmLongitude) . ", market_name='$profileMarketName', market_address='$profileMarketAddress', market_latitude=" . ($profileMarketLatitude === 'NULL' ? 'NULL' : $profileMarketLatitude) . ", market_longitude=" . ($profileMarketLongitude === 'NULL' ? 'NULL' : $profileMarketLongitude) . ", market_operating_days='$profileMarketOperatingDays', market_hours='$profileMarketHours', pickup_instructions='$profilePickupInstructions', delivery_instructions='$profileDeliveryInstructions', farm_about='$profileFarmAbout'$farmDocumentSql WHERE farm_email COLLATE utf8mb4_unicode_ci='$profileEmail' COLLATE utf8mb4_unicode_ci");
+                                    $updateQuery = "UPDATE farmer SET farm_name='$profileFarmName', farm_phone='" . mysqli_real_escape_string($db, $_POST['phone'] ?? $user_phone) . "', farm_address='$profileFarmLocationDesc', farm_location_id=" . ($profileFarmLocationId ? $profileFarmLocationId : 'NULL') . ", market_name='$profileMarketName', market_location_id=" . ($profileMarketLocationId ? $profileMarketLocationId : 'NULL') . ", market_operating_days='$profileMarketOperatingDays', market_hours='$profileMarketHours', pickup_instructions='$profilePickupInstructions', delivery_instructions='$profileDeliveryInstructions', farm_about='$profileFarmAbout'$farmDocumentSql WHERE farm_email COLLATE utf8mb4_unicode_ci='$profileEmail' COLLATE utf8mb4_unicode_ci";
+                                    mysqli_query($db, $updateQuery);
                                   } else {
-                                    mysqli_query($db, "INSERT INTO farmer (farm_name, farm_phone, farm_email, farm_address, farm_latitude, farm_longitude, market_name, market_address, market_latitude, market_longitude, market_operating_days, market_hours, pickup_instructions, delivery_instructions, farm_about, farm_document, status, join_date) VALUES ('$profileFarmName', '" . mysqli_real_escape_string($db, $_POST['phone'] ?? $user_phone) . "', '$profileEmail', '$profileFarmLocation', " . ($profileFarmLatitude === 'NULL' ? 'NULL' : $profileFarmLatitude) . ", " . ($profileFarmLongitude === 'NULL' ? 'NULL' : $profileFarmLongitude) . ", '$profileMarketName', '$profileMarketAddress', " . ($profileMarketLatitude === 'NULL' ? 'NULL' : $profileMarketLatitude) . ", " . ($profileMarketLongitude === 'NULL' ? 'NULL' : $profileMarketLongitude) . ", '$profileMarketOperatingDays', '$profileMarketHours', '$profilePickupInstructions', '$profileDeliveryInstructions', '$profileFarmAbout', '', 1, NOW())");
+                                    $insertQuery = "INSERT INTO farmer (farm_name, farm_phone, farm_email, farm_address, farm_location_id, market_name, market_location_id, market_operating_days, market_hours, pickup_instructions, delivery_instructions, farm_about, farm_document, status, join_date) VALUES ('$profileFarmName', '" . mysqli_real_escape_string($db, $_POST['phone'] ?? $user_phone) . "', '$profileEmail', '$profileFarmLocationDesc', " . ($profileFarmLocationId ? $profileFarmLocationId : 'NULL') . ", '$profileMarketName', " . ($profileMarketLocationId ? $profileMarketLocationId : 'NULL') . ", '$profileMarketOperatingDays', '$profileMarketHours', '$profilePickupInstructions', '$profileDeliveryInstructions', '$profileFarmAbout', '', 1, NOW())";
+                                    mysqli_query($db, $insertQuery);
                                   }
                                 }
 

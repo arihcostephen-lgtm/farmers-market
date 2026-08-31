@@ -86,7 +86,7 @@
 				<a href="product_reviews.php" class="">
 					<div class="parent-icon text-success"><i class='bx bx-star'></i>
 					</div>
-					<div class="menu-title text-success">Product Reviews</div>
+					<div class="menu-title text-success">Feedback Management</div>
 				</a>
 			</li>
 			<li>
