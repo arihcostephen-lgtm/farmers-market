@@ -1244,6 +1244,32 @@
                                           ?>
                                         </select>
                                       </div>
+                                      <?php
+                                        $profileFarmMapLocation = '';
+                                        if (!empty($farm_latitude) && !empty($farm_longitude)) {
+                                            $profileFarmMapLocation = (float) $farm_latitude . ',' . (float) $farm_longitude;
+                                        } elseif (!empty($farm_location)) {
+                                            $profileFarmMapLocation = $farm_location . ' Ntungamo Uganda';
+                                        }
+                                        $profileMarketMapLocation = '';
+                                        if (!empty($market_latitude) && !empty($market_longitude)) {
+                                            $profileMarketMapLocation = (float) $market_latitude . ',' . (float) $market_longitude;
+                                        } elseif (!empty($market_address)) {
+                                            $profileMarketMapLocation = $market_address . ' Ntungamo Uganda';
+                                        }
+                                      ?>
+                                      <?php if (!empty($profileFarmMapLocation)): ?>
+                                        <div class="mb-3">
+                                          <label class="form-label">Farm map preview</label>
+                                          <iframe class="w-100 border rounded" height="150" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=<?php echo rawurlencode($profileFarmMapLocation); ?>&output=embed"></iframe>
+                                        </div>
+                                      <?php endif; ?>
+                                      <?php if (!empty($profileMarketMapLocation)): ?>
+                                        <div class="mb-3">
+                                          <label class="form-label">Market map preview</label>
+                                          <iframe class="w-100 border rounded" height="150" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=<?php echo rawurlencode($profileMarketMapLocation); ?>&output=embed"></iframe>
+                                        </div>
+                                      <?php endif; ?>
                                       <div class="row g-2">
                                         <div class="col-md-6 mb-3">
                                           <label for="marketOperatingDaysProfile" class="form-label">Market operating days</label>

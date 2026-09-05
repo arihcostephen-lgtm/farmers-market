@@ -15,6 +15,56 @@ $customerEmailSql = $db->real_escape_string($customerEmail);
 $checkoutProductId = (int) ($_GET['order_product'] ?? $_POST['product_id'] ?? 0);
 $checkoutError = '';
 $cartSaved = false;
+$profileUpdateError = '';
+$profileUpdateSuccess = '';
+
+$customerDeliveryColumn = $db->query("SHOW COLUMNS FROM users LIKE 'delivery_location'");
+if (!$customerDeliveryColumn || $customerDeliveryColumn->num_rows === 0) {
+    $db->query("ALTER TABLE users ADD COLUMN delivery_location TEXT DEFAULT NULL AFTER user_address");
+}
+
+$currentCustomer = $db->query("SELECT user_name, user_email, user_phone, user_address, delivery_location FROM users WHERE user_id = '$customerId' LIMIT 1")->fetch_assoc();
+if ($currentCustomer) {
+    $customerName = htmlspecialchars($currentCustomer['user_name'] ?? $customerName);
+    $customerPhone = $currentCustomer['user_phone'] ?? $customerPhone;
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['update_customer_profile'])) {
+    $profileName = trim($_POST['profile_name'] ?? '');
+    $profilePhone = trim($_POST['profile_phone'] ?? '');
+    $profileAddress = trim($_POST['profile_address'] ?? '');
+    $profileLocation = trim($_POST['profile_delivery_location'] ?? '');
+    $profilePassword = $_POST['profile_password'] ?? '';
+    $profileConfirmPassword = $_POST['profile_confirm_password'] ?? '';
+
+    if ($profileName === '' || $profilePhone === '' || $profileLocation === '') {
+        $profileUpdateError = 'Name, phone number, and delivery location are required.';
+    } elseif ($profilePassword !== '' && $profilePassword !== $profileConfirmPassword) {
+        $profileUpdateError = 'Passwords do not match. Please re-enter them.';
+    } else {
+        $profileNameEsc = $db->real_escape_string($profileName);
+        $profilePhoneEsc = $db->real_escape_string($profilePhone);
+        $profileAddressEsc = $db->real_escape_string($profileAddress);
+        $profileLocationEsc = $db->real_escape_string($profileLocation);
+        $profileSql = "UPDATE users SET user_name = '$profileNameEsc', user_phone = '$profilePhoneEsc', user_address = '$profileAddressEsc', delivery_location = '$profileLocationEsc'";
+
+        if ($profilePassword !== '') {
+            $profileSql .= ", user_password = '" . sha1($profilePassword) . "'";
+        }
+
+        $profileSql .= " WHERE user_id = '$customerId'";
+
+        if ($db->query($profileSql)) {
+            $_SESSION['user_name'] = $profileName;
+            $_SESSION['user_phone'] = $profilePhone;
+            $customerName = htmlspecialchars($profileName);
+            $customerPhone = $profilePhone;
+            $profileUpdateSuccess = 'Your profile was updated successfully.';
+        } else {
+            $profileUpdateError = 'Unable to update your profile. Please try again.';
+        }
+    }
+}
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['add_to_cart'])) {
     $checkoutProductId = (int) ($_POST['product_id'] ?? 0);
@@ -22,37 +72,46 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['add_to_cart']
     $deliveryLocationInput = trim($_POST['delivery_location'] ?? '');
     $deliveryLocation = $db->real_escape_string($deliveryLocationInput);
     $deliveryNotes = $db->real_escape_string(trim($_POST['delivery_notes'] ?? ''));
-    $db->begin_transaction();
-    $checkoutProductQuery = $db->query("SELECT product_name, price, product_unit, stock_quantity, category_id FROM products WHERE product_id = $checkoutProductId AND status != 0 FOR UPDATE");
-    $checkoutProduct = $checkoutProductQuery ? $checkoutProductQuery->fetch_assoc() : null;
-    if ($checkoutError === '' && $checkoutProduct && $checkoutQuantity <= (int) $checkoutProduct['stock_quantity']) {
-        $checkoutUnit = mysqli_real_escape_string($db, $checkoutProduct['product_unit'] ?? 'kilogram');
-        $checkoutCategory = (int) ($checkoutProduct['category_id'] ?? 0);
-        $checkoutTaxQuery = $db->query("SELECT rate_percent FROM tax_rules WHERE status = 1 AND min_quantity <= $checkoutQuantity AND (max_quantity IS NULL OR max_quantity >= $checkoutQuantity) AND (applies_to = 'all' OR applies_to = '$checkoutCategory') AND (applies_unit = 'all' OR applies_unit = '$checkoutUnit') ORDER BY (applies_to = '$checkoutCategory') DESC, (applies_unit = '$checkoutUnit') DESC, rate_percent DESC LIMIT 1");
-        $checkoutTaxRate = $checkoutTaxQuery ? (float) ($checkoutTaxQuery->fetch_assoc()['rate_percent'] ?? 0) : 0;
-        $checkoutSubtotal = (float) $checkoutProduct['price'] * $checkoutQuantity;
-        $checkoutTax = round($checkoutSubtotal * ($checkoutTaxRate / 100), 2);
-        $checkoutTotal = round($checkoutSubtotal + $checkoutTax, 2);
-        $checkoutName = mysqli_real_escape_string($db, $checkoutProduct['product_name']);
-        $insertOrder = $db->query("INSERT INTO order_list (user_id, user_phone, delivery_location, delivery_notes, or_name, or_category, price, tax_amount, total_amount, quantity, order_unit, status, join_date) VALUES ('$customerId', '" . mysqli_real_escape_string($db, $customerPhone) . "', '$deliveryLocation', '$deliveryNotes', '$checkoutName', '$checkoutProductId', '$checkoutSubtotal', '$checkoutTax', '$checkoutTotal', '$checkoutQuantity', '$checkoutUnit', 0, NOW())");
-        $stockUpdated = $db->query("UPDATE products SET stock_quantity = stock_quantity - $checkoutQuantity WHERE product_id = $checkoutProductId AND stock_quantity >= $checkoutQuantity");
-        if ($insertOrder && $stockUpdated) {
-            $newOrderId = $db->insert_id;
-            $db->commit();
-            $checkoutProductId = 0;
-            $cartMessage = 'Product added to your cart. Choose Checkout from the order list when you are ready to pay.';
-            $cartSaved = true;
+
+    if ($deliveryLocationInput === '') {
+        $checkoutError = 'Please select a delivery location before adding this order.';
+    }
+
+    if ($checkoutError === '') {
+        $db->begin_transaction();
+        $checkoutProductQuery = $db->query("SELECT product_name, price, product_unit, stock_quantity, category_id FROM products WHERE product_id = $checkoutProductId AND status != 0 FOR UPDATE");
+        $checkoutProduct = $checkoutProductQuery ? $checkoutProductQuery->fetch_assoc() : null;
+        if ($checkoutProduct && $checkoutQuantity <= (int) $checkoutProduct['stock_quantity']) {
+            $checkoutUnit = mysqli_real_escape_string($db, $checkoutProduct['product_unit'] ?? 'kilogram');
+            $checkoutCategory = (int) ($checkoutProduct['category_id'] ?? 0);
+            $checkoutTaxQuery = $db->query("SELECT rate_percent FROM tax_rules WHERE status = 1 AND min_quantity <= $checkoutQuantity AND (max_quantity IS NULL OR max_quantity >= $checkoutQuantity) AND (applies_to = 'all' OR applies_to = '$checkoutCategory') AND (applies_unit = 'all' OR applies_unit = '$checkoutUnit') ORDER BY (applies_to = '$checkoutCategory') DESC, (applies_unit = '$checkoutUnit') DESC, rate_percent DESC LIMIT 1");
+            $checkoutTaxRate = $checkoutTaxQuery ? (float) ($checkoutTaxQuery->fetch_assoc()['rate_percent'] ?? 0) : 0;
+            $checkoutSubtotal = (float) $checkoutProduct['price'] * $checkoutQuantity;
+            $checkoutTax = round($checkoutSubtotal * ($checkoutTaxRate / 100), 2);
+            $checkoutTotal = round($checkoutSubtotal + $checkoutTax, 2);
+            $checkoutName = mysqli_real_escape_string($db, $checkoutProduct['product_name']);
+            $insertOrder = $db->query("INSERT INTO order_list (user_id, user_phone, delivery_location, delivery_notes, or_name, or_category, price, tax_amount, total_amount, quantity, order_unit, status, join_date) VALUES ('$customerId', '" . mysqli_real_escape_string($db, $customerPhone) . "', '$deliveryLocation', '$deliveryNotes', '$checkoutName', '$checkoutProductId', '$checkoutSubtotal', '$checkoutTax', '$checkoutTotal', '$checkoutQuantity', '$checkoutUnit', 0, NOW())");
+            $stockUpdated = $db->query("UPDATE products SET stock_quantity = stock_quantity - $checkoutQuantity WHERE product_id = $checkoutProductId AND stock_quantity >= $checkoutQuantity");
+            if ($insertOrder && $stockUpdated) {
+                $newOrderId = $db->insert_id;
+                $db->commit();
+                $checkoutProductId = 0;
+                $cartMessage = 'Product added to your cart. Choose Checkout from the order list when you are ready to pay.';
+                $cartSaved = true;
+            }
         }
-    }
-    if (!$cartSaved) {
-        $db->rollback();
-    }
-    if (!$cartSaved && $checkoutError === '') {
-        $checkoutError = 'The requested quantity is not available.';
+        if (!$cartSaved) {
+            $db->rollback();
+        }
+        if (!$cartSaved && $checkoutError === '') {
+            $checkoutError = 'The requested quantity is not available.';
+        }
     }
 }
 
-$productsSql = "SELECT p.*, c.cat_name, u.user_name AS farmer_name, f.farm_address, f.farm_location_id, f.market_name, f.market_location_id, f.market_operating_days, f.market_hours, f.pickup_instructions, f.delivery_instructions, 
+$productsSql = "SELECT p.*, c.cat_name, u.user_name AS farmer_name, f.farm_address, f.farm_location_id, f.farm_latitude, f.farm_longitude, f.market_name, f.market_location_id, f.market_latitude, f.market_longitude, f.market_operating_days, f.market_hours, f.pickup_instructions, f.delivery_instructions, 
+  COALESCE(f.farm_latitude, l1.latitude) AS farm_map_latitude, COALESCE(f.farm_longitude, l1.longitude) AS farm_map_longitude,
+  COALESCE(f.market_latitude, l2.latitude) AS market_map_latitude, COALESCE(f.market_longitude, l2.longitude) AS market_map_longitude,
   COALESCE(l1.location_name, '') AS farm_location, COALESCE(l2.location_name, '') AS market_location 
   FROM products p 
   LEFT JOIN category c ON c.cat_id = p.category_id 
@@ -566,6 +625,7 @@ $unreadMessagesCount = $unreadResult ? (int) $unreadResult->fetch_assoc()['count
                 <a class="nav-link" href="#check-products"><span class="sidebar-icon"><i class="fas fa-box-open"></i></span><span class="sidebar-label"><?php echo t('Check Products'); ?></span></a>
                 <a class="nav-link" href="#browse"><span class="sidebar-icon"><i class="fas fa-search"></i></span><span class="sidebar-label"><?php echo t('Browse Marketplace'); ?></span></a>
                 <a class="nav-link" href="#place-order"><span class="sidebar-icon"><i class="fas fa-basket-shopping"></i></span><span class="sidebar-label"><?php echo t('Place Order'); ?></span></a>
+                <a class="nav-link" href="#profile-update"><span class="sidebar-icon"><i class="fas fa-user-edit"></i></span><span class="sidebar-label"><?php echo t('Update Profile'); ?></span></a>
                 <a class="nav-link" href="#farmer-messages"><span class="sidebar-icon"><i class="fas fa-comments"></i></span><span class="sidebar-label"><?php echo t('Messages'); ?></span></a>
                 <a class="nav-link" href="#add-comments"><span class="sidebar-icon"><i class="fas fa-comments"></i></span><span class="sidebar-label"><?php echo t('Add Comments'); ?></span></a>
                  <a class="nav-link" href="#order-list"><span class="sidebar-icon"><i class="fas fa-history"></i></span><span class="sidebar-label"><?php echo t('Order History'); ?></span></a>
@@ -761,9 +821,25 @@ $unreadMessagesCount = $unreadResult ? (int) $unreadResult->fetch_assoc()['count
                                   $locationLowerCheck = strtolower(trim($displayLocation . ' ' . $displayMarket));
                                   $sellerEmailKey = strtolower(trim((string) ($product['seller_email'] ?? '')));
                                   $farmerFeedback = isset($farmerRatings[$sellerEmailKey]) ? $farmerRatings[$sellerEmailKey] : null;
+                                  $mapCenter = '';
+                                  if (!empty($product['farm_map_latitude']) && !empty($product['farm_map_longitude'])) {
+                                      $mapCenter = (float) $product['farm_map_latitude'] . ',' . (float) $product['farm_map_longitude'];
+                                  } elseif (!empty($product['market_map_latitude']) && !empty($product['market_map_longitude'])) {
+                                      $mapCenter = (float) $product['market_map_latitude'] . ',' . (float) $product['market_map_longitude'];
+                                  } elseif (!empty($displayLocation)) {
+                                      $mapCenter = $displayLocation . ' Ntungamo Uganda';
+                                  } elseif (!empty($displayMarket)) {
+                                      $mapCenter = $displayMarket . ' Ntungamo Uganda';
+                                  }
                                 ?>
                                     <div class="col-md-6 check-product-card" data-name="<?php echo strtolower(htmlspecialchars($product['product_name'])); ?>" data-category="<?php echo strtolower(htmlspecialchars($product['cat_name'] ?? '')); ?>" data-price="<?php echo (float) $product['price']; ?>" data-stock="<?php echo (int) $product['stock_quantity']; ?>" data-location="<?php echo $locationLowerCheck; ?>" data-market="<?php echo strtolower($displayMarket); ?>">
                                         <div class="card product-card h-100 p-3">
+                                            <?php if (!empty($mapCenter)): ?>
+                                                <div class="mb-3">
+                                                    <div class="small text-uppercase text-success mb-1">Location map</div>
+                                                    <iframe class="w-100 rounded border-0" height="110" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=<?php echo rawurlencode($mapCenter); ?>&output=embed"></iframe>
+                                                </div>
+                                            <?php endif; ?>
                                             <div class="card-body d-flex flex-column justify-content-between">
                                                 <div>
                                                     <h6 class="text-white"><?php echo htmlspecialchars($product['product_name']); ?></h6>
@@ -864,23 +940,29 @@ $unreadMessagesCount = $unreadResult ? (int) $unreadResult->fetch_assoc()['count
                             </div>
                         </div>
                         <div class="row g-3 mt-3" id="browse-results">
-                            <?php $productsResult->data_seek(0); while ($product = $productsResult->fetch_assoc()): $location = !empty($product['farm_address']) ? htmlspecialchars($product['farm_address']) : (!empty($product['market_address']) ? htmlspecialchars($product['market_address']) : ''); $locationLower = strtolower(trim($location)); $sellerEmailKey = strtolower(trim((string) ($product['seller_email'] ?? ''))); $farmerFeedback = isset($farmerRatings[$sellerEmailKey]) ? $farmerRatings[$sellerEmailKey] : null; ?>
+                            <?php $productsResult->data_seek(0); while ($product = $productsResult->fetch_assoc()): $location = !empty($product['farm_address']) ? htmlspecialchars($product['farm_address']) : (!empty($product['market_address']) ? htmlspecialchars($product['market_address']) : ''); $locationLower = strtolower(trim($location)); $sellerEmailKey = strtolower(trim((string) ($product['seller_email'] ?? ''))); $farmerFeedback = isset($farmerRatings[$sellerEmailKey]) ? $farmerRatings[$sellerEmailKey] : null; $browseMapCenter = ''; if (!empty($product['farm_map_latitude']) && !empty($product['farm_map_longitude'])) { $browseMapCenter = (float) $product['farm_map_latitude'] . ',' . (float) $product['farm_map_longitude']; } elseif (!empty($product['market_map_latitude']) && !empty($product['market_map_longitude'])) { $browseMapCenter = (float) $product['market_map_latitude'] . ',' . (float) $product['market_map_longitude']; } elseif (!empty($product['farm_location'])) { $browseMapCenter = $product['farm_location'] . ' Ntungamo Uganda'; } elseif (!empty($product['market_location'])) { $browseMapCenter = $product['market_location'] . ' Ntungamo Uganda'; } ?>
                                 <div class="col-md-6 browse-card" data-name="<?php echo strtolower(htmlspecialchars($product['product_name'])); ?>" data-category="<?php echo strtolower(htmlspecialchars($product['cat_name'] ?? '')); ?>" data-price="<?php echo (float) $product['price']; ?>" data-stock="<?php echo (int) $product['stock_quantity']; ?>" data-location="<?php echo $locationLower; ?>" data-market="<?php echo strtolower(htmlspecialchars($product['market_name'] ?? '')); ?>">
                                     <div class="card product-card p-3">
                                         <?php if (!empty($product['image']) && is_file(__DIR__ . '/admin/assets/images/products/' . basename($product['image']))): ?><img src="admin/assets/images/products/<?php echo rawurlencode(basename($product['image'])); ?>" class="img-fluid rounded mb-3" style="height: 170px; width: 100%; object-fit: cover;" alt="<?php echo htmlspecialchars($product['product_name']); ?>"><?php endif; ?>
+                                        <?php if (!empty($browseMapCenter)): ?>
+                                            <div class="mb-3">
+                                                <div class="small text-uppercase text-success mb-1">Location map</div>
+                                                <iframe class="w-100 rounded border-0" height="110" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=<?php echo rawurlencode($browseMapCenter); ?>&output=embed"></iframe>
+                                            </div>
+                                        <?php endif; ?>
                                         <div class="card-body">
                                             <h6 class="text-white"><?php echo htmlspecialchars($product['product_name']); ?></h6>
                                             <p class="text-muted mb-2"><?php echo htmlspecialchars($product['description'] ?: t('Fresh farm produce')); ?></p>
                                             <small class="text-muted d-block mb-2"><?php echo t('Available'); ?>: <?php echo number_format((int) $product['stock_quantity']); ?> <?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?></small>
                                             <?php $displayLocation = !empty($product['farm_location']) ? htmlspecialchars($product['farm_location']) : (!empty($product['farm_address']) ? htmlspecialchars($product['farm_address']) : ''); ?>
-                                            <?php if (!empty($displayLocation)): ?><small class="text-info d-block mb-2"><i class="fas fa-map-marker-alt me-1"></i><?php echo $displayLocation; ?></small><?php endif; ?>
+                                            <?php if (!empty($displayLocation)): ?><small class="text-info d-block mb-2"><i class="fas fa-map-marker-alt me-1"></i><?php echo $displayLocation; ?> <a href="https://www.google.com/maps/search/?api=1&query=<?php echo rawurlencode($displayLocation . ' Ntungamo Uganda'); ?>" target="_blank" rel="noopener" class="ms-1 text-success">Map</a></small><?php endif; ?>
                                             <?php echo (int) $product['stock_quantity'] > 0 ? '<span class="badge bg-success mb-2">' . t('In stock') . '</span>' : '<span class="badge bg-danger mb-2">' . t('Out of stock') . '</span>'; ?>
                                             <?php if (!empty($product['is_negotiable'])): ?><span class="badge bg-warning text-dark mb-2"><?php echo t('Price is negotiable'); ?></span><?php endif; ?>
                                             <?php if (!empty($product['harvest_date'])): ?><small class="text-muted d-block mb-2"><?php echo t('Harvest date'); ?>: <?php echo htmlspecialchars(date('d M Y', strtotime($product['harvest_date']))); ?></small><?php endif; ?>
                                             <?php if (!empty($product['seasonal_availability'])): ?><small class="text-muted d-block mb-2"><?php echo t('Season'); ?>: <?php echo htmlspecialchars($product['seasonal_availability']); ?></small><?php endif; ?>
                                             <small class="text-muted d-block mb-2"><?php echo htmlspecialchars($product['cat_name'] ?: t('Uncategorized')); ?></small>
                                             <?php $displayMarket = !empty($product['market_location']) ? htmlspecialchars($product['market_location']) : (!empty($product['market_name']) ? htmlspecialchars($product['market_name']) : ''); ?>
-                                            <?php if (!empty($displayMarket)): ?><div class="small text-light mb-2"><i class="fas fa-store me-1 text-primary"></i><?php echo $displayMarket; ?></div><?php endif; ?>
+                                            <?php if (!empty($displayMarket)): ?><div class="small text-light mb-2"><i class="fas fa-store me-1 text-primary"></i><?php echo $displayMarket; ?> <a href="https://www.google.com/maps/search/?api=1&query=<?php echo rawurlencode($displayMarket . ' Ntungamo Uganda'); ?>" target="_blank" rel="noopener" class="ms-1 text-success">Map</a></div><?php endif; ?>
                                             <?php if (!empty($product['market_operating_days']) || !empty($product['market_hours'])): ?><div class="small text-light mb-2"><i class="fas fa-clock me-1 text-warning"></i><?php echo htmlspecialchars(trim(($product['market_operating_days'] ?: '') . ' ' . ($product['market_hours'] ?: ''))); ?></div><?php endif; ?>
                                             <?php if (!empty($product['pickup_instructions']) || !empty($product['delivery_instructions'])): ?><div class="small text-muted mb-2"><i class="fas fa-truck me-1 text-success"></i><?php echo htmlspecialchars($product['pickup_instructions'] ?: $product['delivery_instructions']); ?></div><?php endif; ?>
                                             <?php if (isset($productRatings[(int) $product['product_id']])): ?><small class="d-block text-warning mb-2"><?php echo str_repeat('&#9733;', (int) round($productRatings[(int) $product['product_id']]['average_rating'])); ?> <span class="text-muted"><?php echo number_format((float) $productRatings[(int) $product['product_id']]['average_rating'], 1); ?>/5 (<?php echo (int) $productRatings[(int) $product['product_id']]['review_count']; ?>)</span></small><?php else: ?><small class="d-block text-muted mb-2">No reviews yet</small><?php endif; ?>
@@ -923,9 +1005,72 @@ $unreadMessagesCount = $unreadResult ? (int) $unreadResult->fetch_assoc()['count
                             <?php if ($checkoutError): ?><div class="alert alert-danger"><?php echo htmlspecialchars($checkoutError); ?></div><?php endif; ?>
                             <form method="post" id="dashboardOrderForm" data-price="<?php echo (float) $checkoutProduct['price']; ?>" data-tax-rules="<?php echo htmlspecialchars(json_encode($checkoutTaxRules), ENT_QUOTES, 'UTF-8'); ?>">
                                 <input type="hidden" name="product_id" value="<?php echo (int) $checkoutProduct['product_id']; ?>">
-                                <div class="row g-3 align-items-end"><div class="col-lg-4"><label class="form-label" for="dashboardOrderProduct">Product</label><input class="form-control" id="dashboardOrderProduct" value="<?php echo htmlspecialchars($checkoutProduct['product_name']); ?>" readonly></div><div class="col-lg-3"><label class="form-label" for="dashboardOrderQuantity">Quantity (<?php echo htmlspecialchars($checkoutProduct['product_unit']); ?>)</label><input class="form-control" id="dashboardOrderQuantity" name="quantity" type="number" min="1" max="<?php echo (int) $checkoutProduct['stock_quantity']; ?>" value="<?php echo max(1, (int) ($_POST['quantity'] ?? 1)); ?>" required></div><div class="col-lg-5"><div class="order-total-strip"><span>Cart total</span><strong>UGX <span id="dashboardOrderTotal"><?php echo number_format((float) $checkoutProduct['price'], 2); ?></span></strong></div></div><div class="col-md-6"><label class="form-label" for="dashboardDeliveryLocation">Delivery location <span class="text-muted fw-normal">(optional until checkout)</span></label><textarea class="form-control" id="dashboardDeliveryLocation" name="delivery_location" rows="3" placeholder="Add the delivery location during checkout"><?php echo htmlspecialchars($_POST['delivery_location'] ?? ''); ?></textarea></div><div class="col-md-6"><label class="form-label" for="dashboardDeliveryNotes">Delivery notes <span class="text-muted fw-normal">(optional)</span></label><textarea class="form-control" id="dashboardDeliveryNotes" name="delivery_notes" rows="3" placeholder="Landmark or handling instructions"><?php echo htmlspecialchars($_POST['delivery_notes'] ?? ''); ?></textarea></div><div class="col-12"><div class="small text-muted mb-3">Subtotal: UGX <span id="dashboardOrderSubtotal"><?php echo number_format((float) $checkoutProduct['price'], 2); ?></span> · Tax: UGX <span id="dashboardOrderTax">0.00</span></div><button type="submit" name="add_to_cart" class="btn btn-success"><i class="fas fa-cart-plus me-2"></i>Add to cart</button><a href="customerDashboard.php#order-list" class="btn btn-outline-light ms-2">View cart</a></div></div>
+                                <div class="row g-3 align-items-end"><div class="col-lg-4"><label class="form-label" for="dashboardOrderProduct">Product</label><input class="form-control" id="dashboardOrderProduct" value="<?php echo htmlspecialchars($checkoutProduct['product_name']); ?>" readonly></div><div class="col-lg-3"><label class="form-label" for="dashboardOrderQuantity">Quantity (<?php echo htmlspecialchars($checkoutProduct['product_unit']); ?>)</label><input class="form-control" id="dashboardOrderQuantity" name="quantity" type="number" min="1" max="<?php echo (int) $checkoutProduct['stock_quantity']; ?>" value="<?php echo max(1, (int) ($_POST['quantity'] ?? 1)); ?>" required></div><div class="col-lg-5"><div class="order-total-strip"><span>Cart total</span><strong>UGX <span id="dashboardOrderTotal"><?php echo number_format((float) $checkoutProduct['price'], 2); ?></span></strong></div></div><div class="col-md-6"><label class="form-label" for="dashboardDeliveryLocation">Delivery location <span class="text-danger fw-normal">required</span></label><select class="form-select" id="dashboardDeliveryLocation" name="delivery_location" required><option value="">-- Select your delivery area --</option><?php $deliveryLocations = get_all_locations(); foreach ($deliveryLocations as $deliveryLocation): $selected = (!empty($_POST['delivery_location']) && $_POST['delivery_location'] == $deliveryLocation['location_name']) ? 'selected' : ''; ?><option value="<?php echo htmlspecialchars($deliveryLocation['location_name']); ?>" <?php echo $selected; ?>><?php echo htmlspecialchars($deliveryLocation['location_name']); ?></option><?php endforeach; ?></select><small class="text-muted d-block mt-2">Please confirm the delivery area before you continue.</small></div><div class="col-md-6"><label class="form-label" for="dashboardDeliveryNotes">Delivery notes <span class="text-muted fw-normal">(optional)</span></label><textarea class="form-control" id="dashboardDeliveryNotes" name="delivery_notes" rows="3" placeholder="Landmark or handling instructions"><?php echo htmlspecialchars($_POST['delivery_notes'] ?? ''); ?></textarea></div><div class="col-12"><div class="small text-muted mb-3">Subtotal: UGX <span id="dashboardOrderSubtotal"><?php echo number_format((float) $checkoutProduct['price'], 2); ?></span> · Tax: UGX <span id="dashboardOrderTax">0.00</span></div><button type="submit" name="add_to_cart" class="btn btn-success"><i class="fas fa-cart-plus me-2"></i>Add to cart</button><a href="customerDashboard.php#order-list" class="btn btn-outline-light ms-2">View cart</a></div></div>
                             </form>
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function () {
+                                    const orderForm = document.getElementById('dashboardOrderForm');
+                                    const deliveryField = document.getElementById('dashboardDeliveryLocation');
+                                    if (!orderForm || !deliveryField) return;
+                                    orderForm.addEventListener('submit', function (event) {
+                                        if (!deliveryField.value.trim()) {
+                                            event.preventDefault();
+                                            deliveryField.focus();
+                                            deliveryField.setCustomValidity('Please select a delivery location before adding this order.');
+                                            deliveryField.reportValidity();
+                                        } else {
+                                            deliveryField.setCustomValidity('');
+                                        }
+                                    });
+                                });
+                            </script>
                         <?php else: ?><div class="order-prompt"><i class="fas fa-cart-plus"></i><div><strong>Select a product from the marketplace</strong><p class="text-muted mb-0">Choose Order or Add to Cart on any available product to open checkout here.</p></div><a href="#browse" class="btn btn-outline-success">Browse products</a></div><?php endif; ?>
+                    </div>
+                </div>
+            </section>
+
+            <section id="profile-update" class="mb-4">
+                <div class="card dashboard-card mb-3">
+                    <div class="card-header"><h5 class="mb-0"><i class="fas fa-user-edit me-2"></i>Update profile</h5></div>
+                    <div class="card-body">
+                        <?php if ($profileUpdateError): ?><div class="alert alert-danger"><?php echo htmlspecialchars($profileUpdateError); ?></div><?php endif; ?>
+                        <?php if ($profileUpdateSuccess): ?><div class="alert alert-success"><?php echo htmlspecialchars($profileUpdateSuccess); ?></div><?php endif; ?>
+                        <form method="post" enctype="multipart/form-data">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="profileName">Full name</label>
+                                    <input class="form-control" id="profileName" name="profile_name" type="text" value="<?php echo htmlspecialchars($customerName); ?>" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="profilePhone">Phone number</label>
+                                    <input class="form-control" id="profilePhone" name="profile_phone" type="tel" value="<?php echo htmlspecialchars($customerPhone); ?>" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="profileAddress">Address</label>
+                                    <textarea class="form-control" id="profileAddress" name="profile_address" rows="3"><?php echo htmlspecialchars($currentCustomer['user_address'] ?? ''); ?></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="profileDeliveryLocation">Delivery location</label>
+                                    <select class="form-select" id="profileDeliveryLocation" name="profile_delivery_location" required>
+                                        <option value="">-- Select your delivery area --</option>
+                                        <?php $profileLocations = get_all_locations(); foreach ($profileLocations as $profileLocation): $selected = (!empty($currentCustomer['delivery_location']) && $currentCustomer['delivery_location'] == $profileLocation['location_name']) ? 'selected' : ''; ?>
+                                            <option value="<?php echo htmlspecialchars($profileLocation['location_name']); ?>" <?php echo $selected; ?>><?php echo htmlspecialchars($profileLocation['location_name']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="profilePassword">New password</label>
+                                    <input class="form-control" id="profilePassword" name="profile_password" type="password" placeholder="Leave blank to keep current password">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="profileConfirmPassword">Confirm new password</label>
+                                    <input class="form-control" id="profileConfirmPassword" name="profile_confirm_password" type="password" placeholder="Confirm new password">
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" name="update_customer_profile" class="btn btn-success"><i class="fas fa-save me-2"></i>Save profile</button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </section>

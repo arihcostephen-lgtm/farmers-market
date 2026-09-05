@@ -90,6 +90,7 @@ if ($product) {
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
   <link href="assets/css/place-order.css" rel="stylesheet">
 </head>
 <body class="checkout-page">
@@ -126,16 +127,25 @@ if ($product) {
               <div class="quantity-control mb-2"><button type="button" class="btn" data-quantity-change="decrease" aria-label="Decrease quantity"><i class="fa-solid fa-minus"></i></button><input type="number" id="quantity" name="quantity" class="form-control" min="1" max="<?php echo (int) $product['stock_quantity']; ?>" value="1" required <?php echo (int) $product['stock_quantity'] < 1 ? 'disabled' : ''; ?>><button type="button" class="btn" data-quantity-change="increase" aria-label="Increase quantity"><i class="fa-solid fa-plus"></i></button></div>
               <div class="form-text mb-4">Maximum available: <?php echo number_format((int) $product['stock_quantity']); ?> <?php echo htmlspecialchars($product['product_unit'] ?? 'kilogram'); ?></div>
               <label for="delivery_location" class="form-label">Delivery location (Ntungamo area)</label>
-              <select id="delivery_location" name="delivery_location" class="form-select mb-4" required>
+              <select id="delivery_location" name="delivery_location" class="form-select mb-3" required>
                 <option value="">-- Select Delivery Location --</option>
                 <?php 
                   $locations = get_all_locations();
                   foreach ($locations as $loc) {
                     $selected = (!empty($_POST['delivery_location']) && $_POST['delivery_location'] == $loc['location_name']) ? 'selected' : '';
-                    echo '<option value="' . htmlspecialchars($loc['location_name']) . '" ' . $selected . '>' . htmlspecialchars($loc['location_name']) . '</option>';
+                    $lat = isset($loc['latitude']) && $loc['latitude'] !== null ? (float) $loc['latitude'] : '';
+                    $lng = isset($loc['longitude']) && $loc['longitude'] !== null ? (float) $loc['longitude'] : '';
+                    echo '<option value="' . htmlspecialchars($loc['location_name']) . '" data-lat="' . htmlspecialchars((string) $lat) . '" data-lng="' . htmlspecialchars((string) $lng) . '" ' . $selected . '>' . htmlspecialchars($loc['location_name']) . '</option>';
                   }
                 ?>
               </select>
+              <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <small class="fw-semibold text-uppercase text-muted">Delivery map</small>
+                  <a id="deliveryMapLink" href="#" target="_blank" rel="noopener" class="small text-decoration-none">Open in Google Maps</a>
+                </div>
+                <div id="deliveryLocationMap" style="height: 240px; border-radius: 12px; overflow: hidden; background: #dfe7ea; border: 1px solid rgba(0,0,0,0.08);"></div>
+              </div>
               <label for="delivery_notes" class="form-label">Delivery notes <span class="text-muted fw-normal">(optional)</span></label>
               <textarea id="delivery_notes" name="delivery_notes" class="form-control" rows="3" placeholder="Landmark, preferred time, or handling instructions"><?php echo htmlspecialchars($_POST['delivery_notes'] ?? ''); ?></textarea>
               <div class="total-panel"><div class="total-row"><span>Subtotal</span><strong>UGX <span id="orderSubtotal"><?php echo number_format((float) $product['price'], 2, '.', ''); ?></span></strong></div><div class="total-row"><span>Tax</span><strong>UGX <span id="orderTax">0.00</span></strong></div><div class="total-row total-final"><span>Total due</span><strong>UGX <span id="orderTotal"><?php echo number_format((float) $product['price'], 2, '.', ''); ?></span></strong></div></div>
@@ -148,6 +158,49 @@ if ($product) {
       <div class="checkout-panel p-5 text-center checkout-reveal"><i class="fa-solid fa-box-open fs-1 text-warning mb-3"></i><h2>Product unavailable</h2><p class="checkout-subtitle mx-auto">The selected product is no longer available.</p><a href="customerDashboard.php" class="btn btn-success">Return to marketplace</a></div>
     <?php } ?>
   </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="assets/js/place-order.js"></script>
+  <script>
+    (function () {
+      const deliverySelect = document.getElementById('delivery_location');
+      const mapContainer = document.getElementById('deliveryLocationMap');
+      const deliveryMapLink = document.getElementById('deliveryMapLink');
+      if (!deliverySelect || !mapContainer || !window.L) return;
+
+      let deliveryMarker = null;
+      const center = { lat: -0.7991, lng: 29.7606 };
+      const map = L.map(mapContainer, { zoomControl: true, scrollWheelZoom: true }).setView([center.lat, center.lng], 10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      function updateDeliveryMap() {
+        const option = deliverySelect.options[deliverySelect.selectedIndex];
+        const lat = parseFloat(option?.dataset.lat || '');
+        const lng = parseFloat(option?.dataset.lng || '');
+        const locationName = option?.value ? option.value.trim() : '';
+        const safeLat = Number.isFinite(lat) ? lat : center.lat;
+        const safeLng = Number.isFinite(lng) ? lng : center.lng;
+
+        if (deliveryMarker) {
+          deliveryMarker.setLatLng([safeLat, safeLng]);
+        } else {
+          deliveryMarker = L.marker([safeLat, safeLng]).addTo(map);
+        }
+
+        deliveryMarker.bindPopup(locationName || 'Delivery destination');
+        map.setView([safeLat, safeLng], 12);
+
+        if (locationName) {
+          deliveryMapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(locationName + ' Ntungamo Uganda');
+        } else {
+          deliveryMapLink.href = 'https://www.google.com/maps?q=' + encodeURIComponent(safeLat + ',' + safeLng);
+        }
+      }
+
+      deliverySelect.addEventListener('change', updateDeliveryMap);
+      updateDeliveryMap();
+    })();
+  </script>
 </body>
 </html>

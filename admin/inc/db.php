@@ -407,26 +407,45 @@
 			location_name VARCHAR(100) NOT NULL UNIQUE,
 			district VARCHAR(50) NOT NULL DEFAULT 'Ntungamo',
 			description TEXT DEFAULT NULL,
+			latitude DECIMAL(10,7) DEFAULT NULL,
+			longitude DECIMAL(10,7) DEFAULT NULL,
 			is_active TINYINT(1) NOT NULL DEFAULT 1,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_location_name (location_name),
 			INDEX idx_location_active (is_active)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		// Add coordinate columns for older installations that already created the table
+		$locationCoordCheck = mysqli_query($db, "SHOW COLUMNS FROM locations LIKE 'latitude'");
+		if ($locationCoordCheck && mysqli_num_rows($locationCoordCheck) === 0) {
+			@mysqli_query($db, "ALTER TABLE locations ADD COLUMN latitude DECIMAL(10,7) DEFAULT NULL AFTER description");
+			@mysqli_query($db, "ALTER TABLE locations ADD COLUMN longitude DECIMAL(10,7) DEFAULT NULL AFTER latitude");
+		}
 		// Insert default Ntungamo locations if empty
 		$locationCount = mysqli_query($db, "SELECT COUNT(*) as cnt FROM locations");
 		if ($locationCount && (int) mysqli_fetch_assoc($locationCount)['cnt'] === 0) {
-			@mysqli_query($db, "INSERT INTO locations (location_name, district, description) VALUES
-			('Ntungamo Town', 'Ntungamo', 'Central Ntungamo town area'),
-			('Rubaare', 'Ntungamo', 'Rubaare division'),
-			('Bushenyi', 'Ntungamo', 'Bushenyi division'),
-			('Kabwohe', 'Ntungamo', 'Kabwohe area'),
-			('Mirama Hills', 'Ntungamo', 'Mirama Hills region'),
-			('Kanungu', 'Ntungamo', 'Kanungu area'),
-			('Rukungiri', 'Ntungamo', 'Rukungiri division'),
-			('Katuna', 'Ntungamo', 'Katuna border area'),
-			('Rukoki', 'Ntungamo', 'Rukoki area'),
-			('Kisoro', 'Ntungamo', 'Kisoro area')");
+			@mysqli_query($db, "INSERT INTO locations (location_name, district, description, latitude, longitude) VALUES
+			('Ntungamo Town', 'Ntungamo', 'Central Ntungamo town area', -0.7991, 29.7606),
+			('Rubaare', 'Ntungamo', 'Rubaare division', -0.8245, 29.9002),
+			('Bushenyi', 'Ntungamo', 'Bushenyi division', -0.5614, 30.1897),
+			('Kabwohe', 'Ntungamo', 'Kabwohe area', -0.6447, 30.0709),
+			('Mirama Hills', 'Ntungamo', 'Mirama Hills region', -0.7655, 30.5660),
+			('Kanungu', 'Ntungamo', 'Kanungu area', -0.9571, 29.7339),
+			('Rukungiri', 'Ntungamo', 'Rukungiri division', -0.7625, 29.9272),
+			('Katuna', 'Ntungamo', 'Katuna border area', -1.2456, 29.8019),
+			('Rukoki', 'Ntungamo', 'Rukoki area', -0.7791, 30.0798),
+			('Kisoro', 'Ntungamo', 'Kisoro area', -1.2850, 29.6801)");
 		}
+		// Ensure existing rows have latitude/longitude values where missing
+		@mysqli_query($db, "UPDATE locations SET latitude = -0.7991, longitude = 29.7606 WHERE latitude IS NULL AND location_name = 'Ntungamo Town'");
+		@mysqli_query($db, "UPDATE locations SET latitude = -0.8245, longitude = 29.9002 WHERE latitude IS NULL AND location_name = 'Rubaare'");
+		@mysqli_query($db, "UPDATE locations SET latitude = -0.5614, longitude = 30.1897 WHERE latitude IS NULL AND location_name = 'Bushenyi'");
+		@mysqli_query($db, "UPDATE locations SET latitude = -0.6447, longitude = 30.0709 WHERE latitude IS NULL AND location_name = 'Kabwohe'");
+		@mysqli_query($db, "UPDATE locations SET latitude = -0.7655, longitude = 30.5660 WHERE latitude IS NULL AND location_name = 'Mirama Hills'");
+		@mysqli_query($db, "UPDATE locations SET latitude = -0.9571, longitude = 29.7339 WHERE latitude IS NULL AND location_name = 'Kanungu'");
+		@mysqli_query($db, "UPDATE locations SET latitude = -0.7625, longitude = 29.9272 WHERE latitude IS NULL AND location_name = 'Rukungiri'");
+		@mysqli_query($db, "UPDATE locations SET latitude = -1.2456, longitude = 29.8019 WHERE latitude IS NULL AND location_name = 'Katuna'");
+		@mysqli_query($db, "UPDATE locations SET latitude = -0.7791, longitude = 30.0798 WHERE latitude IS NULL AND location_name = 'Rukoki'");
+		@mysqli_query($db, "UPDATE locations SET latitude = -1.2850, longitude = 29.6801 WHERE latitude IS NULL AND location_name = 'Kisoro'");
 		// Add location columns to farmer table
 		$farmLocationColumn = mysqli_query($db, "SHOW COLUMNS FROM farmer LIKE 'farm_location_id'");
 		if ($farmLocationColumn && mysqli_num_rows($farmLocationColumn) === 0) {

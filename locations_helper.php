@@ -11,7 +11,7 @@ if (!function_exists('get_all_locations')) {
      */
     function get_all_locations() {
         global $db;
-        $result = $db->query("SELECT location_id, location_name, description FROM locations WHERE is_active = 1 ORDER BY location_name ASC");
+        $result = $db->query("SELECT location_id, location_name, description, latitude, longitude FROM locations WHERE is_active = 1 ORDER BY location_name ASC");
         $locations = [];
         
         if ($result && $result->num_rows > 0) {
@@ -21,6 +21,26 @@ if (!function_exists('get_all_locations')) {
         }
         
         return $locations;
+    }
+}
+
+if (!function_exists('get_location_map_link')) {
+    /**
+     * Build a map URL for a location name or coordinates.
+     * @param string $location_name
+     * @param float|null $latitude
+     * @param float|null $longitude
+     * @return string
+     */
+    function get_location_map_link($location_name, $latitude = null, $longitude = null) {
+        $location = trim((string) $location_name);
+        if ($location === '' && $latitude !== null && $longitude !== null) {
+            return 'https://www.google.com/maps?q=' . rawurlencode($latitude . ',' . $longitude);
+        }
+        if ($location !== '') {
+            return 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode($location . ' Ntungamo Uganda');
+        }
+        return '#';
     }
 }
 

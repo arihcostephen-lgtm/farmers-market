@@ -1,6 +1,7 @@
 <?php 
 	include "inc/header.php";
 ?>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 
 			<div role="main" class="main public-auth-page">
 
@@ -273,3 +274,104 @@
 <?php 
 	include "inc/footer.php";
 ?>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+(function () {
+    const buildLocationSuggestionList = function (query, suggestionsBox, callback) {
+        const searchText = query.trim();
+        const normalizedQuery = searchText.length < 2 ? '' : searchText;
+        if (!normalizedQuery || !suggestionsBox) return;
+
+        fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=' + encodeURIComponent(normalizedQuery + ' Ntungamo Uganda'))
+            .then(function (response) { return response.ok ? response.json() : []; })
+            .then(function (data) {
+                suggestionsBox.innerHTML = '';
+                if (!Array.isArray(data) || data.length === 0) {
+                    suggestionsBox.innerHTML = '<div class="list-group-item text-muted">No results found. Try a nearby town or market name.</div>';
+                    return;
+                }
+
+                data.forEach(function (place) {
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'list-group-item list-group-item-action';
+                    item.textContent = place.display_name;
+                    item.type = 'button';
+                    item.dataset.placeName = place.display_name;
+                    item.dataset.latitude = place.lat;
+                    item.dataset.longitude = place.lon;
+                    item.addEventListener('click', function () {
+                        if (typeof callback === 'function') {
+                            callback(place);
+                        }
+                        suggestionsBox.innerHTML = '';
+                    });
+                    suggestionsBox.appendChild(item);
+                });
+            })
+            .catch(function () {
+                suggestionsBox.innerHTML = '<div class="list-group-item text-muted">Map suggestions are unavailable right now.</div>';
+            });
+    };
+
+    const initLocationPicker = function (searchInputId, suggestionsId, mapId, latitudeId, longitudeId, locationHiddenId) {
+        const input = document.getElementById(searchInputId);
+        const suggestionsBox = document.getElementById(suggestionsId);
+        const mapElement = document.getElementById(mapId);
+        const latInput = document.getElementById(latitudeId);
+        const lngInput = document.getElementById(longitudeId);
+        const locationField = document.getElementById(locationHiddenId);
+        if (!input || !suggestionsBox || !mapElement || !latInput || !lngInput || !locationField) return;
+
+        let map = null;
+        let marker = null;
+
+        const ensureMap = function () {
+            if (map) return;
+            map = L.map(mapElement, { zoomControl: true, scrollWheelZoom: true }).setView([-0.7991, 29.7606], 10);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+        };
+
+        const setPlace = function (place) {
+            const latitude = parseFloat(place.lat || latInput.value || '-0.7991');
+            const longitude = parseFloat(place.lon || lngInput.value || '29.7606');
+            const label = (place.display_name || place.name || input.value || '').trim();
+            ensureMap();
+            map.setView([latitude, longitude], 12);
+            if (!marker) {
+                marker = L.marker([latitude, longitude]).addTo(map);
+            } else {
+                marker.setLatLng([latitude, longitude]);
+            }
+            marker.bindPopup(label || 'Selected location');
+            latInput.value = latitude;
+            lngInput.value = longitude;
+            locationField.value = label;
+            mapElement.style.display = 'block';
+            input.value = label;
+            suggestionsBox.innerHTML = '';
+        };
+
+        input.addEventListener('input', function () {
+            if (input.value.trim().length < 2) {
+                suggestionsBox.innerHTML = '';
+                return;
+            }
+            buildLocationSuggestionList(input.value, suggestionsBox, setPlace);
+        });
+
+        if (latInput.value && lngInput.value) {
+            ensureMap();
+            map.setView([parseFloat(latInput.value), parseFloat(lngInput.value)], 12);
+            marker = L.marker([parseFloat(latInput.value), parseFloat(lngInput.value)]).addTo(map);
+            marker.bindPopup(locationField.value || 'Selected location');
+            mapElement.style.display = 'block';
+        }
+    };
+
+    initLocationPicker('farmLocationSearch', 'farmLocationSuggestions', 'farmMap', 'farmLatitude', 'farmLongitude', 'farmLocation');
+    initLocationPicker('marketLocationSearch', 'marketLocationSuggestions', 'marketMap', 'marketLatitude', 'marketLongitude', 'marketAddress');
+})();
+</script>
